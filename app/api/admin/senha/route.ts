@@ -1,15 +1,14 @@
 import { criarSenha, verificarSenha } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { sessoesAcesso, usuariosAcesso } from "@/db/schema";
-import { getAdminUser } from "@/lib/admin";
-import { isAdminPrincipal } from "@/lib/admin-principal";
+import { getAdminUser, isAdminEmail } from "@/lib/admin";
 import { eq } from "drizzle-orm";
 
 export const runtime = "edge";
 
 export async function POST(request: Request) {
   const admin = await getAdminUser();
-  if (!admin || !isAdminPrincipal(admin.email)) return Response.json({ message: "Somente o administrador principal pode alterar esta senha." }, { status: 403 });
+  if (!admin || !isAdminEmail(admin.email)) return Response.json({ message: "Somente o administrador principal pode alterar esta senha." }, { status: 403 });
   const form = await request.formData();
   const atual = String(form.get("senhaAtual") || "");
   const nova = String(form.get("novaSenha") || "");
