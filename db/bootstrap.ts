@@ -37,3 +37,11 @@ export function garantirBanco() {
   });
   return inicializado;
 }
+
+export async function garantirNomeEmpresarial() {
+  if (!env.DB) throw new Error("O vínculo DB não está disponível no Worker.");
+  const colunas = await env.DB.prepare("PRAGMA table_info(colaboradores)").all<{name:string}>();
+  if (colunas.results.length && !colunas.results.some(coluna => coluna.name === "nome_empresarial")) {
+    await env.DB.prepare("ALTER TABLE colaboradores ADD COLUMN nome_empresarial TEXT").run();
+  }
+}
