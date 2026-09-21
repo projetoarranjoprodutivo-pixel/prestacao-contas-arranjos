@@ -2,21 +2,598 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, FileUp, Loader2, Plus, Trash2 } from "lucide-react";
 import { TIPOS_MUDAS } from "@/lib/opcoes-atividades";
-type Atividade={executada:boolean;municipio:string;comunidade:string;propriedade:string;agricultor:string;telefone:string;tipoAtividade:string;tipoMuda:string;quantidadeMudas:string;data:string;inicio:string;duracao:string;resumo:string};
-type Agricultor={municipio:string;comunidade:string;propriedade:string;agricultor:string;telefone:string};
-const vazia=():Atividade=>({executada:true,municipio:"",comunidade:"",propriedade:"",agricultor:"",telefone:"",tipoAtividade:"",tipoMuda:"",quantidadeMudas:"",data:"",inicio:"",duracao:"",resumo:""});
-export default function PrestacaoForm({nome,cargo,associacao,agricultores,municipios}:{nome:string;cargo:string;associacao:string;agricultores:Agricultor[];municipios:string[]}){
- const[atividades,setAtividades]=useState<Atividade[]>([vazia()]);const[anexos,setAnexos]=useState<Array<{id:string;file:File}>>([]);const[anexosSalvos,setAnexosSalvos]=useState<Array<{nome:string}>>([]);const[competencia,setCompetencia]=useState("");const[observacoes,setObservacoes]=useState("");const[origem,setOrigem]=useState("");const[carregando,setCarregando]=useState(false);const[status,setStatus]=useState<"idle"|"loading"|"success"|"error">("idle");const[msg,setMsg]=useState("");
- const campo="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-700 focus:ring-4 focus:ring-emerald-700/10";
- useEffect(()=>{if(!/^\d{4}-\d{2}$/.test(competencia))return;const controller=new AbortController();setCarregando(true);setStatus("idle");fetch(`/api/prestacao?competencia=${competencia}`,{signal:controller.signal}).then(r=>r.json()).then(d=>{if(d.atividades?.length){setAtividades(d.atividades.map((a:Partial<Atividade>&{beneficiario?:string})=>({executada:a.executada!==false,municipio:a.municipio||"",comunidade:a.comunidade||"",propriedade:a.propriedade||"",agricultor:a.agricultor||a.beneficiario||"",telefone:a.telefone||"",tipoAtividade:a.tipoAtividade||"Visita Técnica",tipoMuda:a.tipoMuda||"",quantidadeMudas:a.quantidadeMudas||"",data:a.data||"",inicio:a.inicio||"",duracao:a.duracao||"",resumo:a.resumo||""})));}else setAtividades([vazia()]);setObservacoes(d.observacoes||"");setAnexosSalvos(d.anexos||[]);setOrigem(d.origem||"");}).catch(()=>{}).finally(()=>setCarregando(false));return()=>controller.abort();},[competencia]);
- function alterar(i:number,k:keyof Atividade,v:string|boolean){setAtividades(xs=>xs.map((x,j)=>j===i?{...x,[k]:v}:x));}
- function selecionarAgricultor(i:number,nomeAgricultor:string){const cadastro=agricultores.find(a=>a.agricultor===nomeAgricultor);setAtividades(xs=>xs.map((x,j)=>j===i?{...x,agricultor:nomeAgricultor,municipio:cadastro?.municipio||x.municipio,comunidade:cadastro?.comunidade||x.comunidade,propriedade:cadastro?.propriedade||x.propriedade,telefone:cadastro?.telefone||x.telefone}:x));}
- function incluirAnexos(files:FileList|null){if(!files||!files.length)return;const selecionados=Array.from(files);setAnexos(xs=>[...xs,...selecionados.map(file=>({id:crypto.randomUUID(),file}))]);setStatus("idle");setMsg(`${selecionados.length} anexo(s) incluído(s) e exibido(s) abaixo.`);}
- async function enviar(e:React.FormEvent<HTMLFormElement>){e.preventDefault();setStatus("loading");setMsg("");const fd=new FormData(e.currentTarget);fd.delete("anexos");fd.delete("seletor-anexos");fd.set("atividades",JSON.stringify(atividades));anexos.forEach(a=>fd.append("anexos",a.file,a.file.name));const r=await fetch("/api/prestacao",{method:"POST",body:fd});const b=await r.json().catch(()=>({}));setStatus(r.ok?"success":"error");setMsg(b.message||(r.ok?"Prestação salva.":"Não foi possível salvar."));if(r.ok){setOrigem("prestacao");setAnexosSalvos(b.anexos||[]);setAnexos([]);}}
- return <main className="min-h-screen bg-[#f4f7f3]"><header className="bg-[#123b2a] text-white"><div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4"><a href="/painel" className="font-bold">← Voltar ao painel</a><span className="text-sm text-emerald-100">{nome} · {cargo}</span></div></header><form onSubmit={enviar} className="mx-auto max-w-7xl px-5 py-7"><div className="mb-6"><p className="text-sm font-bold uppercase tracking-[.14em] text-emerald-700">Relatório mensal</p><h1 className="mt-1 text-3xl font-bold">Prestação de contas</h1><p className="mt-2 text-slate-600">Escolha a competência para carregar o plano de trabalho ou editar uma prestação já salva.</p></div>
- <section className="rounded-2xl border bg-white p-5 shadow-sm"><div className="grid gap-5 sm:grid-cols-2"><label className="text-sm font-semibold">Competência *<input type="month" name="competencia" required value={competencia} onChange={e=>setCompetencia(e.target.value)} className={campo}/></label><label className="text-sm font-semibold">Associação cadastrada<input value={associacao} readOnly className={`${campo} bg-slate-100 font-bold`}/></label></div>{carregando&&<p className="mt-3 text-sm text-emerald-700">Carregando informações da competência...</p>}{!carregando&&origem==="plano"&&<p className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-800">Atividades copiadas do Plano de Trabalho. Revise o que foi ou não executado.</p>}{!carregando&&origem==="prestacao"&&<p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">Prestação já existente carregada para edição.</p>}{!carregando&&origem==="vazio"&&<p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Nenhum plano encontrado para esta competência. Adicione as atividades manualmente.</p>}</section>
- <div className="mt-6 flex items-center justify-between"><h2 className="text-xl font-bold">Atividades do mês</h2><button type="button" onClick={()=>setAtividades(xs=>[...xs,vazia()])} className="inline-flex items-center gap-2 rounded-lg border border-emerald-700 px-4 py-2 font-bold text-emerald-800"><Plus className="h-4 w-4"/>Adicionar atividade</button></div>
- <div className="mt-3 space-y-4">{atividades.map((a,i)=><section key={i} className={`rounded-2xl border bg-white p-5 shadow-sm ${!a.executada?"border-amber-300":""}`}><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h3 className="font-bold">Atividade {i+1}{a.tipoAtividade==="Entrega de mudas"&&<span className="ml-2 rounded-full bg-emerald-100 px-3 py-1 text-xs text-emerald-900">Entrega de Mudas</span>}</h3><div className="flex items-center gap-4"><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={a.executada} onChange={e=>alterar(i,"executada",e.target.checked)} className="h-4 w-4"/>Executada</label>{atividades.length>1&&<button type="button" onClick={()=>setAtividades(xs=>xs.filter((_,j)=>j!==i))} className="text-red-700"><Trash2 className="h-5 w-5"/></button>}</div></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><label className="text-sm font-semibold">{a.tipoAtividade==="Entrega de mudas"?"Data da entrega *":"Data *"}<input type="date" required value={a.data} onChange={e=>alterar(i,"data",e.target.value)} className={campo}/></label><label className="text-sm font-semibold">Hora prevista/início *<input type="time" required value={a.inicio} onChange={e=>alterar(i,"inicio",e.target.value)} className={campo}/></label><label className="text-sm font-semibold">Tipo de atividade *<select required value={a.tipoAtividade} onChange={e=>setAtividades(xs=>xs.map((x,j)=>j===i?{...x,tipoAtividade:e.target.value,tipoMuda:e.target.value==="Entrega de mudas"?x.tipoMuda:"",quantidadeMudas:e.target.value==="Entrega de mudas"?x.quantidadeMudas:""}:x))} className={campo}><option value="">Selecione</option><option>Visita Técnica</option><option>Dias de Campo</option><option>Seminário</option><option value="Entrega de mudas">Entrega de Mudas</option></select></label><label className="text-sm font-semibold">{a.tipoAtividade==="Entrega de mudas"?"Município da entrega *":"Município *"}<select required value={a.municipio} onChange={e=>alterar(i,"municipio",e.target.value)} className={campo}><option value="">Selecione o município</option>{a.municipio&&!municipios.includes(a.municipio)&&<option>{a.municipio}</option>}{municipios.map(m=><option key={m}>{m}</option>)}</select></label>{a.tipoAtividade==="Visita Técnica"&&<><label className="text-sm font-semibold">Agricultor *<select required value={a.agricultor} onChange={e=>selecionarAgricultor(i,e.target.value)} className={campo}><option value="">Selecione o agricultor</option>{a.agricultor&&!agricultores.some(x=>x.agricultor===a.agricultor)&&<option value={a.agricultor}>{a.agricultor}</option>}{agricultores.map((x,index)=><option key={`${x.agricultor}-${index}`} value={x.agricultor}>{x.agricultor}</option>)}</select></label><label className="text-sm font-semibold">Comunidade *<input required value={a.comunidade} onChange={e=>alterar(i,"comunidade",e.target.value)} className={campo}/></label><label className="text-sm font-semibold">Propriedade *<input required value={a.propriedade} onChange={e=>alterar(i,"propriedade",e.target.value)} className={campo}/></label><label className="text-sm font-semibold">Telefone *<input required value={a.telefone} onChange={e=>alterar(i,"telefone",e.target.value)} className={campo}/></label></>}{a.tipoAtividade==="Entrega de mudas"&&<><label className="text-sm font-semibold">Tipo de mudas *<select required value={a.tipoMuda} onChange={e=>alterar(i,"tipoMuda",e.target.value)} className={campo}><option value="">Selecione o tipo</option>{a.tipoMuda&&!TIPOS_MUDAS.includes(a.tipoMuda as typeof TIPOS_MUDAS[number])&&<option>{a.tipoMuda}</option>}{TIPOS_MUDAS.map(tipo=><option key={tipo}>{tipo}</option>)}</select></label><label className="text-sm font-semibold">Quantidade de mudas *<input type="number" min="1" required value={a.quantidadeMudas} onChange={e=>alterar(i,"quantidadeMudas",e.target.value)} className={campo}/></label></>}<label className="text-sm font-semibold">Duração em minutos {a.executada&&"*"}<input type="number" min="0" required={a.executada} value={a.duracao} onChange={e=>alterar(i,"duracao",e.target.value)} className={campo}/></label><label className="text-sm font-semibold sm:col-span-2 lg:col-span-4">{a.executada?"Resumo da execução *":"Motivo da não execução *"}<textarea required value={a.resumo} onChange={e=>alterar(i,"resumo",e.target.value)} rows={3} className="mt-1.5 w-full rounded-lg border border-slate-300 p-3 text-base outline-none focus:border-emerald-700"/></label></div></section>)}</div>
- <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm"><h2 className="font-bold">Anexos comprobatórios</h2><p className="mt-1 text-sm text-slate-600">Adicione um arquivo por vez ou selecione vários de uma só vez. Eles serão enviados ao salvar a prestação.</p>{anexosSalvos.length>0&&<p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800"><strong>{anexosSalvos.length} anexo(s) salvo(s):</strong> {anexosSalvos.map(a=>a.nome).join(", ")}</p>}<label className="mt-4 flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 p-5 text-center"><FileUp className="h-6 w-6 text-emerald-700"/><span className="mt-2 font-bold">Adicionar anexo(s)</span><span className="text-xs text-slate-500">PDF, JPG, PNG, Word ou Excel · até 20 MB por arquivo</span><input type="file" name="seletor-anexos" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" className="sr-only" onChange={e=>{incluirAnexos(e.target.files);e.target.value="";}}/></label>{anexos.length>0&&<p className="mt-3 text-sm font-bold text-blue-800">{anexos.length} novo(s) arquivo(s) pronto(s) para envio:</p>}<div className="mt-2 space-y-2">{anexos.map((a,i)=><div key={a.id} className="flex items-center justify-between gap-3 rounded-lg border bg-blue-50 px-3 py-2"><span className="truncate text-sm"><strong>{i+1}.</strong> {a.file.name}</span><button type="button" onClick={()=>setAnexos(xs=>xs.filter(x=>x.id!==a.id))} className="text-sm font-semibold text-red-700">Remover</button></div>)}</div><label className="mt-5 block text-sm font-semibold">Observações gerais<textarea name="observacoes" rows={4} value={observacoes} onChange={e=>setObservacoes(e.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-300 p-3 text-base outline-none focus:border-emerald-700"/></label></section>
- <div className="mt-6 flex flex-col-reverse items-stretch justify-between gap-3 sm:flex-row sm:items-center"><div><p className={`text-sm font-semibold ${status==="error"?"text-red-700":"text-emerald-700"}`}>{status==="success"&&<CheckCircle2 className="mr-2 inline h-5 w-5"/>}{msg}</p>{status==="success"&&competencia&&<a href={`/api/prestacao/pdf?competencia=${competencia}`} className="mt-2 inline-block rounded-lg border border-emerald-700 px-4 py-2 text-sm font-bold text-emerald-800">Baixar prestação em PDF</a>}</div><button disabled={status==="loading"} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#176344] px-6 font-bold text-white disabled:opacity-60">{status==="loading"&&<Loader2 className="h-4 w-4 animate-spin"/>}{origem==="prestacao"?"Salvar alterações":"Enviar prestação de contas"}</button></div></form></main>;
+import AssinaturaCanvas from "./assinatura-canvas";
+type Atividade = {
+  executada: boolean;
+  municipio: string;
+  comunidade: string;
+  propriedade: string;
+  agricultor: string;
+  telefone: string;
+  tipoAtividade: string;
+  tipoMuda: string;
+  quantidadeMudas: string;
+  data: string;
+  inicio: string;
+  duracao: string;
+  resumo: string;
+  assinaturaProdutor: string;
+  assinaturaTecnico: string;
+};
+type Agricultor = {
+  municipio: string;
+  comunidade: string;
+  propriedade: string;
+  agricultor: string;
+  telefone: string;
+};
+const vazia = (): Atividade => ({
+  executada: true,
+  municipio: "",
+  comunidade: "",
+  propriedade: "",
+  agricultor: "",
+  telefone: "",
+  tipoAtividade: "",
+  tipoMuda: "",
+  quantidadeMudas: "",
+  data: "",
+  inicio: "",
+  duracao: "",
+  resumo: "",
+  assinaturaProdutor: "",
+  assinaturaTecnico: "",
+});
+export default function PrestacaoForm({
+  nome,
+  cargo,
+  associacao,
+  agricultores,
+  municipios,
+}: {
+  nome: string;
+  cargo: string;
+  associacao: string;
+  agricultores: Agricultor[];
+  municipios: string[];
+}) {
+  const [atividades, setAtividades] = useState<Atividade[]>([vazia()]);
+  const [anexos, setAnexos] = useState<Array<{ id: string; file: File }>>([]);
+  const [anexosSalvos, setAnexosSalvos] = useState<Array<{ nome: string }>>([]);
+  const [competencia, setCompetencia] = useState("");
+  const [observacoes, setObservacoes] = useState("");
+  const [origem, setOrigem] = useState("");
+  const [carregando, setCarregando] = useState(false);
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [msg, setMsg] = useState("");
+  const campo =
+    "mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-700 focus:ring-4 focus:ring-emerald-700/10";
+  useEffect(() => {
+    if (!/^\d{4}-\d{2}$/.test(competencia)) return;
+    const controller = new AbortController();
+    setCarregando(true);
+    setStatus("idle");
+    fetch(`/api/prestacao?competencia=${competencia}`, {
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.atividades?.length) {
+          setAtividades(
+            d.atividades.map(
+              (a: Partial<Atividade> & { beneficiario?: string }) => ({
+                executada: a.executada !== false,
+                municipio: a.municipio || "",
+                comunidade: a.comunidade || "",
+                propriedade: a.propriedade || "",
+                agricultor: a.agricultor || a.beneficiario || "",
+                telefone: a.telefone || "",
+                tipoAtividade: a.tipoAtividade || "Visita Técnica",
+                tipoMuda: a.tipoMuda || "",
+                quantidadeMudas: a.quantidadeMudas || "",
+                data: a.data || "",
+                inicio: a.inicio || "",
+                duracao: a.duracao || "",
+                resumo: a.resumo || "",
+                assinaturaProdutor: a.assinaturaProdutor || "",
+                assinaturaTecnico: a.assinaturaTecnico || "",
+              }),
+            ),
+          );
+        } else setAtividades([vazia()]);
+        setObservacoes(d.observacoes || "");
+        setAnexosSalvos(d.anexos || []);
+        setOrigem(d.origem || "");
+      })
+      .catch(() => {})
+      .finally(() => setCarregando(false));
+    return () => controller.abort();
+  }, [competencia]);
+  function alterar(i: number, k: keyof Atividade, v: string | boolean) {
+    setAtividades((xs) => xs.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
+  }
+  function selecionarAgricultor(i: number, nomeAgricultor: string) {
+    const cadastro = agricultores.find((a) => a.agricultor === nomeAgricultor);
+    setAtividades((xs) =>
+      xs.map((x, j) =>
+        j === i
+          ? {
+              ...x,
+              agricultor: nomeAgricultor,
+              municipio: cadastro?.municipio || x.municipio,
+              comunidade: cadastro?.comunidade || x.comunidade,
+              propriedade: cadastro?.propriedade || x.propriedade,
+              telefone: cadastro?.telefone || x.telefone,
+            }
+          : x,
+      ),
+    );
+  }
+  function incluirAnexos(files: FileList | null) {
+    if (!files || !files.length) return;
+    const selecionados = Array.from(files);
+    setAnexos((xs) => [
+      ...xs,
+      ...selecionados.map((file) => ({ id: crypto.randomUUID(), file })),
+    ]);
+    setStatus("idle");
+    setMsg(`${selecionados.length} anexo(s) incluído(s) e exibido(s) abaixo.`);
+  }
+  async function enviar(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setStatus("loading");
+    setMsg("");
+    const fd = new FormData(e.currentTarget);
+    fd.delete("anexos");
+    fd.delete("seletor-anexos");
+    fd.set("atividades", JSON.stringify(atividades));
+    anexos.forEach((a) => fd.append("anexos", a.file, a.file.name));
+    const r = await fetch("/api/prestacao", { method: "POST", body: fd });
+    const b = await r.json().catch(() => ({}));
+    setStatus(r.ok ? "success" : "error");
+    setMsg(
+      b.message || (r.ok ? "Prestação salva." : "Não foi possível salvar."),
+    );
+    if (r.ok) {
+      setOrigem("prestacao");
+      setAnexosSalvos(b.anexos || []);
+      setAnexos([]);
+    }
+  }
+  return (
+    <main className="min-h-screen bg-[#f4f7f3]">
+      <header className="bg-[#123b2a] text-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
+          <a href="/painel" className="font-bold">
+            ← Voltar ao painel
+          </a>
+          <span className="text-sm text-emerald-100">
+            {nome} · {cargo}
+          </span>
+        </div>
+      </header>
+      <form onSubmit={enviar} className="mx-auto max-w-7xl px-5 py-7">
+        <div className="mb-6">
+          <p className="text-sm font-bold uppercase tracking-[.14em] text-emerald-700">
+            Relatório mensal
+          </p>
+          <h1 className="mt-1 text-3xl font-bold">Prestação de contas</h1>
+          <p className="mt-2 text-slate-600">
+            Escolha a competência para carregar o plano de trabalho ou editar
+            uma prestação já salva.
+          </p>
+        </div>
+        <section className="rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="text-sm font-semibold">
+              Competência *
+              <input
+                type="month"
+                name="competencia"
+                required
+                value={competencia}
+                onChange={(e) => setCompetencia(e.target.value)}
+                className={campo}
+              />
+            </label>
+            <label className="text-sm font-semibold">
+              Associação cadastrada
+              <input
+                value={associacao}
+                readOnly
+                className={`${campo} bg-slate-100 font-bold`}
+              />
+            </label>
+          </div>
+          {carregando && (
+            <p className="mt-3 text-sm text-emerald-700">
+              Carregando informações da competência...
+            </p>
+          )}
+          {!carregando && origem === "plano" && (
+            <p className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
+              Atividades copiadas do Plano de Trabalho. Revise o que foi ou não
+              executado.
+            </p>
+          )}
+          {!carregando && origem === "prestacao" && (
+            <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+              Prestação já existente carregada para edição.
+            </p>
+          )}
+          {!carregando && origem === "vazio" && (
+            <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+              Nenhum plano encontrado para esta competência. Adicione as
+              atividades manualmente.
+            </p>
+          )}
+        </section>
+        <div className="mt-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold">Atividades do mês</h2>
+          <button
+            type="button"
+            onClick={() => setAtividades((xs) => [...xs, vazia()])}
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-700 px-4 py-2 font-bold text-emerald-800"
+          >
+            <Plus className="h-4 w-4" />
+            Adicionar atividade
+          </button>
+        </div>
+        <div className="mt-3 space-y-4">
+          {atividades.map((a, i) => (
+            <section
+              key={i}
+              className={`rounded-2xl border bg-white p-5 shadow-sm ${!a.executada ? "border-amber-300" : ""}`}
+            >
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h3 className="font-bold">
+                  Atividade {i + 1}
+                  {a.tipoAtividade === "Entrega de mudas" && (
+                    <span className="ml-2 rounded-full bg-emerald-100 px-3 py-1 text-xs text-emerald-900">
+                      Entrega de Mudas
+                    </span>
+                  )}
+                </h3>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 text-sm font-bold">
+                    <input
+                      type="checkbox"
+                      checked={a.executada}
+                      onChange={(e) =>
+                        alterar(i, "executada", e.target.checked)
+                      }
+                      className="h-4 w-4"
+                    />
+                    Executada
+                  </label>
+                  {atividades.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAtividades((xs) => xs.filter((_, j) => j !== i))
+                      }
+                      className="text-red-700"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="text-sm font-semibold">
+                  {a.tipoAtividade === "Entrega de mudas"
+                    ? "Data da entrega *"
+                    : "Data *"}
+                  <input
+                    type="date"
+                    required
+                    value={a.data}
+                    onChange={(e) => alterar(i, "data", e.target.value)}
+                    className={campo}
+                  />
+                </label>
+                <label className="text-sm font-semibold">
+                  Hora prevista/início *
+                  <input
+                    type="time"
+                    required
+                    value={a.inicio}
+                    onChange={(e) => alterar(i, "inicio", e.target.value)}
+                    className={campo}
+                  />
+                </label>
+                <label className="text-sm font-semibold">
+                  Tipo de atividade *
+                  <select
+                    required
+                    value={a.tipoAtividade}
+                    onChange={(e) =>
+                      setAtividades((xs) =>
+                        xs.map((x, j) =>
+                          j === i
+                            ? {
+                                ...x,
+                                tipoAtividade: e.target.value,
+                                tipoMuda:
+                                  e.target.value === "Entrega de mudas"
+                                    ? x.tipoMuda
+                                    : "",
+                                quantidadeMudas:
+                                  e.target.value === "Entrega de mudas"
+                                    ? x.quantidadeMudas
+                                    : "",
+                              }
+                            : x,
+                        ),
+                      )
+                    }
+                    className={campo}
+                  >
+                    <option value="">Selecione</option>
+                    <option>Visita Técnica</option>
+                    <option>Dias de Campo</option>
+                    <option>Seminário</option>
+                    <option value="Entrega de mudas">Entrega de Mudas</option>
+                  </select>
+                </label>
+                <label className="text-sm font-semibold">
+                  {a.tipoAtividade === "Entrega de mudas"
+                    ? "Município da entrega *"
+                    : "Município *"}
+                  <select
+                    required
+                    value={a.municipio}
+                    onChange={(e) => alterar(i, "municipio", e.target.value)}
+                    className={campo}
+                  >
+                    <option value="">Selecione o município</option>
+                    {a.municipio && !municipios.includes(a.municipio) && (
+                      <option>{a.municipio}</option>
+                    )}
+                    {municipios.map((m) => (
+                      <option key={m}>{m}</option>
+                    ))}
+                  </select>
+                </label>
+                {a.tipoAtividade === "Visita Técnica" && (
+                  <>
+                    <label className="text-sm font-semibold">
+                      Agricultor *
+                      <select
+                        required
+                        value={a.agricultor}
+                        onChange={(e) =>
+                          selecionarAgricultor(i, e.target.value)
+                        }
+                        className={campo}
+                      >
+                        <option value="">Selecione o agricultor</option>
+                        {a.agricultor &&
+                          !agricultores.some(
+                            (x) => x.agricultor === a.agricultor,
+                          ) && (
+                            <option value={a.agricultor}>{a.agricultor}</option>
+                          )}
+                        {agricultores.map((x, index) => (
+                          <option
+                            key={`${x.agricultor}-${index}`}
+                            value={x.agricultor}
+                          >
+                            {x.agricultor}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-sm font-semibold">
+                      Comunidade *
+                      <input
+                        required
+                        value={a.comunidade}
+                        onChange={(e) =>
+                          alterar(i, "comunidade", e.target.value)
+                        }
+                        className={campo}
+                      />
+                    </label>
+                    <label className="text-sm font-semibold">
+                      Propriedade *
+                      <input
+                        required
+                        value={a.propriedade}
+                        onChange={(e) =>
+                          alterar(i, "propriedade", e.target.value)
+                        }
+                        className={campo}
+                      />
+                    </label>
+                    <label className="text-sm font-semibold">
+                      Telefone *
+                      <input
+                        required
+                        value={a.telefone}
+                        onChange={(e) => alterar(i, "telefone", e.target.value)}
+                        className={campo}
+                      />
+                    </label>
+                  </>
+                )}
+                {a.tipoAtividade === "Entrega de mudas" && (
+                  <>
+                    <label className="text-sm font-semibold">
+                      Tipo de mudas *
+                      <select
+                        required
+                        value={a.tipoMuda}
+                        onChange={(e) => alterar(i, "tipoMuda", e.target.value)}
+                        className={campo}
+                      >
+                        <option value="">Selecione o tipo</option>
+                        {a.tipoMuda &&
+                          !TIPOS_MUDAS.includes(
+                            a.tipoMuda as (typeof TIPOS_MUDAS)[number],
+                          ) && <option>{a.tipoMuda}</option>}
+                        {TIPOS_MUDAS.map((tipo) => (
+                          <option key={tipo}>{tipo}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-sm font-semibold">
+                      Quantidade de mudas *
+                      <input
+                        type="number"
+                        min="1"
+                        required
+                        value={a.quantidadeMudas}
+                        onChange={(e) =>
+                          alterar(i, "quantidadeMudas", e.target.value)
+                        }
+                        className={campo}
+                      />
+                    </label>
+                  </>
+                )}
+                <label className="text-sm font-semibold">
+                  Duração em minutos {a.executada && "*"}
+                  <input
+                    type="number"
+                    min="0"
+                    required={a.executada}
+                    value={a.duracao}
+                    onChange={(e) => alterar(i, "duracao", e.target.value)}
+                    className={campo}
+                  />
+                </label>
+                <label className="text-sm font-semibold sm:col-span-2 lg:col-span-4">
+                  {a.executada
+                    ? "Resumo da execução *"
+                    : "Motivo da não execução *"}
+                  <textarea
+                    required
+                    value={a.resumo}
+                    onChange={(e) => alterar(i, "resumo", e.target.value)}
+                    rows={3}
+                    className="mt-1.5 w-full rounded-lg border border-slate-300 p-3 text-base outline-none focus:border-emerald-700"
+                  />
+                </label>
+              </div>
+              {a.executada && (
+                <div className="mt-5 grid gap-4 border-t pt-5 md:grid-cols-2">
+                  <AssinaturaCanvas
+                    titulo="Assinatura do produtor/representante"
+                    valor={a.assinaturaProdutor}
+                    onChange={(valor) => alterar(i, "assinaturaProdutor", valor)}
+                  />
+                  <AssinaturaCanvas
+                    titulo="Assinatura do técnico"
+                    valor={a.assinaturaTecnico}
+                    onChange={(valor) => alterar(i, "assinaturaTecnico", valor)}
+                  />
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+        <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <h2 className="font-bold">Anexos comprobatórios</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Adicione um arquivo por vez ou selecione vários de uma só vez. Eles
+            serão enviados ao salvar a prestação.
+          </p>
+          {anexosSalvos.length > 0 && (
+            <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+              <strong>{anexosSalvos.length} anexo(s) salvo(s):</strong>{" "}
+              {anexosSalvos.map((a) => a.nome).join(", ")}
+            </p>
+          )}
+          <label className="mt-4 flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 p-5 text-center">
+            <FileUp className="h-6 w-6 text-emerald-700" />
+            <span className="mt-2 font-bold">Adicionar anexo(s)</span>
+            <span className="text-xs text-slate-500">
+              PDF, JPG, PNG, Word ou Excel · até 20 MB por arquivo
+            </span>
+            <input
+              type="file"
+              name="seletor-anexos"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+              className="sr-only"
+              onChange={(e) => {
+                incluirAnexos(e.target.files);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {anexos.length > 0 && (
+            <p className="mt-3 text-sm font-bold text-blue-800">
+              {anexos.length} novo(s) arquivo(s) pronto(s) para envio:
+            </p>
+          )}
+          <div className="mt-2 space-y-2">
+            {anexos.map((a, i) => (
+              <div
+                key={a.id}
+                className="flex items-center justify-between gap-3 rounded-lg border bg-blue-50 px-3 py-2"
+              >
+                <span className="truncate text-sm">
+                  <strong>{i + 1}.</strong> {a.file.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAnexos((xs) => xs.filter((x) => x.id !== a.id))
+                  }
+                  className="text-sm font-semibold text-red-700"
+                >
+                  Remover
+                </button>
+              </div>
+            ))}
+          </div>
+          <label className="mt-5 block text-sm font-semibold">
+            Observações gerais
+            <textarea
+              name="observacoes"
+              rows={4}
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              className="mt-1.5 w-full rounded-lg border border-slate-300 p-3 text-base outline-none focus:border-emerald-700"
+            />
+          </label>
+        </section>
+        <div className="mt-6 flex flex-col-reverse items-stretch justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <p
+              className={`text-sm font-semibold ${status === "error" ? "text-red-700" : "text-emerald-700"}`}
+            >
+              {status === "success" && (
+                <CheckCircle2 className="mr-2 inline h-5 w-5" />
+              )}
+              {msg}
+            </p>
+            {status === "success" && competencia && (
+              <a
+                href={`/api/prestacao/pdf?competencia=${competencia}`}
+                className="mt-2 inline-block rounded-lg border border-emerald-700 px-4 py-2 text-sm font-bold text-emerald-800"
+              >
+                Baixar prestação em PDF
+              </a>
+            )}
+          </div>
+          <button
+            disabled={status === "loading"}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#176344] px-6 font-bold text-white disabled:opacity-60"
+          >
+            {status === "loading" && (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            )}
+            {origem === "prestacao"
+              ? "Salvar alterações"
+              : "Enviar prestação de contas"}
+          </button>
+        </div>
+      </form>
+    </main>
+  );
 }

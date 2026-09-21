@@ -4,7 +4,7 @@ import { getDb } from "@/db";
 import { colaboradores, planosTrabalho, prestacoes } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 export const runtime="edge";
-type Atividade={executada:boolean;municipio:string;comunidade:string;propriedade:string;agricultor:string;telefone:string;tipoAtividade:string;tipoMuda:string;quantidadeMudas:string;data:string;inicio:string;duracao:string;resumo:string};
+type Atividade={executada:boolean;municipio:string;comunidade:string;propriedade:string;agricultor:string;telefone:string;tipoAtividade:string;tipoMuda:string;quantidadeMudas:string;data:string;inicio:string;duracao:string;resumo:string;assinaturaProdutor?:string;assinaturaTecnico?:string};
 
 export async function GET(request:Request){
   const user=await getChatGPTUser();if(!user)return Response.json({message:"Sessão expirada."},{status:401});
@@ -13,7 +13,7 @@ export async function GET(request:Request){
     db.query.prestacoes.findFirst({where:and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))}),
     db.query.planosTrabalho.findFirst({where:and(eq(planosTrabalho.authUserId,user.userId),eq(planosTrabalho.competencia,competencia))}),
   ]);
-  const converter=(a:Record<string,string>)=>({executada:true,municipio:a.municipio||"",comunidade:a.comunidade||"",propriedade:a.propriedade||"",agricultor:a.agricultor||"",telefone:a.telefone||"",tipoAtividade:a.tipoAtividade||"Visita Técnica",tipoMuda:a.tipoMuda||"",quantidadeMudas:a.quantidadeMudas||"",data:a.data||"",inicio:a.hora||"",duracao:"",resumo:a.observacao||""});
+  const converter=(a:Record<string,string>)=>({executada:true,municipio:a.municipio||"",comunidade:a.comunidade||"",propriedade:a.propriedade||"",agricultor:a.agricultor||"",telefone:a.telefone||"",tipoAtividade:a.tipoAtividade||"Visita Técnica",tipoMuda:a.tipoMuda||"",quantidadeMudas:a.quantidadeMudas||"",data:a.data||"",inicio:a.hora||"",duracao:"",resumo:a.observacao||"",assinaturaProdutor:"",assinaturaTecnico:""});
   if(existente){
     const atividades=JSON.parse(existente.atividadesJson) as Atividade[];
     const agenda=plano?JSON.parse(plano.agendaJson) as Array<Record<string,string>>:[];
@@ -36,6 +36,8 @@ export async function POST(request:Request){
     if(new Date(cadastro.documentoValidade+"T23:59:59")<new Date())return Response.json({message:"Atualize os documentos de identificação vencidos antes de continuar."},{status:403});
     const competencia=String(form.get("competencia")||""); const associacao=cadastro.associacao;
     let atividades:Atividade[]=[]; try{atividades=JSON.parse(String(form.get("atividades")||"[]"));}catch{}
+    const dadosAtividades=JSON.stringify(atividades);
+    if(dadosAtividades.length>1_500_000)return Response.json({message:"As assinaturas ficaram muito grandes. Limpe e refaça as assinaturas com traços mais simples."},{status:400});
     const municipio=atividades[0]?.municipio||"";
     if(!/^\d{4}-\d{2}$/.test(competencia)||!atividades.length)return Response.json({message:"Preencha a competência e pelo menos uma atividade."},{status:400});
     const atividadeInvalida=atividades.findIndex(a=>!a.municipio||!a.tipoAtividade||!a.data||!a.inicio||(a.tipoAtividade==="Visita Técnica"&&(!a.comunidade||!a.propriedade||!a.agricultor||!a.telefone))||(a.tipoAtividade==="Entrega de mudas"&&(!a.tipoMuda||Number(a.quantidadeMudas)<=0))||(a.executada&&(Number(a.duracao)<=0||!a.resumo))||(!a.executada&&!a.resumo));
@@ -54,7 +56,7 @@ export async function POST(request:Request){
       await env.BUCKET.put(key,await item.arrayBuffer(),{metadata:{contentType:item.type}});
       anexos.push({key,nome:item.name,tipo:item.type});
     }
-    const values={authUserId:user.userId,competencia,municipio,associacao,atividadesJson:JSON.stringify(atividades),totalMinutos:atividades.filter(a=>a.executada).reduce((s,a)=>s+Number(a.duracao||0),0),anexosJson:JSON.stringify(anexos),observacoes:String(form.get("observacoes")||"").trim()||null,status:"enviado",atualizadoEm:new Date().toISOString()};
+    const values={authUserId:user.userId,competencia,municipio,associacao,atividadesJson:dadosAtividades,totalMinutos:atividades.filter(a=>a.executada).reduce((s,a)=>s+Number(a.duracao||0),0),anexosJson:JSON.stringify(anexos),observacoes:String(form.get("observacoes")||"").trim()||null,status:"enviado",atualizadoEm:new Date().toISOString()};
     await db.insert(prestacoes).values(values).onConflictDoUpdate({target:[prestacoes.authUserId,prestacoes.competencia],set:values});
     return Response.json({message:`Prestação de contas salva com ${anexos.length} anexo(s).`,anexos});
   }catch(error){console.error("prestacao_error",error);return Response.json({message:"Não foi possível salvar a prestação. Tente novamente."},{status:500});}

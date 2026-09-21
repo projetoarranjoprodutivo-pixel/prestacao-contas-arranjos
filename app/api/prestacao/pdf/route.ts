@@ -24,7 +24,14 @@ type Atividade = {
   inicio?: string;
   duracao?: string;
   resumo?: string;
+  assinaturaProdutor?: string;
+  assinaturaTecnico?: string;
 };
+
+function assinaturaBytes(valor?:string){
+  if(!valor?.startsWith("data:image/"))return null;
+  try{return Uint8Array.from(atob(valor.split(",")[1]||""),c=>c.charCodeAt(0));}catch{return null;}
+}
 
 export async function GET(request: Request) {
   const user = await getChatGPTUser();
@@ -75,6 +82,19 @@ export async function GET(request: Request) {
   const pdf = await PDFDocument.load(basePdf);
   const anexos = JSON.parse(registro.anexosJson || "[]") as Array<{key:string;nome:string;tipo:string}>;
   const fonte = await pdf.embedFont(StandardFonts.Helvetica);
+  for(const [indice,atividade] of atividades.entries()){
+    const assinaturas=[{titulo:"ASSINATURA DO PRODUTOR/REPRESENTANTE",valor:atividade.assinaturaProdutor},{titulo:"ASSINATURA DO TÉCNICO",valor:atividade.assinaturaTecnico}];
+    if(!assinaturas.some(a=>a.valor))continue;
+    const pagina=pdf.addPage([595.28,841.89]);
+    pagina.drawText(`ASSINATURAS — ATIVIDADE ${indice+1}`,{x:40,y:800,size:14,font:fonte,color:rgb(0.08,0.23,0.16)});
+    pagina.drawText(`${atividade.data||"Sem data"} · ${atividade.tipoAtividade||"Atividade"} · ${atividade.municipio||""}`,{x:40,y:776,size:10,font:fonte});
+    for(const [posicao,item] of assinaturas.entries()){
+      const y=posicao===0?470:165;pagina.drawText(item.titulo,{x:40,y:y+205,size:11,font:fonte});
+      const bytes=assinaturaBytes(item.valor);if(!bytes){pagina.drawText("Não assinada",{x:40,y:y+100,size:10,font:fonte});continue;}
+      try{const imagem=await pdf.embedJpg(bytes);const escala=Math.min(500/imagem.width,165/imagem.height,1);pagina.drawImage(imagem,{x:40,y:y+25,width:imagem.width*escala,height:imagem.height*escala});}catch{pagina.drawText("Assinatura indisponível",{x:40,y:y+100,size:10,font:fonte});}
+      pagina.drawLine({start:{x:40,y:y+15},end:{x:555,y:y+15},thickness:0.7,color:rgb(0.3,0.3,0.3)});
+    }
+  }
   for (const [indice, anexo] of anexos.entries()) {
     const objeto = await env.BUCKET.get(anexo.key, "arrayBuffer");
     if (!objeto) continue;
