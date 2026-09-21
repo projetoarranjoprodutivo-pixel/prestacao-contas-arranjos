@@ -8,5 +8,5 @@ export function isAdminEmail(email: string) {
 
 export async function getAdminUser() {
   const user = await getChatGPTUser();
-  return user && isAdminEmail(user.email) ? user : null;
+  return user && (isAdminEmail(user.email) || user.role === "admin") ? user : null;
 }
