@@ -1,8 +1,9 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
-import { isAdminPrincipal } from "@/lib/admin-principal";
+
+const ADMIN_EMAIL = "rafaeldalla@hotmail.com";
 
 export function isAdminEmail(email: string) {
-  return isAdminPrincipal(email);
+  return email.trim().toLowerCase() === ADMIN_EMAIL;
 }
 
 export async function getAdminUser() {
