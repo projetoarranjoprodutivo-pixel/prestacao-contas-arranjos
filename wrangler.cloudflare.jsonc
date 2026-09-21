@@ -10,7 +10,7 @@
     {
       "binding": "DB",
       "database_name": "arranjos-produtivos-db",
-      "database_id": "COLE_AQUI_O_ID_DO_D1",
+      "database_id": "d1838f2f-c289-488f-a11e-eb98aae40325",
       "migrations_dir": "drizzle"
     }
   ],
