@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Download, FileCheck2, FileClock, Users } from "lucide-react";
 import { getDb } from "@/db";
-import { garantirNomeEmpresarial } from "@/db/bootstrap";
+import { garantirAssociacoesCompletas, garantirNomeEmpresarial } from "@/db/bootstrap";
 import { associacoes, colaboradores, planosTrabalho, prestacoes, usuariosAcesso } from "@/db/schema";
 import { getAdminUser } from "@/lib/admin";
 import AssociacoesClient from "./associacoes-client";
@@ -16,6 +16,7 @@ function formatarData(data:string){const partes=data.split("-");return partes.le
 export default async function AdminPage({searchParams}:{searchParams:Promise<{competencia?:string;mudas?:string;aba?:string}>}){
   const admin=await getAdminUser();if(!admin)redirect("/");
   await garantirNomeEmpresarial();
+  await garantirAssociacoesCompletas();
   const params=await searchParams;const competencia=/^\d{4}-\d{2}$/.test(params.competencia||"")?params.competencia!:competenciaAtual();const abasValidas=new Set(["resumo","prestacoes","planos","associacoes","usuarios","acessos","pendencias"]);const aba=abasValidas.has(params.aba||"")?params.aba!:"resumo";
   const db=getDb();
   const [usuarios,todosPlanos,todasPrestacoes,listaAssociacoes,acessos]=await Promise.all([db.select().from(colaboradores),db.select().from(planosTrabalho),db.select().from(prestacoes),db.select().from(associacoes),db.select().from(usuariosAcesso)]);
