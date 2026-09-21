@@ -9,7 +9,7 @@ const COOKIE="ap_session";
 const bytes=(n:number)=>{const a=new Uint8Array(n);crypto.getRandomValues(a);return a;};
 const hex=(a:ArrayBuffer|Uint8Array)=>[...new Uint8Array(a instanceof Uint8Array?a.buffer:a)].map(x=>x.toString(16).padStart(2,"0")).join("");
 const hash=async(v:string)=>hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)));
-export async function criarSenha(senha:string,salt=hex(bytes(16))){const chave=await crypto.subtle.importKey("raw",new TextEncoder().encode(senha),"PBKDF2",false,["deriveBits"]);const resultado=await crypto.subtle.deriveBits({name:"PBKDF2",salt:new TextEncoder().encode(salt),iterations:150000,hash:"SHA-256"},chave,256);return{salt,hash:hex(resultado)};}
+export async function criarSenha(senha:string,salt=hex(bytes(16))){const chave=await crypto.subtle.importKey("raw",new TextEncoder().encode(senha),"PBKDF2",false,["deriveBits"]);const resultado=await crypto.subtle.deriveBits({name:"PBKDF2",salt:new TextEncoder().encode(salt),iterations:100000,hash:"SHA-256"},chave,256);return{salt,hash:hex(resultado)};}
 export async function verificarSenha(senha:string,salt:string,esperado:string){return (await criarSenha(senha,salt)).hash===esperado;}
 export async function criarSessao(usuarioId:string){const token=hex(bytes(32));await getDb().insert(sessoesAcesso).values({tokenHash:await hash(token),usuarioId,expiraEm:new Date(Date.now()+30*86400000).toISOString()});const jar=await cookies();jar.set(COOKIE,token,{httpOnly:true,secure:true,sameSite:"lax",path:"/",maxAge:30*86400});}
 export async function encerrarSessao(){const jar=await cookies();const token=jar.get(COOKIE)?.value;if(token)await getDb().delete(sessoesAcesso).where(eq(sessoesAcesso.tokenHash,await hash(token)));jar.delete(COOKIE);}
