@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, MapPin, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Download, FileText, MapPin, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { MUNICIPIOS_ES } from "@/lib/municipios-es";
 
 type Documento = { key: string; nome: string; tipo: string; tamanho?: number };
@@ -38,6 +38,7 @@ export default function AssociacoesClient({ itens }: { itens: Associacao[] }) {
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState<"associacao" | "presidente" | null>(null);
+  const [selecionadas, setSelecionadas] = useState<number[]>([]);
   const campo = "mt-1 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm";
 
   function editar(a: Associacao) {
@@ -55,8 +56,8 @@ export default function AssociacoesClient({ itens }: { itens: Associacao[] }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function buscarCep(tipo: "associacao" | "presidente") {
-    const cep = (tipo === "associacao" ? form.cep : form.presidenteCep).replace(/\D/g, "");
+  async function buscarCep(tipo: "associacao" | "presidente", valorInformado?: string) {
+    const cep = (valorInformado ?? (tipo === "associacao" ? form.cep : form.presidenteCep)).replace(/\D/g, "");
     if (cep.length !== 8) { setMsg("Informe um CEP com 8 dígitos para fazer a busca."); return; }
     setBuscandoCep(tipo); setMsg("");
     try {
@@ -64,9 +65,10 @@ export default function AssociacoesClient({ itens }: { itens: Associacao[] }) {
       const dados = await resposta.json();
       if (!resposta.ok || dados.erro) throw new Error("CEP não encontrado.");
       const municipio = MUNICIPIOS_ES.includes(dados.localidade) ? dados.localidade : "";
-      setForm(atual => tipo === "associacao"
-        ? { ...atual, endereco: dados.logradouro || atual.endereco, bairro: dados.bairro || atual.bairro, municipio, uf: dados.uf || atual.uf }
-        : { ...atual, presidenteEndereco: dados.logradouro || atual.presidenteEndereco, presidenteBairro: dados.bairro || atual.presidenteBairro, presidenteMunicipio: municipio, presidenteUf: dados.uf || atual.presidenteUf });
+      setForm(atual => {
+        if (tipo === "associacao") return { ...atual, endereco: dados.logradouro || atual.endereco, bairro: dados.bairro || atual.bairro, municipio, uf: dados.uf || atual.uf };
+        return { ...atual, presidenteEndereco: dados.logradouro || atual.presidenteEndereco, presidenteBairro: dados.bairro || atual.presidenteBairro, presidenteMunicipio: municipio, presidenteUf: dados.uf || atual.presidenteUf };
+      });
       if (!municipio) setMsg("O CEP foi localizado, mas o município não pertence à lista do Espírito Santo.");
     } catch (error) { setMsg(error instanceof Error ? error.message : "Não foi possível consultar o CEP."); }
     finally { setBuscandoCep(null); }
@@ -98,6 +100,16 @@ export default function AssociacoesClient({ itens }: { itens: Associacao[] }) {
     }
   }
 
+  function alternarSelecao(id: number) {
+    setSelecionadas(atuais => atuais.includes(id) ? atuais.filter(item => item !== id) : [...atuais, id]);
+  }
+
+  function emitirPdf(todas = false) {
+    if (!todas && !selecionadas.length) { setMsg("Selecione ao menos uma associação para gerar o PDF."); return; }
+    const parametros = todas ? "todas=1" : `ids=${selecionadas.join(",")}`;
+    window.open(`/api/admin/associacoes/pdf?${parametros}`, "_blank", "noopener,noreferrer");
+  }
+
   return <section className="rounded-2xl border bg-white p-5 shadow-sm lg:col-span-2">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-lg font-bold">Cadastro de associações</h2><p className="text-sm text-slate-600">Dados da entidade, do presidente e documentos.</p></div>
@@ -110,7 +122,7 @@ export default function AssociacoesClient({ itens }: { itens: Associacao[] }) {
         <label className="text-sm font-semibold">Nome abreviado *<input name="nome" required value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className={campo}/></label>
         <label className="text-sm font-semibold sm:col-span-2">Razão social *<input name="razaoSocial" required value={form.razaoSocial} onChange={e => setForm(f => ({ ...f, razaoSocial: e.target.value }))} className={campo}/></label>
         <label className="text-sm font-semibold">CNPJ *<input name="cnpj" required value={form.cnpj} onChange={e => setForm(f => ({ ...f, cnpj: e.target.value }))} className={campo} placeholder="00.000.000/0000-00"/></label>
-        <label className="text-sm font-semibold">CEP *<span className="mt-1 flex gap-2"><input name="cep" required value={form.cep} onChange={e => setForm(f => ({ ...f, cep: e.target.value }))} className={`${campo} mt-0`}/><button type="button" onClick={() => buscarCep("associacao")} disabled={buscandoCep === "associacao"} className="rounded-lg border px-3" aria-label="Buscar CEP da associação"><Search className="h-4 w-4"/></button></span></label>
+        <label className="text-sm font-semibold">CEP *<span className="mt-1 flex gap-2"><input name="cep" required value={form.cep} onChange={e => setForm(f => ({ ...f, cep: e.target.value }))} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void buscarCep("associacao", e.currentTarget.value); } }} className={`${campo} mt-0`}/><button type="button" onClick={() => buscarCep("associacao")} disabled={buscandoCep === "associacao"} className="rounded-lg border px-3" aria-label="Buscar CEP da associação"><Search className="h-4 w-4"/></button></span></label>
         <label className="text-sm font-semibold sm:col-span-2">Endereço *<input name="endereco" required value={form.endereco} onChange={e => setForm(f => ({ ...f, endereco: e.target.value }))} className={campo}/></label>
         <label className="text-sm font-semibold">Bairro<input name="bairro" value={form.bairro} onChange={e => setForm(f => ({ ...f, bairro: e.target.value }))} className={campo}/></label>
         <label className="text-sm font-semibold">Número<input name="numero" value={form.numero} onChange={e => setForm(f => ({ ...f, numero: e.target.value }))} className={campo}/></label>
@@ -126,7 +138,7 @@ export default function AssociacoesClient({ itens }: { itens: Associacao[] }) {
         <label className="text-sm font-semibold sm:col-span-2">Nome do presidente<input name="presidenteNome" value={form.presidenteNome} onChange={e => setForm(f => ({ ...f, presidenteNome: e.target.value }))} className={campo}/></label>
         <label className="text-sm font-semibold">CPF<input name="presidenteCpf" value={form.presidenteCpf} onChange={e => setForm(f => ({ ...f, presidenteCpf: e.target.value }))} className={campo} placeholder="000.000.000-00"/></label>
         <label className="text-sm font-semibold">E-mail<input name="presidenteEmail" type="email" value={form.presidenteEmail} onChange={e => setForm(f => ({ ...f, presidenteEmail: e.target.value }))} className={campo}/></label>
-        <label className="text-sm font-semibold">CEP<span className="mt-1 flex gap-2"><input name="presidenteCep" value={form.presidenteCep} onChange={e => setForm(f => ({ ...f, presidenteCep: e.target.value }))} className={`${campo} mt-0`}/><button type="button" onClick={() => buscarCep("presidente")} disabled={buscandoCep === "presidente"} className="rounded-lg border px-3" aria-label="Buscar CEP do presidente"><Search className="h-4 w-4"/></button></span></label>
+        <label className="text-sm font-semibold">CEP<span className="mt-1 flex gap-2"><input name="presidenteCep" value={form.presidenteCep} onChange={e => setForm(f => ({ ...f, presidenteCep: e.target.value }))} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void buscarCep("presidente", e.currentTarget.value); } }} className={`${campo} mt-0`}/><button type="button" onClick={() => buscarCep("presidente")} disabled={buscandoCep === "presidente"} className="rounded-lg border px-3" aria-label="Buscar CEP do presidente"><Search className="h-4 w-4"/></button></span></label>
         <label className="text-sm font-semibold sm:col-span-2">Endereço<input name="presidenteEndereco" value={form.presidenteEndereco} onChange={e => setForm(f => ({ ...f, presidenteEndereco: e.target.value }))} className={campo}/></label>
         <label className="text-sm font-semibold">Bairro<input name="presidenteBairro" value={form.presidenteBairro} onChange={e => setForm(f => ({ ...f, presidenteBairro: e.target.value }))} className={campo}/></label>
         <label className="text-sm font-semibold">Número<input name="presidenteNumero" value={form.presidenteNumero} onChange={e => setForm(f => ({ ...f, presidenteNumero: e.target.value }))} className={campo}/></label>
@@ -152,6 +164,10 @@ export default function AssociacoesClient({ itens }: { itens: Associacao[] }) {
       <div className="flex flex-wrap items-center gap-3"><button disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-lg bg-emerald-700 px-5 font-bold text-white disabled:opacity-60"><Plus className="h-4 w-4"/>{loading ? "Salvando..." : form.id ? "Salvar alterações" : "Cadastrar associação"}</button>{msg && <p className="text-sm text-slate-700">{msg}</p>}</div>
     </form>
 
-    <div className="mt-7 grid gap-3 sm:grid-cols-2">{itens.map(a => <article key={a.id} className="rounded-xl border bg-slate-50 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-bold">{a.nome}</p><p className="text-sm text-slate-600">{a.razaoSocial || "Cadastro a completar"}</p><p className="mt-1 text-xs text-slate-500">CNPJ: {a.cnpj || "não informado"} · {lerLista<string>(a.municipiosJson).length} município(s) · {lerLista<Documento>(a.documentosJson).length} documento(s)</p>{a.presidenteNome && <p className="mt-1 text-xs text-slate-500">Presidente: {a.presidenteNome}</p>}</div><div className="flex gap-2"><button onClick={() => editar(a)} aria-label={`Editar ${a.nome}`} className="text-blue-800"><Pencil className="h-4 w-4"/></button><button onClick={() => remover(a.id)} aria-label={`Desativar ${a.nome}`} className="text-red-700"><Trash2 className="h-4 w-4"/></button></div></div></article>)}</div>
+    <div className="mt-7 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-emerald-50 p-4">
+      <div><p className="font-bold text-emerald-950">Relatório cadastral em PDF</p><p className="text-sm text-emerald-900">Marque as associações desejadas ou emita todas de uma vez.</p></div>
+      <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setSelecionadas(selecionadas.length === itens.length ? [] : itens.map(item => item.id))} className="h-10 rounded-lg border border-emerald-800 px-4 text-sm font-bold text-emerald-900">{selecionadas.length === itens.length && itens.length ? "Desmarcar todas" : "Selecionar todas"}</button><button type="button" onClick={() => emitirPdf(false)} disabled={!selecionadas.length} className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-800 px-4 text-sm font-bold text-white disabled:opacity-50"><Download className="h-4 w-4"/>PDF selecionadas ({selecionadas.length})</button><button type="button" onClick={() => emitirPdf(true)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-800 px-4 text-sm font-bold text-white"><Download className="h-4 w-4"/>PDF de todas</button></div>
+    </div>
+    <div className="mt-3 grid gap-3 sm:grid-cols-2">{itens.map(a => <article key={a.id} className={`rounded-xl border p-4 ${selecionadas.includes(a.id) ? "border-emerald-600 bg-emerald-50" : "bg-slate-50"}`}><div className="flex items-start justify-between gap-3"><div className="flex items-start gap-3"><input type="checkbox" checked={selecionadas.includes(a.id)} onChange={() => alternarSelecao(a.id)} aria-label={`Selecionar ${a.nome}`} className="mt-1 h-5 w-5 accent-emerald-700"/><div><p className="font-bold">{a.nome}</p><p className="text-sm text-slate-600">{a.razaoSocial || "Cadastro a completar"}</p><p className="mt-1 text-xs text-slate-500">CNPJ: {a.cnpj || "não informado"} · {lerLista<string>(a.municipiosJson).length} município(s) · {lerLista<Documento>(a.documentosJson).length} documento(s)</p>{a.presidenteNome && <p className="mt-1 text-xs text-slate-500">Presidente: {a.presidenteNome}</p>}</div></div><div className="flex gap-2"><button type="button" onClick={() => editar(a)} aria-label={`Editar ${a.nome}`} className="text-blue-800"><Pencil className="h-4 w-4"/></button><button type="button" onClick={() => remover(a.id)} aria-label={`Desativar ${a.nome}`} className="text-red-700"><Trash2 className="h-4 w-4"/></button></div></div></article>)}</div>
   </section>;
 }
