@@ -1,0 +1,69 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1789739040081,
+      "tag": "0000_majestic_jimmy_woo",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789740168431,
+      "tag": "0001_fancy_firebrand",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789741287940,
+      "tag": "0002_amusing_fat_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789742111049,
+      "tag": "0003_funny_major_mapleleaf",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789744223866,
+      "tag": "0004_nice_thunderbolt_ross",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789757938078,
+      "tag": "0005_famous_the_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789818068758,
+      "tag": "0006_early_misty_knight",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789990954214,
+      "tag": "0007_gifted_lord_hawal",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789996033239,
+      "tag": "0008_glossy_matthew_murdock",
+      "breakpoints": true
+    }
+  ]
+}

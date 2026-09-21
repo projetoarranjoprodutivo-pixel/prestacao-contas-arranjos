@@ -1,0 +1,1 @@
+ALTER TABLE `colaboradores` ADD `atendimentos_json` text DEFAULT '[]' NOT NULL;

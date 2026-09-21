@@ -1,0 +1,2 @@
+import AuthForm from "../auth-form";
+export default function Redefinir(){return <main className="grid min-h-screen place-items-center bg-slate-100 p-5"><section className="w-full max-w-md rounded-2xl bg-white p-7 shadow-lg"><h1 className="text-3xl font-bold">Definir nova senha</h1><AuthForm modo="redefinir"/><a href="/entrar" className="mt-5 block text-center text-sm font-bold text-emerald-800">Voltar ao login</a></section></main>}

@@ -1,6 +1,6 @@
 # Instalação no Cloudflare
 
-Este pacote contém o site completo, banco inicialmente vazio, autenticação por e-mail e senha, recuperação de senha por código enviado por e-mail, banco D1 e armazenamento de anexos no R2.
+Este pacote contém o site completo, banco inicialmente vazio, autenticação por e-mail e senha, recuperação de senha por código enviado por e-mail, banco D1 e armazenamento de anexos no Workers KV. Esta versão não utiliza R2 e não exige sua contratação.
 
 > Este é um sistema dinâmico. Ele não deve ser enviado pela opção de páginas estáticas (arrastar e soltar). O caminho mais simples pelo site é colocar o código em um repositório privado do GitHub e importá-lo no painel da Cloudflare.
 
@@ -22,12 +22,14 @@ Este pacote contém o site completo, banco inicialmente vazio, autenticação po
 
 As tabelas começam sem colaboradores, planos ou prestações de contas. A migração inclui apenas a lista inicial de associações necessária para o cadastro.
 
-## 3. Criar o armazenamento R2
+## 3. Criar o armazenamento Workers KV
 
-1. Abra **Storage & Databases > R2 Object Storage > Create bucket**.
+1. Abra **Storage & Databases > Workers KV > Create namespace**.
 2. Use o nome `arranjos-produtivos-arquivos`.
+3. Copie o identificador do namespace.
+4. No GitHub, edite `wrangler.cloudflare.jsonc` e substitua `COLE_AQUI_O_ID_DO_KV` pelo identificador copiado.
 
-O vínculo com o nome `BUCKET` já está configurado no arquivo do projeto.
+O vínculo interno com o nome `BUCKET` já está configurado. Cada arquivo pode ter até 25 MiB; o sistema limita documentos de cadastro a 10 MB e anexos de prestação a 20 MB.
 
 ## 4. Configurar o envio de código por e-mail
 

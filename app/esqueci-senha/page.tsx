@@ -1,0 +1,2 @@
+import AuthForm from "../auth-form";
+export default function Esqueci(){return <main className="grid min-h-screen place-items-center bg-slate-100 p-5"><section className="w-full max-w-md rounded-2xl bg-white p-7 shadow-lg"><h1 className="text-3xl font-bold">Recuperar senha</h1><p className="mt-2 text-slate-600">Enviaremos um código de seis dígitos para seu e-mail.</p><AuthForm modo="esqueci"/><a href="/redefinir-senha" className="mt-5 block text-center text-sm font-bold text-blue-800">Já recebi o código</a></section></main>}

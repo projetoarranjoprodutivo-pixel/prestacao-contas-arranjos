@@ -1,0 +1,1 @@
+import {encerrarSessao} from "@/app/chatgpt-auth";export const runtime="edge";export async function GET(r:Request){await encerrarSessao();const retorno=new URL(r.url).searchParams.get("return_to")||"/";return Response.redirect(new URL(retorno.startsWith("/")?retorno:"/",r.url));}
