@@ -4,7 +4,8 @@ let inicializado: Promise<void> | null = null;
 
 export function garantirBanco() {
   if (!env.DB) throw new Error("Banco D1 não configurado.");
-  if (!inicializado) inicializado = env.DB.exec(`
+  if (!inicializado) {
+    const comandos = `
     CREATE TABLE IF NOT EXISTS usuarios_acesso (
       id TEXT PRIMARY KEY NOT NULL,
       email TEXT NOT NULL,
@@ -103,6 +104,10 @@ export function garantirBanco() {
       atualizado_em TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     );
     CREATE UNIQUE INDEX IF NOT EXISTS idx_prestacoes_usuario_competencia ON prestacoes(auth_user_id, competencia);
-  `).then(() => undefined).catch(error => { inicializado = null; throw error; });
+    `.split(";").map(comando => comando.trim()).filter(Boolean);
+    inicializado = env.DB.batch(comandos.map(comando => env.DB.prepare(comando)))
+      .then(() => undefined)
+      .catch(error => { inicializado = null; throw error; });
+  }
   return inicializado;
 }
