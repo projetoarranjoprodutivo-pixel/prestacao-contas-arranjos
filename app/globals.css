@@ -101,6 +101,13 @@ body {
   text-transform: uppercase;
 }
 
+input:not([type="password"]),
+textarea,
+select,
+option {
+  text-transform: uppercase !important;
+}
+
 input[type="password"] {
-  text-transform: none;
+  text-transform: none !important;
 }
