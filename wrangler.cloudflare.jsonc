@@ -10,14 +10,14 @@
     {
       "binding": "DB",
       "database_name": "arranjos-produtivos-db",
-      "database_id": "COLE_AQUI_O_ID_DO_D1",
+      "database_id": "d1838f2f-c289-488f-a11e-eb98aae40325",
       "migrations_dir": "drizzle"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "BUCKET",
-      "id": "COLE_AQUI_O_ID_DO_KV"
+      "id": "5d783cee280041479384c63c53b7c7ea"
     }
   ],
   "observability": { "enabled": true }
