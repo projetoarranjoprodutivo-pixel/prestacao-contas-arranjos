@@ -45,3 +45,32 @@ export async function garantirNomeEmpresarial() {
     await env.DB.prepare("ALTER TABLE colaboradores ADD COLUMN nome_empresarial TEXT").run();
   }
 }
+
+const colunasAssociacao = [
+  ["bairro", "TEXT"],
+  ["numero", "TEXT"],
+  ["municipio", "TEXT"],
+  ["uf", "TEXT"],
+  ["email", "TEXT"],
+  ["presidente_nome", "TEXT"],
+  ["presidente_cpf", "TEXT"],
+  ["presidente_cep", "TEXT"],
+  ["presidente_endereco", "TEXT"],
+  ["presidente_bairro", "TEXT"],
+  ["presidente_numero", "TEXT"],
+  ["presidente_municipio", "TEXT"],
+  ["presidente_uf", "TEXT"],
+  ["presidente_email", "TEXT"],
+  ["documentos_json", "TEXT NOT NULL DEFAULT '[]'"],
+] as const;
+
+export async function garantirAssociacoesCompletas() {
+  if (!env.DB) throw new Error("O vínculo DB não está disponível no Worker.");
+  const colunas = await env.DB.prepare("PRAGMA table_info(associacoes)").all<{name:string}>();
+  const existentes = new Set(colunas.results.map(coluna => coluna.name));
+  for (const [nome, tipo] of colunasAssociacao) {
+    if (!existentes.has(nome)) {
+      await env.DB.prepare(`ALTER TABLE associacoes ADD COLUMN ${nome} ${tipo}`).run();
+    }
+  }
+}
