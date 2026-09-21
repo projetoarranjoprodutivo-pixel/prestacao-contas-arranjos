@@ -1,5 +1,6 @@
 import { requireChatGPTUser, chatGPTSignOutPath } from "../chatgpt-auth";
 import { getDb } from "@/db";
+import { garantirNomeEmpresarial } from "@/db/bootstrap";
 import { associacoes, colaboradores } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import CadastroForm from "../cadastro-form";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function CadastroPage() {
   const user = await requireChatGPTUser("/cadastro");
+  await garantirNomeEmpresarial();
   let cadastro = null;
   let listaAssociacoes:Array<{nome:string;municipios:string[]}>=[];
   try { cadastro = await getDb().query.colaboradores.findFirst({ where: eq(colaboradores.authUserId, user.userId) }); } catch { cadastro = null; }
