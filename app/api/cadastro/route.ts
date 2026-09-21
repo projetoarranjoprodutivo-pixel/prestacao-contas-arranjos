@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
+import { garantirNomeEmpresarial } from "@/db/bootstrap";
 import { associacoes, colaboradores } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 export const runtime = "edge";
@@ -9,6 +10,7 @@ const text = (form: FormData, key: string) => String(form.get(key) || "").trim()
 export async function POST(request: Request) {
   const user = await getChatGPTUser(); if (!user) return Response.json({ message: "Sessão expirada. Entre novamente." }, { status: 401 });
   try {
+    await garantirNomeEmpresarial();
     const form = await request.formData(); const required = ["nomeCompleto","dataNascimento","cpf","sexo","cargo","associacao","cep","endereco","numero","bairro","cidade","uf","celular"];
     if (required.some(key => !text(form, key))) return Response.json({ message: "Preencha todos os campos obrigatórios." }, { status: 400 });
     if (!cargos.has(text(form, "cargo"))) return Response.json({ message: "Selecione um cargo válido." }, { status: 400 });
@@ -43,7 +45,7 @@ export async function POST(request: Request) {
     if (!documentos.length) return Response.json({ message: "Envie pelo menos um documento de identificação." }, { status: 400 });
     const primeiro = documentos[0]; const proximaValidade = documentos.map(d=>d.validade).filter(Boolean).sort()[0];
     if (!proximaValidade) return Response.json({ message: "Informe a validade dos documentos." }, { status: 400 });
-    const values = { authUserId: user.userId, email: user.email, nomeCompleto: text(form,"nomeCompleto"), dataNascimento: text(form,"dataNascimento"), cpf, sexo: text(form,"sexo"), cargo: text(form,"cargo"), associacao: text(form,"associacao"), municipiosAtendidosJson:JSON.stringify(text(form,"cargo")==="Técnico de campo"?municipiosAtendidos:[]), mei:text(form,"mei")||null, cftaCrea:text(form,"cftaCrea")||null, cep: text(form,"cep"), endereco: text(form,"endereco"), numero: text(form,"numero"), complemento: text(form,"complemento") || null, bairro: text(form,"bairro"), cidade: text(form,"cidade"), uf: text(form,"uf").toUpperCase(), celular: text(form,"celular"), atendimentosJson: JSON.stringify(atendimentos), superioresJson: text(form,"cargo")==="Técnico de campo"?JSON.stringify(superiores):"{}", documentoKey: primeiro.key, documentoNome: primeiro.nome, documentoTipo: primeiro.tipo, documentosJson: JSON.stringify(documentos), documentoValidade: proximaValidade, atualizadoEm: new Date().toISOString() };
+    const values = { authUserId: user.userId, email: user.email, nomeCompleto: text(form,"nomeCompleto"), dataNascimento: text(form,"dataNascimento"), cpf, sexo: text(form,"sexo"), cargo: text(form,"cargo"), associacao: text(form,"associacao"), municipiosAtendidosJson:JSON.stringify(text(form,"cargo")==="Técnico de campo"?municipiosAtendidos:[]), mei:text(form,"mei")||null, nomeEmpresarial:text(form,"nomeEmpresarial")||null, cftaCrea:text(form,"cftaCrea")||null, cep: text(form,"cep"), endereco: text(form,"endereco"), numero: text(form,"numero"), complemento: text(form,"complemento") || null, bairro: text(form,"bairro"), cidade: text(form,"cidade"), uf: text(form,"uf").toUpperCase(), celular: text(form,"celular"), atendimentosJson: JSON.stringify(atendimentos), superioresJson: text(form,"cargo")==="Técnico de campo"?JSON.stringify(superiores):"{}", documentoKey: primeiro.key, documentoNome: primeiro.nome, documentoTipo: primeiro.tipo, documentosJson: JSON.stringify(documentos), documentoValidade: proximaValidade, atualizadoEm: new Date().toISOString() };
     if (existing) await db.update(colaboradores).set(values).where(eq(colaboradores.authUserId, user.userId)); else await db.insert(colaboradores).values(values);
     return Response.json({ message: existing ? "Cadastro atualizado com sucesso." : "Cadastro salvo com sucesso." });
   } catch (error) { console.error("cadastro_error", error); return Response.json({ message: "O serviço está temporariamente indisponível. Tente novamente." }, { status: 500 }); }
