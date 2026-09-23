@@ -16,3 +16,5 @@ Nunca grave chaves de API no repositório. Cadastre `BREVO_API_KEY` como segredo
 <!-- Implantação consolidada do portal das associações: 2026-09-23 -->
 
 <!-- Implantação consolidada: acesso por usuário da associação -->
+
+<!-- Implantação consolidada: login exclusivo das associações -->
