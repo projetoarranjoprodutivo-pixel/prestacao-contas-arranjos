@@ -68,6 +68,7 @@ const colunasAssociacao = [
   ["municipio", "TEXT"],
   ["uf", "TEXT"],
   ["email", "TEXT"],
+  ["usuario", "TEXT"],
   ["presidente_nome", "TEXT"],
   ["presidente_cpf", "TEXT"],
   ["presidente_cep", "TEXT"],
