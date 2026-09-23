@@ -51,6 +51,7 @@ export const associacoes = sqliteTable("associacoes", {
   municipio: text("municipio"),
   uf: text("uf"),
   email: text("email"),
+  usuario: text("usuario"),
   telefone: text("telefone"),
   celular: text("celular"),
   presidenteNome: text("presidente_nome"),
