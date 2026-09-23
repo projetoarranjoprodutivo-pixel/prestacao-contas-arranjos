@@ -12,3 +12,5 @@ Leia primeiro [GUIA_INSTALACAO_CLOUDFLARE.md](GUIA_INSTALACAO_CLOUDFLARE.md). O 
 - `pnpm db:generate`: gerar uma nova migração após alterar o esquema.
 
 Nunca grave chaves de API no repositório. Cadastre `BREVO_API_KEY` como segredo no painel da Cloudflare.
+
+<!-- Implantação consolidada do portal das associações: 2026-09-23 -->
