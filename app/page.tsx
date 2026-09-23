@@ -1,5 +1,5 @@
 import { ArrowRight, Building2, ClipboardCheck, LockKeyhole, ShieldCheck, UserPlus } from "lucide-react";
-import { chatGPTSignInPath, getChatGPTUser } from "./chatgpt-auth";
+import { chatGPTSignInPath, chatGPTSignOutPath, getChatGPTUser } from "./chatgpt-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +8,8 @@ export default async function Home() {
   const entrar = user ? "/painel" : chatGPTSignInPath("/painel");
   const cadastrar = user ? "/cadastro" : "/criar-conta";
   const administrar = user ? "/admin" : chatGPTSignInPath("/admin");
-  const portalAssociacao = user ? "/portal-associacao" : chatGPTSignInPath("/portal-associacao");
+  const loginAssociacao=chatGPTSignInPath("/portal-associacao");
+  const portalAssociacao = user?.role === "associacao" ? "/portal-associacao" : user ? chatGPTSignOutPath(loginAssociacao) : loginAssociacao;
   return <main className="min-h-screen bg-[#f2f6f1] text-slate-900">
     <header className="bg-[#123b2a] text-white"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 lg:px-8"><div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-xl bg-[#e6b44a] text-xl font-black text-[#123b2a]">AP</span><div><p className="font-bold tracking-wide">ARRANJOS PRODUTIVOS</p><p className="text-sm text-emerald-100">Prestação de contas 2026</p></div></div><span className="hidden rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-emerald-50 sm:inline-flex">Ambiente seguro</span></div></header>
     <section className="relative overflow-hidden bg-[#123b2a] pb-28 pt-12 text-white sm:pt-16"><div className="absolute inset-x-0 bottom-0 h-24 bg-[#f2f6f1] [clip-path:polygon(0_78%,100%_0,100%_100%,0_100%)]"/><div className="relative mx-auto max-w-3xl px-5 text-center"><div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-white/10"><ClipboardCheck className="h-7 w-7 text-[#e6b44a]"/></div><h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Portal de Prestação de Contas</h1><p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-emerald-100 sm:text-lg">Acesse seu ambiente para manter o cadastro, documentos e atividades do Projeto Arranjos Produtivos atualizados.</p></div></section>
