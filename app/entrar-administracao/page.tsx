@@ -1,0 +1,4 @@
+import {ShieldCheck} from "lucide-react";
+import AuthForm from "../auth-form";
+
+export default function EntrarAdministracao(){return <main className="grid min-h-screen place-items-center bg-slate-100 p-5"><section className="w-full max-w-md rounded-2xl bg-white p-7 shadow-lg"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100 text-blue-800"><ShieldCheck className="h-6 w-6"/></span><div><p className="font-black text-blue-800">ARRANJOS PRODUTIVOS</p><p className="text-sm text-slate-500">ACESSO RESTRITO À ADMINISTRAÇÃO</p></div></div><h1 className="mt-5 text-3xl font-bold">ENTRAR NA ADMINISTRAÇÃO</h1><p className="mt-2 text-sm text-slate-600">UTILIZE O E-MAIL E A SENHA DO USUÁRIO ADMINISTRATIVO.</p><AuthForm modo="entrar" returnTo="/admin"/><a href="/" className="mt-5 block text-center text-sm font-bold text-blue-800">VOLTAR À PÁGINA INICIAL</a></section></main>}
