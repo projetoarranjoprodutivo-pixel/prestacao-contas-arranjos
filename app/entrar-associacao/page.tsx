@@ -1,0 +1,4 @@
+import {Building2} from "lucide-react";
+import AuthForm from "../auth-form";
+
+export default function EntrarAssociacao(){return <main className="grid min-h-screen place-items-center bg-slate-100 p-5"><section className="w-full max-w-md rounded-2xl bg-white p-7 shadow-lg"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-violet-100 text-violet-800"><Building2 className="h-6 w-6"/></span><div><p className="font-black text-violet-800">ARRANJOS PRODUTIVOS</p><p className="text-sm text-slate-500">ACESSO EXCLUSIVO DAS ASSOCIAÇÕES</p></div></div><h1 className="mt-5 text-3xl font-bold">ENTRAR COMO ASSOCIAÇÃO</h1><p className="mt-2 text-sm text-slate-600">UTILIZE O USUÁRIO E A SENHA DEFINIDOS NO CADASTRO DA ASSOCIAÇÃO.</p><AuthForm modo="entrar" returnTo="/portal-associacao"/><a href="/" className="mt-5 block text-center text-sm font-bold text-violet-800">VOLTAR À PÁGINA INICIAL</a></section></main>}
