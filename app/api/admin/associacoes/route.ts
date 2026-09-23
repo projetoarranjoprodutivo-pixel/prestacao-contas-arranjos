@@ -1,10 +1,11 @@
 import { getDb } from "@/db";
-import { garantirAssociacoesCompletas } from "@/db/bootstrap";
-import { associacoes } from "@/db/schema";
+import { garantirAssociacoesCompletas, garantirBanco } from "@/db/bootstrap";
+import { associacoes, usuariosAcesso } from "@/db/schema";
+import { criarSenha } from "@/app/chatgpt-auth";
 import { getAdminUser } from "@/lib/admin";
 import { MUNICIPIOS_ES } from "@/lib/municipios-es";
 import { env } from "cloudflare:workers";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export const runtime = "edge";
 
@@ -58,6 +59,7 @@ function montarDados(form: FormData, documentos: Documento[]) {
     municipio: texto(form, "municipio"),
     uf: texto(form, "uf").toUpperCase(),
     email,
+    usuario: texto(form, "usuario").toLowerCase(),
     telefone: texto(form, "telefone") || null,
     celular: texto(form, "celular"),
     presidenteNome: texto(form, "presidenteNome"),
@@ -73,6 +75,32 @@ function montarDados(form: FormData, documentos: Documento[]) {
     municipiosJson: JSON.stringify(municipios),
     ativo: true,
   };
+}
+
+async function prepararAcesso(form:FormData, associacaoAtual?:string){
+  await garantirBanco();
+  const db=getDb();
+  const usuario=texto(form,"usuario").toLowerCase();
+  const senha=texto(form,"senha");
+  if(usuario.length<3)throw new Error("Informe um usuário com pelo menos 3 caracteres.");
+  const vinculado=associacaoAtual?await db.query.usuariosAcesso.findFirst({where:and(eq(usuariosAcesso.funcao,"associacao"),eq(usuariosAcesso.associacao,associacaoAtual))}):null;
+  const mesmoUsuario=await db.query.usuariosAcesso.findFirst({where:eq(usuariosAcesso.email,usuario)});
+  if(mesmoUsuario&&mesmoUsuario.id!==vinculado?.id)throw new Error("Este usuário já está sendo utilizado.");
+  if(!vinculado&&senha.length<8)throw new Error("A senha deve ter pelo menos 8 caracteres.");
+  if(senha&&senha.length<8)throw new Error("A senha deve ter pelo menos 8 caracteres.");
+  return{usuario,senha,vinculado};
+}
+
+async function salvarAcesso(usuario:string,senha:string,nomeAssociacao:string,vinculado?:typeof usuariosAcesso.$inferSelect|null){
+  const db=getDb();
+  if(vinculado){
+    const dados:Partial<typeof usuariosAcesso.$inferInsert>={email:usuario,associacao:nomeAssociacao,funcao:"associacao",ativo:true};
+    if(senha){const segredo=await criarSenha(senha);dados.senhaHash=segredo.hash;dados.senhaSalt=segredo.salt;}
+    await db.update(usuariosAcesso).set(dados).where(eq(usuariosAcesso.id,vinculado.id));
+  }else{
+    const segredo=await criarSenha(senha);
+    await db.insert(usuariosAcesso).values({id:crypto.randomUUID(),email:usuario,senhaHash:segredo.hash,senhaSalt:segredo.salt,funcao:"associacao",associacao:nomeAssociacao,ativo:true});
+  }
 }
 
 async function salvarDocumentos(form: FormData, existentes: Documento[], identificador: string) {
@@ -98,8 +126,11 @@ export async function POST(request: Request) {
   try {
     await garantirAssociacoesCompletas();
     const form = await request.formData();
+    const acesso=await prepararAcesso(form);
     const documentos = await salvarDocumentos(form, [], crypto.randomUUID());
-    await getDb().insert(associacoes).values(montarDados(form, documentos));
+    const dados=montarDados(form, documentos);
+    await getDb().insert(associacoes).values(dados);
+    await salvarAcesso(acesso.usuario,acesso.senha,dados.nome);
     return Response.json({ message: "Associação cadastrada." });
   } catch (error) {
     return Response.json({ message: error instanceof Error ? error.message : "Não foi possível cadastrar." }, { status: 400 });
@@ -115,8 +146,11 @@ export async function PUT(request: Request) {
     if (!id) throw new Error("Associação inválida.");
     const [atual] = await getDb().select().from(associacoes).where(eq(associacoes.id, id)).limit(1);
     if (!atual) throw new Error("Associação não encontrada.");
+    const acesso=await prepararAcesso(form,atual.nome);
     const documentos = await salvarDocumentos(form, lerDocumentos(atual.documentosJson), String(id));
-    await getDb().update(associacoes).set(montarDados(form, documentos)).where(eq(associacoes.id, id));
+    const dados=montarDados(form, documentos);
+    await getDb().update(associacoes).set(dados).where(eq(associacoes.id, id));
+    await salvarAcesso(acesso.usuario,acesso.senha,dados.nome,acesso.vinculado);
     return Response.json({ message: "Associação atualizada." });
   } catch (error) {
     return Response.json({ message: error instanceof Error ? error.message : "Não foi possível atualizar." }, { status: 400 });
