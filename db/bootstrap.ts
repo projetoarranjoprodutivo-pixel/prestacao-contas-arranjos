@@ -44,6 +44,9 @@ export async function garantirNomeEmpresarial() {
   if (colunas.results.length && !colunas.results.some(coluna => coluna.name === "nome_empresarial")) {
     await env.DB.prepare("ALTER TABLE colaboradores ADD COLUMN nome_empresarial TEXT").run();
   }
+  if (colunas.results.length && !colunas.results.some(coluna => coluna.name === "associacoes_json")) {
+    await env.DB.prepare("ALTER TABLE colaboradores ADD COLUMN associacoes_json TEXT NOT NULL DEFAULT '[]'").run();
+  }
 }
 
 const colunasAssociacao = [
