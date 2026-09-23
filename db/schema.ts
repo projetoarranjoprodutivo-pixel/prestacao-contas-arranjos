@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 export const usuariosAcesso = sqliteTable("usuarios_acesso", {
-  id:text("id").primaryKey(),email:text("email").notNull(),senhaHash:text("senha_hash").notNull(),senhaSalt:text("senha_salt").notNull(),funcao:text("funcao").notNull().default("colaborador"),ativo:integer("ativo",{mode:"boolean"}).notNull().default(true),criadoEm:text("criado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
+  id:text("id").primaryKey(),email:text("email").notNull(),senhaHash:text("senha_hash").notNull(),senhaSalt:text("senha_salt").notNull(),funcao:text("funcao").notNull().default("colaborador"),associacao:text("associacao"),ativo:integer("ativo",{mode:"boolean"}).notNull().default(true),criadoEm:text("criado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
 },table=>({emailUnique:uniqueIndex("idx_usuarios_acesso_email").on(table.email)}));
 export const sessoesAcesso = sqliteTable("sessoes_acesso", {
   tokenHash:text("token_hash").primaryKey(),usuarioId:text("usuario_id").notNull(),expiraEm:text("expira_em").notNull(),criadoEm:text("criado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -67,3 +67,14 @@ export const associacoes = sqliteTable("associacoes", {
   ativo: integer("ativo", { mode: "boolean" }).notNull().default(true),
   criadoEm: text("criado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, table => ({ nomeUnique: uniqueIndex("idx_associacoes_nome").on(table.nome) }));
+
+export const documentosAssociacao = sqliteTable("documentos_associacao", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  authUserId: text("auth_user_id").notNull(),
+  associacao: text("associacao").notNull(),
+  competencia: text("competencia").notNull(),
+  extratosJson: text("extratos_json").notNull().default("[]"),
+  notasFiscaisJson: text("notas_fiscais_json").notNull().default("[]"),
+  criadoEm: text("criado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
+  atualizadoEm: text("atualizado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, table => ({ competenciaAssociacaoUnique: uniqueIndex("idx_documentos_associacao_competencia").on(table.associacao, table.competencia) }));
