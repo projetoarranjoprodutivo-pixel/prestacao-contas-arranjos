@@ -14,6 +14,8 @@ async function criarTabelasDeAcesso() {
     criado_em TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
   )`).run();
   await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_acesso_email ON usuarios_acesso(email)").run();
+  const colunasUsuario = await env.DB.prepare("PRAGMA table_info(usuarios_acesso)").all<{name:string}>();
+  if (!colunasUsuario.results.some(coluna => coluna.name === "associacao")) await env.DB.prepare("ALTER TABLE usuarios_acesso ADD COLUMN associacao TEXT").run();
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS sessoes_acesso (
     token_hash TEXT PRIMARY KEY NOT NULL,
     usuario_id TEXT NOT NULL,
@@ -28,6 +30,17 @@ async function criarTabelasDeAcesso() {
     usado INTEGER DEFAULT 0 NOT NULL,
     criado_em TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
   )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS documentos_associacao (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    auth_user_id TEXT NOT NULL,
+    associacao TEXT NOT NULL,
+    competencia TEXT NOT NULL,
+    extratos_json TEXT DEFAULT '[]' NOT NULL,
+    notas_fiscais_json TEXT DEFAULT '[]' NOT NULL,
+    criado_em TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    atualizado_em TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+  )`).run();
+  await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_documentos_associacao_competencia ON documentos_associacao(associacao, competencia)").run();
 }
 
 export function garantirBanco() {
