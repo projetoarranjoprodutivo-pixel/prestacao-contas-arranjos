@@ -86,63 +86,57 @@ export async function gerarPdfAssociacoes(registros: AssociacaoRelatorio[]) {
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   let page: PDFPage;
   let y = 0;
-  let associacaoAtual = "";
-  let indiceAtual = 0;
 
-  function novaPagina(nome: string, indice: number, continuacao = false) {
+  function novaPagina(nome: string, indice: number) {
     page = pdf.addPage([LARGURA, ALTURA]);
-    page.drawRectangle({ x: 0, y: ALTURA - 112, width: LARGURA, height: 112, color: VERDE });
-    page.drawRectangle({ x: 0, y: ALTURA - 118, width: LARGURA, height: 6, color: VERDE_MEDIO });
-    page.drawText("ARRANJOS PRODUTIVOS", { x: MARGEM, y: ALTURA - 38, size: 10, font: bold, color: rgb(0.69, 0.9, 0.79) });
-    page.drawText("RELATÓRIO CADASTRAL DE ASSOCIAÇÃO", { x: MARGEM, y: ALTURA - 61, size: 16, font: bold, color: rgb(1, 1, 1) });
+    page.drawRectangle({ x: 0, y: ALTURA - 92, width: LARGURA, height: 92, color: VERDE });
+    page.drawRectangle({ x: 0, y: ALTURA - 97, width: LARGURA, height: 5, color: VERDE_MEDIO });
+    page.drawText("ARRANJOS PRODUTIVOS", { x: MARGEM, y: ALTURA - 29, size: 8, font: bold, color: rgb(0.69, 0.9, 0.79) });
+    page.drawText("RELATÓRIO CADASTRAL DE ASSOCIAÇÃO", { x: MARGEM, y: ALTURA - 49, size: 14, font: bold, color: rgb(1, 1, 1) });
     const titulo = informar(nome);
     const tituloLinhas = quebrar(titulo, bold, 12, 405);
-    desenharTexto(page, tituloLinhas.slice(0, 2), bold, 12, MARGEM, ALTURA - 86, rgb(1, 1, 1), 14);
-    page.drawRectangle({ x: LARGURA - 112, y: ALTURA - 92, width: 70, height: 30, color: VERDE_MEDIO });
-    page.drawText(continuacao ? "CONTINUAÇÃO" : `${indice + 1} DE ${registros.length}`, { x: LARGURA - 104, y: ALTURA - 81, size: continuacao ? 7.5 : 9, font: bold, color: rgb(1, 1, 1) });
-    y = ALTURA - 148;
+    desenharTexto(page, tituloLinhas.slice(0, 2), bold, 10, MARGEM, ALTURA - 70, rgb(1, 1, 1), 11);
+    page.drawRectangle({ x: LARGURA - 106, y: ALTURA - 73, width: 64, height: 26, color: VERDE_MEDIO });
+    page.drawText(`${indice + 1} DE ${registros.length}`, { x: LARGURA - 98, y: ALTURA - 64, size: 8, font: bold, color: rgb(1, 1, 1) });
+    y = ALTURA - 119;
   }
 
-  function garantirEspaco(altura: number) {
-    if (y - altura < 66) novaPagina(associacaoAtual, indiceAtual, true);
-  }
+  function garantirEspaco(_altura: number) {}
 
   function tituloSecao(titulo: string) {
-    garantirEspaco(34);
-    page.drawRectangle({ x: MARGEM, y: y - 22, width: CONTEUDO, height: 25, color: VERDE_CLARO });
-    page.drawRectangle({ x: MARGEM, y: y - 22, width: 4, height: 25, color: VERDE_MEDIO });
-    page.drawText(titulo, { x: MARGEM + 13, y: y - 14, size: 10, font: bold, color: VERDE });
-    y -= 34;
+    garantirEspaco(25);
+    page.drawRectangle({ x: MARGEM, y: y - 17, width: CONTEUDO, height: 20, color: VERDE_CLARO });
+    page.drawRectangle({ x: MARGEM, y: y - 17, width: 4, height: 20, color: VERDE_MEDIO });
+    page.drawText(titulo, { x: MARGEM + 12, y: y - 11.5, size: 8.3, font: bold, color: VERDE });
+    y -= 25;
   }
 
   function campo(rotulo: string, valor: string, largura = CONTEUDO) {
-    const linhas = quebrar(informar(valor), regular, 9.5, largura - 22);
-    const altura = Math.max(43, 29 + linhas.length * 12);
-    garantirEspaco(altura + 8);
+    const linhas = quebrar(informar(valor), regular, 8.2, largura - 20);
+    const altura = Math.max(31, 20 + linhas.length * 9.5);
+    garantirEspaco(altura + 4);
     page.drawRectangle({ x: MARGEM, y: y - altura, width: largura, height: altura, color: CINZA_CLARO, borderColor: BORDA, borderWidth: 0.6 });
-    page.drawText(rotulo, { x: MARGEM + 11, y: y - 15, size: 7.5, font: bold, color: VERDE_MEDIO });
-    desenharTexto(page, linhas, regular, 9.5, MARGEM + 11, y - 31, PRETO, 12);
-    y -= altura + 8;
+    page.drawText(rotulo, { x: MARGEM + 10, y: y - 10.5, size: 6.5, font: bold, color: VERDE_MEDIO });
+    desenharTexto(page, linhas, regular, 8.2, MARGEM + 10, y - 22, PRETO, 9.5);
+    y -= altura + 4;
   }
 
   function linhaCampos(campos: Array<{ rotulo: string; valor: string }>) {
     const intervalo = 8;
     const largura = (CONTEUDO - intervalo * (campos.length - 1)) / campos.length;
-    const preparados = campos.map(item => ({ ...item, linhas: quebrar(informar(item.valor), regular, 9.2, largura - 20) }));
-    const altura = Math.max(43, 29 + Math.max(...preparados.map(item => item.linhas.length)) * 12);
-    garantirEspaco(altura + 8);
+    const preparados = campos.map(item => ({ ...item, linhas: quebrar(informar(item.valor), regular, 8, largura - 18) }));
+    const altura = Math.max(31, 20 + Math.max(...preparados.map(item => item.linhas.length)) * 9.5);
+    garantirEspaco(altura + 4);
     preparados.forEach((item, indice) => {
       const x = MARGEM + indice * (largura + intervalo);
       page.drawRectangle({ x, y: y - altura, width: largura, height: altura, color: CINZA_CLARO, borderColor: BORDA, borderWidth: 0.6 });
-      page.drawText(item.rotulo, { x: x + 10, y: y - 15, size: 7.5, font: bold, color: VERDE_MEDIO });
-      desenharTexto(page, item.linhas, regular, 9.2, x + 10, y - 31, PRETO, 12);
+      page.drawText(item.rotulo, { x: x + 9, y: y - 10.5, size: 6.5, font: bold, color: VERDE_MEDIO });
+      desenharTexto(page, item.linhas, regular, 8, x + 9, y - 22, PRETO, 9.5);
     });
-    y -= altura + 8;
+    y -= altura + 4;
   }
 
   for (const [indice, associacao] of registros.entries()) {
-    associacaoAtual = associacao.nome;
-    indiceAtual = indice;
     novaPagina(associacao.nome, indice);
     tituloSecao("IDENTIFICAÇÃO DA ENTIDADE");
     campo("RAZÃO SOCIAL", associacao.razaoSocial || "");
