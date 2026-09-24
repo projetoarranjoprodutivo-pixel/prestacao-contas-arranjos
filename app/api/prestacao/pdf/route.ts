@@ -75,7 +75,7 @@ export async function GET(request: Request) {
       lines: [registro.observacoes || "Sem observações."],
     },
   ];
-  const basePdf = createPdf(
+  const basePdf = await createPdf(
     "PRESTAÇÃO DE CONTAS MENSAL - ARRANJOS PRODUTIVOS",
     sections,
   );
