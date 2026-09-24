@@ -9,6 +9,7 @@ import UsuariosAcesso from "./usuarios-acesso-client";
 import SenhaAdmin from "./senha-admin-client";
 
 export const dynamic="force-dynamic";
+// CENTRAL DE PDFS - PUBLICAÇÃO 24/09/2026
 
 function competenciaAtual(){const d=new Date();return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}`;}
 function formatarData(data:string){const partes=data.split("-");return partes.length===3?`${partes[2]}/${partes[1]}/${partes[0]}`:data;}
