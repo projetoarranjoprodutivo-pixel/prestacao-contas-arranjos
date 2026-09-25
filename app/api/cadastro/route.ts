@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const cpf = text(form, "cpf").replace(/\D/g, ""); if (cpf.length !== 11) return Response.json({ message: "Informe um CPF válido." }, { status: 400 });
     let atendimentos:Array<{municipio:string;comunidade:string;propriedade:string;agricultor:string;telefone:string}>=[];
     try{atendimentos=JSON.parse(text(form,"atendimentos"));}catch{atendimentos=[];}
-    if(cargo==="Técnico de campo"&&(!atendimentos.length||atendimentos.some(a=>!a.municipio?.trim()||!a.comunidade?.trim()||!a.propriedade?.trim()||!a.agricultor?.trim()||!a.telefone?.trim())))return Response.json({message:"Complete município, comunidade, propriedade, agricultor e telefone em todos os atendimentos."},{status:400});
+    if(cargo==="Técnico de campo")atendimentos=atendimentos.filter(a=>Object.values(a).some(valor=>String(valor||"").trim()));
     if(cargo!=="Técnico de campo")atendimentos=[];
     let superiores:Record<string,string>={};try{superiores=JSON.parse(text(form,"superiores")||"{}");}catch{superiores={};}
     const existing = await db.query.colaboradores.findFirst({ where: eq(colaboradores.authUserId, user.userId) });
