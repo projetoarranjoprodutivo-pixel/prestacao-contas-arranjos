@@ -16,8 +16,9 @@ const mesReferencia=(competencia:string)=>new Intl.DateTimeFormat("pt-BR",{month
 
 export async function GET(request:Request){
   if(!await getAdminUser())return new Response("Acesso restrito",{status:403});
-  const url=new URL(request.url);const competencia=url.searchParams.get("competencia")||"";const nomeAssociacao=url.searchParams.get("associacao")||"";
-  if(!/^\d{4}-\d{2}$/.test(competencia))return new Response("Competência inválida",{status:400});
+  const url=new URL(request.url);const competenciaUnica=url.searchParams.get("competencia")||"";const nomeAssociacao=url.searchParams.get("associacao")||"";
+  const competencias=[...new Set([...url.searchParams.getAll("competencias"),...(competenciaUnica?[competenciaUnica]:[])])].filter(valor=>/^\d{4}-\d{2}$/.test(valor)).sort();
+  if(!competencias.length)return new Response("Selecione ao menos uma competência válida",{status:400});
   const db=getDb();
   const associacao=await db.query.associacoes.findFirst({where:and(eq(associacoes.nome,nomeAssociacao),eq(associacoes.ativo,true))});
   if(!associacao)return new Response("Associação não encontrada",{status:404});
