@@ -40,7 +40,7 @@ export async function POST(request:Request){
     if(dadosAtividades.length>1_500_000)return Response.json({message:"As assinaturas ficaram muito grandes. Limpe e refaça as assinaturas com traços mais simples."},{status:400});
     const municipio=atividades[0]?.municipio||"";
     if(!/^\d{4}-\d{2}$/.test(competencia)||!atividades.length)return Response.json({message:"Preencha a competência e pelo menos uma atividade."},{status:400});
-    const atividadeInvalida=atividades.findIndex(a=>!a.municipio||!a.tipoAtividade||!a.data||!a.inicio||(a.tipoAtividade==="Visita Técnica"&&(!a.comunidade||!a.propriedade||!a.agricultor||!a.telefone))||(a.tipoAtividade==="Entrega de mudas"&&(!a.tipoMuda||Number(a.quantidadeMudas)<=0))||(a.executada&&(Number(a.duracao)<=0||!a.resumo))||(!a.executada&&!a.resumo));
+    const atividadeInvalida=atividades.findIndex(a=>!a.municipio||!a.tipoAtividade||!a.data||!a.inicio||(a.tipoAtividade==="Visita Técnica"&&!a.agricultor)||(a.tipoAtividade==="Entrega de mudas"&&(!a.tipoMuda||Number(a.quantidadeMudas)<=0))||(a.executada&&(Number(a.duracao)<=0||!a.resumo))||(!a.executada&&!a.resumo));
     if(atividadeInvalida>=0)return Response.json({message:`Revise a atividade ${atividadeInvalida+1}: preencha todos os campos obrigatórios, a duração e o resumo da execução.`},{status:400});
     const existente=await db.query.prestacoes.findFirst({where:and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});
     let anexos:Array<{key:string;nome:string;tipo:string}>=[];try{anexos=existente?JSON.parse(existente.anexosJson||"[]"):[];}catch{anexos=[];}
