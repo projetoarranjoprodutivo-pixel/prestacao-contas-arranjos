@@ -32,7 +32,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const resumoMudas=[...mudasPorMunicipio.entries()].sort((a,b)=>b[1].quantidade-a[1].quantidade||a[0].localeCompare(b[0]));
   const totalMudas=resumoMudas.reduce((total,[,dados])=>total+dados.quantidade,0);
   const associacoesAtivas=listaAssociacoes.filter(a=>a.ativo).sort((a,b)=>a.nome.localeCompare(b.nome)).map(a=>a.nome);
-  const competenciasDisponiveis=[...new Set([...todosPlanos.map(p=>p.competencia),...todasPrestacoes.map(p=>p.competencia),...documentosDasAssociacoes.map(d=>d.competencia)])].filter(c=>/^\\d{4}-\\d{2}$/.test(c)).sort().reverse();
+  const competenciasDisponiveis=[...new Set([...todosPlanos.map(p=>p.competencia),...todasPrestacoes.map(p=>p.competencia),...documentosDasAssociacoes.map(d=>d.competencia)])].filter(c=>/^\d{4}-\d{2}$/.test(c)).sort().reverse();
   const indicadores=[
     {rotulo:"Usuários",valor:usuarios.length,Icon:Users},
     {rotulo:"Planos",valor:planos.length,Icon:FileCheck2},
