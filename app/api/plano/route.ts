@@ -13,7 +13,7 @@ export async function POST(request:Request){
     const cadastro=await db.query.colaboradores.findFirst({where:eq(colaboradores.authUserId,user.userId)});
     if(!cadastro?.associacao)return Response.json({message:"Atualize seu cadastro e selecione a associação."},{status:403});
     const competencia=String(form.get("competencia")||"");let agenda:Item[]=[];try{agenda=JSON.parse(String(form.get("agenda")||"[]"));}catch{}
-    if(!/^\d{4}-\d{2}$/.test(competencia)||!agenda.length||agenda.some(i=>!i.data||!i.hora||!i.municipio||!tipos.has(i.tipoAtividade)||(i.tipoAtividade==="Visita Técnica"&&(!i.comunidade||!i.propriedade||!i.agricultor||!i.telefone))||(i.tipoAtividade==="Entrega de mudas"&&(!i.tipoMuda||Number(i.quantidadeMudas)<=0))))return Response.json({message:"Preencha a competência e todos os campos obrigatórios da agenda."},{status:400});
+    if(!/^\d{4}-\d{2}$/.test(competencia)||!agenda.length||agenda.some(i=>!i.data||!i.hora||!i.municipio||!tipos.has(i.tipoAtividade)||(i.tipoAtividade==="Visita Técnica"&&!i.agricultor)||(i.tipoAtividade==="Entrega de mudas"&&(!i.tipoMuda||Number(i.quantidadeMudas)<=0))))return Response.json({message:"Preencha a competência e todos os campos obrigatórios da agenda."},{status:400});
     const values={authUserId:user.userId,competencia,associacao:cadastro.associacao,agendaJson:JSON.stringify(agenda),status:"enviado",atualizadoEm:new Date().toISOString()};
     await db.insert(planosTrabalho).values(values).onConflictDoUpdate({target:[planosTrabalho.authUserId,planosTrabalho.competencia],set:values});
     return Response.json({message:"Plano de trabalho salvo com sucesso."});
