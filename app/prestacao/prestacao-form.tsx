@@ -387,9 +387,8 @@ export default function PrestacaoForm({
                       </select>
                     </label>
                     <label className="text-sm font-semibold">
-                      Comunidade *
+                      Comunidade
                       <input
-                        required
                         value={a.comunidade}
                         onChange={(e) =>
                           alterar(i, "comunidade", e.target.value)
@@ -398,9 +397,8 @@ export default function PrestacaoForm({
                       />
                     </label>
                     <label className="text-sm font-semibold">
-                      Propriedade *
+                      Propriedade
                       <input
-                        required
                         value={a.propriedade}
                         onChange={(e) =>
                           alterar(i, "propriedade", e.target.value)
@@ -409,9 +407,8 @@ export default function PrestacaoForm({
                       />
                     </label>
                     <label className="text-sm font-semibold">
-                      Telefone *
+                      Telefone
                       <input
-                        required
                         value={a.telefone}
                         onChange={(e) => alterar(i, "telefone", e.target.value)}
                         className={campo}
