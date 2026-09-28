@@ -68,6 +68,7 @@ export default function PrestacaoForm({
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [msg, setMsg] = useState("");
+  const [salvandoAtividade, setSalvandoAtividade] = useState<number | null>(null);
   const campo =
     "mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-700 focus:ring-4 focus:ring-emerald-700/10";
   useEffect(() => {
@@ -140,6 +141,31 @@ export default function PrestacaoForm({
     ]);
     setStatus("idle");
     setMsg(`${selecionados.length} anexo(s) incluído(s) e exibido(s) abaixo.`);
+  }
+  async function salvarAtividade(indice: number, formulario: HTMLFormElement | null) {
+    if (!formulario || !/^\\d{4}-\\d{2}$/.test(competencia)) {
+      setStatus("error");
+      setMsg("Selecione a competência antes de salvar a atividade.");
+      return;
+    }
+    setSalvandoAtividade(indice);
+    setStatus("loading");
+    setMsg("");
+    const fd = new FormData(formulario);
+    fd.delete("anexos");
+    fd.delete("seletor-anexos");
+    fd.set("modo", "individual");
+    fd.set("atividadeIndice", String(indice));
+    fd.set("atividades", JSON.stringify([atividades[indice]]));
+    const r = await fetch("/api/prestacao", { method: "POST", body: fd });
+    const b = await r.json().catch(() => ({}));
+    setStatus(r.ok ? "success" : "error");
+    setMsg(b.message || (r.ok ? `Atividade ${indice + 1} salva.` : "Não foi possível salvar a atividade."));
+    if (r.ok) {
+      setOrigem("prestacao");
+      setAnexosSalvos(b.anexos || anexosSalvos);
+    }
+    setSalvandoAtividade(null);
   }
   async function enviar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -489,6 +515,17 @@ export default function PrestacaoForm({
                   />
                 </div>
               )}
+              <div className="mt-5 flex justify-end border-t pt-4">
+                <button
+                  type="button"
+                  disabled={salvandoAtividade !== null}
+                  onClick={(e) => salvarAtividade(i, e.currentTarget.form)}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-700 bg-emerald-50 px-5 font-bold text-emerald-800 disabled:opacity-60"
+                >
+                  {salvandoAtividade === i && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Salvar somente esta atividade
+                </button>
+              </div>
             </section>
           ))}
         </div>
@@ -585,9 +622,7 @@ export default function PrestacaoForm({
             {status === "loading" && (
               <Loader2 className="h-4 w-4 animate-spin" />
             )}
-            {origem === "prestacao"
-              ? "Salvar alterações"
-              : "Enviar prestação de contas"}
+            Salvar todas as atividades
           </button>
         </div>
       </form>
