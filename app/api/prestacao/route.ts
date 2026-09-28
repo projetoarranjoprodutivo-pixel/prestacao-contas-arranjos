@@ -35,14 +35,24 @@ export async function POST(request:Request){
     if(!cadastro?.associacao)return Response.json({message:"Atualize seu cadastro e selecione a associação antes de enviar a prestação."},{status:403});
     if(new Date(cadastro.documentoValidade+"T23:59:59")<new Date())return Response.json({message:"Atualize os documentos de identificação vencidos antes de continuar."},{status:403});
     const competencia=String(form.get("competencia")||""); const associacao=cadastro.associacao;
-    let atividades:Atividade[]=[]; try{atividades=JSON.parse(String(form.get("atividades")||"[]"));}catch{}
+    const modoIndividual=String(form.get("modo")||"")==="individual";
+    const indiceExibicao=Math.max(0,Number(form.get("atividadeIndice")||0));
+    let recebidas:Atividade[]=[]; try{recebidas=JSON.parse(String(form.get("atividades")||"[]"));}catch{}
+    if(!/^\d{4}-\d{2}$/.test(competencia)||!recebidas.length)return Response.json({message:"Preencha a competência e pelo menos uma atividade."},{status:400});
+    const atividadeInvalida=recebidas.findIndex(a=>!a.municipio||!a.tipoAtividade||!a.data||!a.inicio||(a.tipoAtividade==="Visita Técnica"&&!a.agricultor)||(a.tipoAtividade==="Entrega de mudas"&&(!a.tipoMuda||Number(a.quantidadeMudas)<=0))||(a.executada&&(Number(a.duracao)<=0||!a.resumo))||(!a.executada&&!a.resumo));
+    if(atividadeInvalida>=0){const numero=modoIndividual?indiceExibicao+1:atividadeInvalida+1;return Response.json({message:`Revise a atividade ${numero}: preencha todos os campos obrigatórios, a duração e o resumo da execução.`},{status:400});}
+    const existente=await db.query.prestacoes.findFirst({where:and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});
+    let atividades=recebidas;
+    if(modoIndividual){
+      let anteriores:Atividade[]=[];try{anteriores=existente?JSON.parse(existente.atividadesJson||"[]"):[];}catch{anteriores=[];}
+      const chave=(a:Atividade)=>[a.data,a.inicio,a.tipoAtividade,a.municipio,a.agricultor].join("|");
+      const posicao=anteriores.findIndex(a=>chave(a)===chave(recebidas[0]));
+      if(posicao>=0)anteriores[posicao]=recebidas[0];else anteriores.push(recebidas[0]);
+      atividades=anteriores;
+    }
     const dadosAtividades=JSON.stringify(atividades);
     if(dadosAtividades.length>1_500_000)return Response.json({message:"As assinaturas ficaram muito grandes. Limpe e refaça as assinaturas com traços mais simples."},{status:400});
     const municipio=atividades[0]?.municipio||"";
-    if(!/^\d{4}-\d{2}$/.test(competencia)||!atividades.length)return Response.json({message:"Preencha a competência e pelo menos uma atividade."},{status:400});
-    const atividadeInvalida=atividades.findIndex(a=>!a.municipio||!a.tipoAtividade||!a.data||!a.inicio||(a.tipoAtividade==="Visita Técnica"&&!a.agricultor)||(a.tipoAtividade==="Entrega de mudas"&&(!a.tipoMuda||Number(a.quantidadeMudas)<=0))||(a.executada&&(Number(a.duracao)<=0||!a.resumo))||(!a.executada&&!a.resumo));
-    if(atividadeInvalida>=0)return Response.json({message:`Revise a atividade ${atividadeInvalida+1}: preencha todos os campos obrigatórios, a duração e o resumo da execução.`},{status:400});
-    const existente=await db.query.prestacoes.findFirst({where:and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});
     let anexos:Array<{key:string;nome:string;tipo:string}>=[];try{anexos=existente?JSON.parse(existente.anexosJson||"[]"):[];}catch{anexos=[];}
     if(!env.BUCKET)throw new Error("Armazenamento KV indisponível");
     const permitidos=new Set(["application/pdf","image/jpeg","image/png","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]);
@@ -56,8 +66,10 @@ export async function POST(request:Request){
       await env.BUCKET.put(key,await item.arrayBuffer(),{metadata:{contentType:item.type}});
       anexos.push({key,nome:item.name,tipo:item.type});
     }
-    const values={authUserId:user.userId,competencia,municipio,associacao,atividadesJson:dadosAtividades,totalMinutos:atividades.filter(a=>a.executada).reduce((s,a)=>s+Number(a.duracao||0),0),anexosJson:JSON.stringify(anexos),observacoes:String(form.get("observacoes")||"").trim()||null,status:"enviado",atualizadoEm:new Date().toISOString()};
+    const observacoes=modoIndividual?(existente?.observacoes||String(form.get("observacoes")||"").trim()||null):(String(form.get("observacoes")||"").trim()||null);
+    const values={authUserId:user.userId,competencia,municipio,associacao,atividadesJson:dadosAtividades,totalMinutos:atividades.filter(a=>a.executada).reduce((s,a)=>s+Number(a.duracao||0),0),anexosJson:JSON.stringify(anexos),observacoes,status:"enviado",atualizadoEm:new Date().toISOString()};
     await db.insert(prestacoes).values(values).onConflictDoUpdate({target:[prestacoes.authUserId,prestacoes.competencia],set:values});
-    return Response.json({message:`Prestação de contas salva com ${anexos.length} anexo(s).`,anexos});
+    const message=modoIndividual?`Atividade ${indiceExibicao+1} salva individualmente.`:`Todas as atividades foram salvas com ${anexos.length} anexo(s).`;
+    return Response.json({message,anexos});
   }catch(error){console.error("prestacao_error",error);return Response.json({message:"Não foi possível salvar a prestação. Tente novamente."},{status:500});}
 }
