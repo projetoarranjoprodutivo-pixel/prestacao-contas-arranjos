@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Plus, X } from "lucide-react";
+import { Download, FileSpreadsheet, Plus, X } from "lucide-react";
 
 type Props = {
   associacoes: string[];
@@ -85,9 +85,17 @@ export default function AderesPdfForm({
         </select>
       </div>
 
-      <button className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 text-sm font-bold text-white">
-        <Download className="h-4 w-4" /> GERAR PRESTAÇÃO ADERES DOS MESES SELECIONADOS
-      </button>
+      <div className="grid gap-2 lg:grid-cols-3">
+        <button formAction="/api/admin/prestacao-associacao/pdf" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-bold text-white">
+          <Download className="h-4 w-4" /> GERAR PRESTAÇÃO ADERES EM PDF
+        </button>
+        <button formAction="/api/admin/prestacao-associacao/excel" name="modelo" value="agricultura" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white">
+          <FileSpreadsheet className="h-4 w-4" /> PLANILHA AGRICULTURA FAMILIAR
+        </button>
+        <button formAction="/api/admin/prestacao-associacao/excel" name="modelo" value="horas" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-amber-700 px-4 py-2 text-sm font-bold text-white">
+          <FileSpreadsheet className="h-4 w-4" /> PLANILHA CONTROLE DE HORAS
+        </button>
+      </div>
     </form>
   );
 }
