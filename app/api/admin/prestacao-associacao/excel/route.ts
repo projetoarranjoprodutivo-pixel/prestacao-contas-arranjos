@@ -112,7 +112,7 @@ async function gerarAgricultura(
   });
 
   const template = await carregarTemplate(request, "controle-agricultura-familiar-fomento.xlsx");
-  return await fillXlsxTemplate(template, {
+  return fillXlsxTemplate(template, {
     "xl/worksheets/sheet1.xml": identificacao,
     "xl/worksheets/sheet2.xml": agricultoresCells,
     "xl/worksheets/sheet3.xml": visitasCells,
@@ -140,7 +140,7 @@ async function gerarHoras(
     cells[`B${observacoesRow}`] = registros.map((item) => texto(item.observacoes)).filter(Boolean).join("; ");
   });
   const template = await carregarTemplate(request, "controle-de-horas-fomento.xlsx");
-  return await fillXlsxTemplate(template, { "xl/worksheets/sheet1.xml": cells });
+  return fillXlsxTemplate(template, { "xl/worksheets/sheet1.xml": cells });
 }
 
 export async function GET(request: Request) {
