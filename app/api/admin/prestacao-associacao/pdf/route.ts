@@ -36,6 +36,7 @@ export async function GET(request:Request){
   for(const {a} of atividades){const nome=informado(a.agricultor||a.beneficiario);if(nome==="NÃO INFORMADO")continue;const atual=agricultoresMap.get(nome)||{nome,municipio:informado(a.municipio),beneficios:[],quantidade:0,observacoes:[]};if(a.tipoAtividade)atual.beneficios.push(informado(a.tipoAtividade));if(a.tipoMuda)atual.beneficios.push(`MUDAS DE ${informado(a.tipoMuda)}`);atual.quantidade+=Number(a.quantidadeMudas)||0;if(a.resumo)atual.observacoes.push(a.resumo);agricultoresMap.set(nome,atual);}
   const agricultores=[...agricultoresMap.values()];
   const extratos=financeiro.flatMap(item=>lista<Arquivo>(item.extratosJson)),notas=financeiro.flatMap(item=>lista<Arquivo>(item.notasFiscaisJson)),anexos=relatorios.flatMap(r=>lista<Arquivo>(r.anexosJson));
+  const arquivos=[...extratos.map(a=>({...a,grupo:"EXTRATO BANCÁRIO"})),...notas.map(a=>({...a,grupo:"NOTA FISCAL"})),...anexos.map(a=>({...a,grupo:"ANEXO TÉCNICO"}))];
   const referencias=competencias.map(mesReferencia).join("; ");
   const identificadorCompetencias=competencias.join("_");
   const tecnicos=[...new Set(relatorios.map(r=>nomes.get(r.authUserId)?.nomeCompleto).filter(Boolean))] as string[];
@@ -51,10 +52,14 @@ export async function GET(request:Request){
     {heading:"AQUISIÇÕES E DOCUMENTOS FISCAIS",lines:notas.length?notas.map((a,i)=>`${i+1}. DATA DA COMPRA: NÃO INFORMADO | INSUMO: NÃO INFORMADO | ITEM ADQUIRIDO: NÃO INFORMADO | QUANTIDADE: NÃO INFORMADO | VALOR UNITÁRIO: NÃO INFORMADO | VALOR TOTAL: NÃO INFORMADO | FORNECEDOR: NÃO INFORMADO | DOCUMENTO FISCAL: ${a.nome} | BENEFICIÁRIOS: NÃO INFORMADO | OBSERVAÇÕES: ARQUIVO INTEGRAL ANEXADO AO FINAL`):["NENHUMA NOTA FISCAL ENVIADA NAS COMPETÊNCIAS SELECIONADAS."]},
     {heading:"CONTROLE DE HORAS - FOMENTO",lines:relatorios.length?relatorios.map((r,i)=>{const u=nomes.get(r.authUserId);return `${i+1}. NOME DO PROFISSIONAL: ${informado(u?.nomeCompleto)} | CARGO / FUNÇÃO: ${informado(u?.cargo)} | PERÍODO DE REFERÊNCIA: ${mesReferencia(r.competencia)} | HORAS PREVISTAS: NÃO INFORMADO | HORAS TRABALHADAS: ${(r.totalMinutos/60).toLocaleString("pt-BR",{maximumFractionDigits:2})} | VALOR DA HORA: NÃO INFORMADO | VALOR CORRESPONDENTE: NÃO INFORMADO | OBSERVAÇÕES: ${informado(r.observacoes)}`;}):["NENHUM CONTROLE DE HORAS REGISTRADO NAS COMPETÊNCIAS SELECIONADAS."]},
     {heading:"RESUMO GERAL DA EXECUÇÃO DO FOMENTO",lines:[`AGRICULTORES CADASTRADOS: ${agricultores.length}`,`VISITAS TÉCNICAS REGISTRADAS: ${visitas.length}`,`EVENTOS / AÇÕES REGISTRADOS: ${eventos.length}`,`PARTICIPAÇÕES EM EVENTOS: ${eventos.filter(x=>x.a.agricultor).length||"NÃO INFORMADO"}`,`TOTAL DE MUDAS ENTREGUES: ${entregas.reduce((s,x)=>s+(Number(x.a.quantidadeMudas)||0),0).toLocaleString("pt-BR")}`,`TOTAL GASTO COM MUDAS: NÃO INFORMADO`, `TOTAL GASTO COM SEMENTES: NÃO INFORMADO`,`TOTAL GASTO COM ADUBO / FERTILIZANTE: NÃO INFORMADO`,`TOTAL GASTO COM OUTROS ITENS: NÃO INFORMADO`,`VALOR TOTAL DAS AQUISIÇÕES: NÃO INFORMADO`,`EXTRATOS BANCÁRIOS ANEXADOS: ${extratos.length}`,`NOTAS FISCAIS ANEXADAS: ${notas.length}`,`ANEXOS DOS RELATÓRIOS TÉCNICOS: ${anexos.length}`]},
+    {heading:"RELAÇÃO DE ARQUIVOS ENVIADOS",lines:arquivos.length?arquivos.map((a,i)=>`${i+1}. ${a.grupo}: ${a.nome}${competencias.length>1?" | DISPONÍVEL INTEGRALMENTE NA PRESTAÇÃO INDIVIDUAL DA RESPECTIVA COMPETÊNCIA":" | ARQUIVO INTEGRAL INCLUÍDO AO FINAL"}`):["NENHUM ARQUIVO ENVIADO NAS COMPETÊNCIAS SELECIONADAS."]},
   ];
   const base=await createPdf(`PRESTAÇÃO DE CONTAS À ADERES - ${associacao.nome} - ${referencias}`,sections);const pdf=await PDFDocument.load(base);const fonte=await pdf.embedFont(StandardFonts.HelveticaBold);
-  const arquivos=[...extratos.map(a=>({...a,grupo:"EXTRATO BANCÁRIO"})),...notas.map(a=>({...a,grupo:"NOTA FISCAL"})),...anexos.map(a=>({...a,grupo:"ANEXO TÉCNICO"}))];
-  for(const [indice,arquivo] of arquivos.entries()){
+  // Em consolidações de vários meses, os relatórios digitalizados podem somar
+  // dezenas de MB. Eles ficam relacionados no PDF e permanecem disponíveis
+  // integralmente nos PDFs individuais, evitando o limite de memória do Worker.
+  const arquivosParaIncorporar=competencias.length===1?arquivos:[];
+  for(const [indice,arquivo] of arquivosParaIncorporar.entries()){
     const objeto=await env.BUCKET.get(arquivo.key,"arrayBuffer");if(!objeto)continue;
     const bytes=new Uint8Array(objeto);
     try{
