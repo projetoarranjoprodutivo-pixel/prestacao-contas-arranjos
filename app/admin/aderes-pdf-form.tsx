@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Download, FileSpreadsheet, Plus, X } from "lucide-react";
+import { PDFDocument } from "pdf-lib";
 
 type Props = {
   associacoes: string[];
@@ -27,6 +28,26 @@ export default function AderesPdfForm({
 }: Props) {
   const [competencias, setCompetencias] = useState<string[]>([competenciaInicial]);
   const [novaCompetencia, setNovaCompetencia] = useState("");
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  async function gerarPdfComAnexos() {
+    const formulario=formRef.current;if(!formulario||gerandoPdf)return;
+    const associacao=String(new FormData(formulario).get("associacao")||"");
+    if(!associacao){alert("SELECIONE A ASSOCIAÇÃO.");return;}
+    setGerandoPdf(true);
+    try{
+      const destino=await PDFDocument.create();
+      for(const competencia of competencias){
+        const resposta=await fetch(`/api/admin/prestacao-associacao/pdf?competencias=${encodeURIComponent(competencia)}&associacao=${encodeURIComponent(associacao)}`);
+        if(!resposta.ok)throw new Error(`NÃO FOI POSSÍVEL GERAR A COMPETÊNCIA ${competencia}.`);
+        const origem=await PDFDocument.load(await resposta.arrayBuffer());
+        const paginas=await destino.copyPages(origem,origem.getPageIndices());paginas.forEach(pagina=>destino.addPage(pagina));
+      }
+      const bytes=await destino.save();
+      const blob=new Blob([bytes],{type:"application/pdf"});const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`prestacao-aderes-${associacao.replace(/[^a-zA-Z0-9_-]/g,"-")}-${competencias.join("_")}.pdf`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+    }catch(error){alert(error instanceof Error?error.message:"NÃO FOI POSSÍVEL GERAR O PDF.");}finally{setGerandoPdf(false);}
+  }
 
   function adicionar() {
     if (!/^\d{4}-\d{2}$/.test(novaCompetencia)) return;
@@ -44,6 +65,7 @@ export default function AderesPdfForm({
 
   return (
     <form
+      ref={formRef}
       action="/api/admin/prestacao-associacao/pdf"
       method="get"
       target="_blank"
@@ -86,8 +108,8 @@ export default function AderesPdfForm({
       </div>
 
       <div className="grid gap-2 lg:grid-cols-3">
-        <button formAction="/api/admin/prestacao-associacao/pdf" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-bold text-white">
-          <Download className="h-4 w-4" /> GERAR PRESTAÇÃO ADERES EM PDF
+        <button type="button" onClick={gerarPdfComAnexos} disabled={gerandoPdf} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
+          <Download className="h-4 w-4" /> {gerandoPdf?"GERANDO PDF COM ANEXOS...":"GERAR PRESTAÇÃO ADERES EM PDF"}
         </button>
         <button formAction="/api/admin/prestacao-associacao/excel" name="modelo" value="agricultura" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white">
           <FileSpreadsheet className="h-4 w-4" /> PLANILHA AGRICULTURA FAMILIAR
