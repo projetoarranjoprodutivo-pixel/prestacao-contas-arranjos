@@ -22,11 +22,12 @@ export async function GET(request:Request){
   const db=getDb();
   const associacao=await db.query.associacoes.findFirst({where:and(eq(associacoes.nome,nomeAssociacao),eq(associacoes.ativo,true))});
   if(!associacao)return new Response("Associação não encontrada",{status:404});
-  const [relatorios,usuarios,financeiro]=await Promise.all([
+  let relatorios:typeof prestacoes.$inferSelect[]=[],usuarios:typeof colaboradores.$inferSelect[]=[],financeiro:typeof documentosAssociacao.$inferSelect[]=[];
+  try{[relatorios,usuarios,financeiro]=await Promise.all([
     db.select().from(prestacoes).where(and(eq(prestacoes.associacao,associacao.nome),inArray(prestacoes.competencia,competencias))),
     db.select().from(colaboradores),
     db.select().from(documentosAssociacao).where(and(eq(documentosAssociacao.associacao,associacao.nome),inArray(documentosAssociacao.competencia,competencias))),
-  ]);
+  ]);}catch(error){return new Response(`FALHA AO CONSULTAR OS DADOS: ${error instanceof Error?error.message:String(error)}`,{status:500});}
   if(competencias.length>1){
     const linhasMes=competencias.map(competencia=>{const registros=relatorios.filter(r=>r.competencia===competencia);const itens=registros.flatMap(r=>lista<Atividade>(r.atividadesJson).filter(a=>a.executada!==false));const visitasMes=itens.filter(a=>informado(a.tipoAtividade).toLocaleLowerCase("pt-BR")==="visita técnica").length;const eventosMes=itens.filter(a=>!["visita técnica","entrega de mudas"].includes(informado(a.tipoAtividade).toLocaleLowerCase("pt-BR"))).length;const mudasMes=itens.filter(a=>informado(a.tipoAtividade).toLocaleLowerCase("pt-BR")==="entrega de mudas").reduce((s,a)=>s+(Number(a.quantidadeMudas)||0),0);return `${mesReferencia(competencia).toLocaleUpperCase("pt-BR")}: ${itens.length} ATIVIDADE(S) | ${visitasMes} VISITA(S) | ${eventosMes} EVENTO(S) | ${mudasMes.toLocaleString("pt-BR")} MUDA(S)`;});
     const arquivosConsolidados=[...financeiro.flatMap(item=>lista<Arquivo>(item.extratosJson).map(a=>`EXTRATO BANCÁRIO: ${a.nome}`)),...financeiro.flatMap(item=>lista<Arquivo>(item.notasFiscaisJson).map(a=>`NOTA FISCAL: ${a.nome}`)),...relatorios.flatMap(r=>lista<Arquivo>(r.anexosJson).map(a=>`ANEXO TÉCNICO (${r.competencia}): ${a.nome}`))];
