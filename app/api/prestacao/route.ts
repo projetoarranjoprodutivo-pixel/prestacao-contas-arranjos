@@ -4,7 +4,7 @@ import { getDb } from "@/db";
 import { colaboradores, planosTrabalho, prestacoes } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 export const runtime="edge";
-type Atividade={executada:boolean;municipio:string;comunidade:string;propriedade:string;agricultor:string;telefone:string;tipoAtividade:string;tipoMuda:string;quantidadeMudas:string;data:string;inicio:string;duracao:string;resumo:string;assinaturaProdutor?:string;assinaturaTecnico?:string};
+type Atividade={executada:boolean;municipio:string;comunidade:string;propriedade:string;agricultor:string;telefone:string;tipoAtividade:string;tipoMuda:string;quantidadeMudas:string;data:string;inicio:string;duracao:string;unidadeDuracao?:"horas";resumo:string;assinaturaProdutor?:string;assinaturaTecnico?:string};
 
 export async function GET(request:Request){
   const user=await getChatGPTUser();if(!user)return Response.json({message:"Sessão expirada."},{status:401});
@@ -13,7 +13,7 @@ export async function GET(request:Request){
     db.query.prestacoes.findFirst({where:and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))}),
     db.query.planosTrabalho.findFirst({where:and(eq(planosTrabalho.authUserId,user.userId),eq(planosTrabalho.competencia,competencia))}),
   ]);
-  const converter=(a:Record<string,string>)=>({executada:true,municipio:a.municipio||"",comunidade:a.comunidade||"",propriedade:a.propriedade||"",agricultor:a.agricultor||"",telefone:a.telefone||"",tipoAtividade:a.tipoAtividade||"Visita Técnica",tipoMuda:a.tipoMuda||"",quantidadeMudas:a.quantidadeMudas||"",data:a.data||"",inicio:a.hora||"",duracao:"",resumo:a.observacao||"",assinaturaProdutor:"",assinaturaTecnico:""});
+  const converter=(a:Record<string,string>)=>({executada:true,municipio:a.municipio||"",comunidade:a.comunidade||"",propriedade:a.propriedade||"",agricultor:a.agricultor||"",telefone:a.telefone||"",tipoAtividade:a.tipoAtividade||"Visita Técnica",tipoMuda:a.tipoMuda||"",quantidadeMudas:a.quantidadeMudas||"",data:a.data||"",inicio:a.hora||"",duracao:"",unidadeDuracao:"horas" as const,resumo:a.observacao||"",assinaturaProdutor:"",assinaturaTecnico:""});
   if(existente){
     const atividades=JSON.parse(existente.atividadesJson) as Atividade[];
     const agenda=plano?JSON.parse(plano.agendaJson) as Array<Record<string,string>>:[];
@@ -67,7 +67,9 @@ export async function POST(request:Request){
       anexos.push({key,nome:item.name,tipo:item.type});
     }
     const observacoes=modoIndividual?(existente?.observacoes||String(form.get("observacoes")||"").trim()||null):(String(form.get("observacoes")||"").trim()||null);
-    const values={authUserId:user.userId,competencia,municipio,associacao,atividadesJson:dadosAtividades,totalMinutos:atividades.filter(a=>a.executada).reduce((s,a)=>s+Number(a.duracao||0),0),anexosJson:JSON.stringify(anexos),observacoes,status:"enviado",atualizadoEm:new Date().toISOString()};
+    atividades=atividades.map(a=>a.unidadeDuracao==="horas"?a:{...a,duracao:String(Number(a.duracao||0)/60),unidadeDuracao:"horas"});
+    const atividadesNormalizadas=JSON.stringify(atividades);
+    const values={authUserId:user.userId,competencia,municipio,associacao,atividadesJson:atividadesNormalizadas,totalMinutos:Math.round(atividades.filter(a=>a.executada).reduce((s,a)=>s+Number(a.duracao||0)*60,0)),anexosJson:JSON.stringify(anexos),observacoes,status:"enviado",atualizadoEm:new Date().toISOString()};
     await db.insert(prestacoes).values(values).onConflictDoUpdate({target:[prestacoes.authUserId,prestacoes.competencia],set:values});
     const message=modoIndividual?`Atividade ${indiceExibicao+1} salva individualmente.`:`Todas as atividades foram salvas com ${anexos.length} anexo(s).`;
     return Response.json({message,anexos});
