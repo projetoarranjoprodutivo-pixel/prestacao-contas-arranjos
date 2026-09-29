@@ -4,6 +4,7 @@ import { getAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { associacoes, colaboradores, documentosAssociacao, prestacoes } from "@/db/schema";
 import { excelDate, fillXlsxTemplate, type CellValue } from "@/lib/xlsx-template";
+import agricultoresIniciais from "@/data/agricultores-iniciais.json";
 
 export const runtime = "edge";
 
@@ -22,6 +23,8 @@ type Atividade = {
   resumo?: string;
 };
 type Arquivo = { nome?: string };
+type AgricultorCadastro = { agricultor?: string; municipio?: string; comunidade?: string; propriedade?: string; telefone?: string };
+type AgricultorInicial = { n: string; m: string; a: string };
 type Registro = typeof prestacoes.$inferSelect;
 
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -31,6 +34,7 @@ const lista = <T,>(json: string | null | undefined): T[] => {
   catch { return []; }
 };
 const tipoNormalizado = (atividade: Atividade) => texto(atividade.tipoAtividade).toLocaleLowerCase("pt-BR");
+const chaveNome = (value: unknown) => texto(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleUpperCase("pt-BR");
 const mesReferencia = (competencia: string) => new Intl.DateTimeFormat("pt-BR", {
   month: "long", year: "numeric", timeZone: "UTC",
 }).format(new Date(`${competencia}-02T12:00:00Z`));
@@ -67,17 +71,36 @@ async function gerarAgricultura(
   const eventos = atividades.filter(({ atividade }) => !["visita técnica", "entrega de mudas"].includes(tipoNormalizado(atividade)));
   const entregas = atividades.filter(({ atividade }) => tipoNormalizado(atividade) === "entrega de mudas");
   const tecnicos = [...new Set(relatorios.map((item) => usuarios.get(item.authUserId)?.nomeCompleto).filter(Boolean))] as string[];
-  const agricultores = new Map<string, { municipio: string; beneficios: Set<string>; quantidade: number; observacoes: Set<string> }>();
+  const dadosAtividades = new Map<string, { municipio: string; beneficios: Set<string>; quantidade: number; observacoes: Set<string> }>();
   for (const { atividade } of atividades) {
     const nome = texto(atividade.agricultor || atividade.beneficiario);
     if (!nome) continue;
-    const atual = agricultores.get(nome) || { municipio: texto(atividade.municipio), beneficios: new Set<string>(), quantidade: 0, observacoes: new Set<string>() };
+    const chave = chaveNome(nome);
+    const atual = dadosAtividades.get(chave) || { municipio: texto(atividade.municipio), beneficios: new Set<string>(), quantidade: 0, observacoes: new Set<string>() };
     atual.beneficios.add(texto(atividade.tipoAtividade) || "ASSISTÊNCIA TÉCNICA");
     if (atividade.tipoMuda) atual.beneficios.add(`MUDAS DE ${texto(atividade.tipoMuda)}`);
     atual.quantidade += Number(atividade.quantidadeMudas) || 0;
     if (atividade.resumo) atual.observacoes.add(texto(atividade.resumo));
-    agricultores.set(nome, atual);
+    dadosAtividades.set(chave, atual);
   }
+
+  const agricultores = new Map<string, { nome: string; municipio: string }>();
+  const adicionarAgricultor = (nome: unknown, municipio: unknown) => {
+    const nomeTexto = texto(nome);
+    const municipioTexto = texto(municipio) === "NÃO INFORMADO" ? "" : texto(municipio);
+    if (!nomeTexto) return;
+    const chave = `${chaveNome(nomeTexto)}|${chaveNome(municipioTexto)}`;
+    if (!agricultores.has(chave)) agricultores.set(chave, { nome: nomeTexto, municipio: municipioTexto });
+  };
+  (agricultoresIniciais as AgricultorInicial[])
+    .filter((item) => item.a === associacao.nome)
+    .forEach((item) => adicionarAgricultor(item.n, item.m));
+  for (const usuario of usuarios.values()) {
+    const associacoesUsuario = new Set([texto(usuario.associacao), ...lista<string>(usuario.associacoesJson)]);
+    if (!associacoesUsuario.has(associacao.nome)) continue;
+    lista<AgricultorCadastro>(usuario.atendimentosJson).forEach((item) => adicionarAgricultor(item.agricultor, item.municipio));
+  }
+  for (const { atividade } of atividades) adicionarAgricultor(atividade.agricultor || atividade.beneficiario, atividade.municipio);
 
   const identificacao: Record<string, CellValue> = {
     B4: texto(associacao.razaoSocial || associacao.nome),
@@ -88,9 +111,19 @@ async function gerarAgricultura(
     B9: tecnicos.join("; "),
   };
   const agricultoresCells: Record<string, CellValue> = {};
-  [...agricultores.entries()].slice(0, 200).forEach(([nome, item], index) => colocar(agricultoresCells, index + 2, ["B", "C", "D", "E", "F"], [
-    nome, item.municipio, [...item.beneficios].join("; "), item.quantidade || "", [...item.observacoes].join("; "),
-  ]));
+  [...agricultores.values()]
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    .forEach((cadastro, index) => {
+      const atividade = dadosAtividades.get(chaveNome(cadastro.nome));
+      colocar(agricultoresCells, index + 2, ["A", "B", "C", "D", "E", "F"], [
+        index + 1,
+        cadastro.nome,
+        cadastro.municipio || atividade?.municipio || "",
+        atividade ? [...atividade.beneficios].join("; ") : "",
+        atividade?.quantidade || "",
+        atividade ? [...atividade.observacoes].join("; ") : "",
+      ]);
+    });
   const visitasCells: Record<string, CellValue> = {};
   visitas.slice(0, 300).forEach(({ atividade, usuario }, index) => colocar(visitasCells, index + 2, ["B", "C", "D", "E", "F", "G", "H"], [
     excelDate(atividade.data), texto(usuario?.nomeCompleto), texto(atividade.agricultor || atividade.beneficiario), texto(atividade.municipio),
