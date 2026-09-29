@@ -11,7 +11,7 @@
       "globs": ["**/*.js", "**/*.mjs"]
     }
   ],
-  "assets": { "directory": "dist/client" },
+  "assets": { "directory": "dist/client", "binding": "ASSETS" },
   "d1_databases": [
     {
       "binding": "DB",
