@@ -23,12 +23,27 @@ function cellXml(reference: string, value: CellValue, previous = "") {
 function setCell(sheetXml: string, reference: string, value: CellValue) {
   const rowNumber = Number(reference.match(/\d+$/)?.[0]);
   const rowPattern = new RegExp(`<row\\b([^>]*\\br="${rowNumber}"[^>]*)>([\\s\\S]*?)<\\/row>`);
-  const rowMatch = sheetXml.match(rowPattern);
+  let rowMatch = sheetXml.match(rowPattern);
+  if (!rowMatch) {
+    const emptyRowPattern = new RegExp(`<row\\b([^>]*\\br="${rowNumber}"[^>]*)\\/>`);
+    const emptyRow = sheetXml.match(emptyRowPattern);
+    if (emptyRow) {
+      sheetXml = sheetXml.replace(emptyRowPattern, `<row${emptyRow[1]}></row>`);
+    } else {
+      sheetXml = sheetXml.replace("</sheetData>", `<row r="${rowNumber}" ht="14.25" customHeight="1"></row></sheetData>`);
+      sheetXml = sheetXml.replace(/<dimension ref="A1:([A-Z]+)(\d+)"\/>/, (_match, lastColumn: string, lastRow: string) =>
+        `<dimension ref="A1:${lastColumn}${Math.max(Number(lastRow), rowNumber)}"/>`
+      );
+    }
+    rowMatch = sheetXml.match(rowPattern);
+  }
   if (!rowMatch) return sheetXml;
   const cellPattern = new RegExp(`<c\\b[^>]*\\br="${reference}"[^>]*(?:\\/>|>[\\s\\S]*?<\\/c>)`);
   let rowBody = rowMatch[2];
   const existing = rowBody.match(cellPattern)?.[0];
-  const replacement = cellXml(reference, value, existing || "");
+  const column = reference.match(/^[A-Z]+/)?.[0] || "A";
+  const styleSource = existing || sheetXml.match(new RegExp(`<c\\b[^>]*\\br="${column}2"[^>]*(?:\\/>|>[\\s\\S]*?<\\/c>)`))?.[0] || "";
+  const replacement = cellXml(reference, value, styleSource);
   if (existing) rowBody = rowBody.replace(cellPattern, replacement);
   else {
     const wantedColumn = columnNumber(reference);
