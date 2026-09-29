@@ -27,6 +27,18 @@ export async function GET(request:Request){
     db.select().from(colaboradores),
     db.select().from(documentosAssociacao).where(and(eq(documentosAssociacao.associacao,associacao.nome),inArray(documentosAssociacao.competencia,competencias))),
   ]);
+  if(competencias.length>1){
+    const linhasMes=competencias.map(competencia=>{const registros=relatorios.filter(r=>r.competencia===competencia);const itens=registros.flatMap(r=>lista<Atividade>(r.atividadesJson).filter(a=>a.executada!==false));const visitasMes=itens.filter(a=>informado(a.tipoAtividade).toLocaleLowerCase("pt-BR")==="visita técnica").length;const eventosMes=itens.filter(a=>!["visita técnica","entrega de mudas"].includes(informado(a.tipoAtividade).toLocaleLowerCase("pt-BR"))).length;const mudasMes=itens.filter(a=>informado(a.tipoAtividade).toLocaleLowerCase("pt-BR")==="entrega de mudas").reduce((s,a)=>s+(Number(a.quantidadeMudas)||0),0);return `${mesReferencia(competencia).toLocaleUpperCase("pt-BR")}: ${itens.length} ATIVIDADE(S) | ${visitasMes} VISITA(S) | ${eventosMes} EVENTO(S) | ${mudasMes.toLocaleString("pt-BR")} MUDA(S)`;});
+    const arquivosConsolidados=[...financeiro.flatMap(item=>lista<Arquivo>(item.extratosJson).map(a=>`EXTRATO BANCÁRIO: ${a.nome}`)),...financeiro.flatMap(item=>lista<Arquivo>(item.notasFiscaisJson).map(a=>`NOTA FISCAL: ${a.nome}`)),...relatorios.flatMap(r=>lista<Arquivo>(r.anexosJson).map(a=>`ANEXO TÉCNICO (${r.competencia}): ${a.nome}`))];
+    const enderecoAssociacao=[associacao.endereco,associacao.numero,associacao.bairro,associacao.municipio,associacao.uf,associacao.cep].filter(Boolean).join(" - ");
+    const consolidado=await createPdf(`PRESTAÇÃO DE CONTAS À ADERES - ${associacao.nome} - CONSOLIDADO`,[
+      {heading:"DADOS DA ASSOCIAÇÃO",lines:[`RAZÃO SOCIAL: ${informado(associacao.razaoSocial)}`,`NOME ABREVIADO: ${informado(associacao.nome)} | CNPJ: ${informado(associacao.cnpj)}`,`ENDEREÇO: ${informado(enderecoAssociacao)}`,`PRESIDENTE: ${informado(associacao.presidenteNome)}`]},
+      {heading:"COMPETÊNCIAS SELECIONADAS",lines:competencias.map(c=>mesReferencia(c).toLocaleUpperCase("pt-BR"))},
+      {heading:"RESUMO MENSAL DA EXECUÇÃO",lines:linhasMes},
+      {heading:"RELAÇÃO DE ARQUIVOS ENVIADOS",lines:arquivosConsolidados.length?arquivosConsolidados.map((nome,i)=>`${i+1}. ${nome} | DISPONÍVEL INTEGRALMENTE NA PRESTAÇÃO INDIVIDUAL DA RESPECTIVA COMPETÊNCIA`):["NENHUM ARQUIVO ENVIADO NAS COMPETÊNCIAS SELECIONADAS."]},
+    ]);
+    return new Response(consolidado.buffer.slice(consolidado.byteOffset,consolidado.byteOffset+consolidado.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="prestacao-aderes-${associacao.nome.replace(/[^a-zA-Z0-9_-]/g,"-")}-${competencias.join("_")}.pdf"`}});
+  }
   const nomes=new Map(usuarios.map(u=>[u.authUserId,u]));
   const atividades=relatorios.flatMap(r=>lista<Atividade>(r.atividadesJson).filter(a=>a.executada!==false).map(a=>({a,r,u:nomes.get(r.authUserId)})));
   const visitas=atividades.filter(x=>informado(x.a.tipoAtividade).toLocaleLowerCase("pt-BR")==="visita técnica");
