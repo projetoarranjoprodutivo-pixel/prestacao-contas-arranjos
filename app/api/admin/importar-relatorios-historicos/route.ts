@@ -22,8 +22,8 @@ type DadosImportacao = {
   }>;
 };
 
-const AUTH_ID = "historico-marcos-vinicius-miranda-caiano";
 const agora = () => new Date().toISOString();
+const identificadorHistorico = (email: string) => `historico-${email.toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 
 function agricultoresDasAtividades(dados: DadosImportacao) {
   const encontrados = new Map<string, { municipio: string; comunidade: string; propriedade: string; agricultor: string; telefone: string }>();
@@ -68,13 +68,14 @@ export async function POST(request: Request) {
     const entradaDados = form.get("dados");
     try { dados = JSON.parse(entradaDados instanceof File ? await entradaDados.text() : String(entradaDados || "")) as DadosImportacao; }
     catch { return Response.json({ message: "OS DADOS EXTRAÍDOS DOS RELATÓRIOS SÃO INVÁLIDOS." }, { status: 400 }); }
-    if (!dados.tecnico?.nomeCompleto || !dados.tecnico?.email || dados.tecnico.associacao !== "AAFAMA" || dados.relatorios.length !== 6) {
-      return Response.json({ message: "CONFIRA O TÉCNICO, A ASSOCIAÇÃO E OS SEIS MESES DA IMPORTAÇÃO." }, { status: 400 });
+    if (!dados.tecnico?.nomeCompleto || !dados.tecnico?.email || !dados.tecnico.associacao || !dados.relatorios.length) {
+      return Response.json({ message: "CONFIRA O TÉCNICO, A ASSOCIAÇÃO E OS RELATÓRIOS DA IMPORTAÇÃO." }, { status: 400 });
     }
-    if (dados.relatorios.some((item) => !/^2026-(03|04|05|06|07|08)$/.test(item.competencia) || !item.atividades.length)) {
+    if (dados.relatorios.some((item) => !/^\d{4}-(0[1-9]|1[0-2])$/.test(item.competencia) || !item.atividades.length)) {
       return Response.json({ message: "AS COMPETÊNCIAS OU ATIVIDADES EXTRAÍDAS SÃO INVÁLIDAS." }, { status: 400 });
     }
     const db = getDb();
+    const authIdHistorico = identificadorHistorico(dados.tecnico.email);
     const anexos = new Map<string, { key: string; nome: string; tipo: string }>();
 
     for (const relatorio of dados.relatorios) {
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
       if (entrada.size > 20 * 1024 * 1024) {
         return Response.json({ message: `O ARQUIVO ${entrada.name} ULTRAPASSA 20 MB.` }, { status: 400 });
       }
-      const key = `prestacoes/${AUTH_ID}/${relatorio.competencia}/relatorio-historico-original.pdf`;
+      const key = `prestacoes/${authIdHistorico}/${relatorio.competencia}/relatorio-historico-original.pdf`;
       await env.BUCKET.put(key, await entrada.arrayBuffer(), { metadata: { contentType: "application/pdf" } });
       anexos.set(relatorio.competencia, { key, nome: relatorio.arquivo, tipo: "application/pdf" });
     }
@@ -96,11 +97,11 @@ export async function POST(request: Request) {
     const tecnico = dados.tecnico;
     const existente = await db.query.colaboradores.findFirst({ where: eq(colaboradores.email, tecnico.email) });
     const cadastro = {
-      authUserId: existente?.authUserId || AUTH_ID,
+      authUserId: existente?.authUserId || authIdHistorico,
       email: tecnico.email,
       nomeCompleto: tecnico.nomeCompleto,
       dataNascimento: existente?.dataNascimento || "",
-      cpf: existente?.cpf || "HISTORICO-52905362",
+      cpf: existente?.cpf || `HISTORICO-${authIdHistorico.slice(-12)}`,
       sexo: existente?.sexo || "",
       cargo: tecnico.cargo,
       associacao: tecnico.associacao,
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
       numero: existente?.numero || "",
       complemento: existente?.complemento || null,
       bairro: existente?.bairro || "",
-      cidade: existente?.cidade || "Águia Branca",
+      cidade: existente?.cidade || tecnico.municipiosAtendidos[0] || "",
       uf: existente?.uf || "ES",
       celular: tecnico.celular,
       atendimentosJson: JSON.stringify(agricultoresDasAtividades(dados)),
@@ -146,7 +147,7 @@ export async function POST(request: Request) {
       const prestacao = {
         authUserId,
         competencia: relatorio.competencia,
-        municipio: "Águia Branca",
+        municipio: tecnico.municipiosAtendidos[0] || "",
         associacao: tecnico.associacao,
         atividadesJson: JSON.stringify(relatorio.atividades),
         totalMinutos: relatorio.totalMinutos,
