@@ -54,6 +54,23 @@ export async function GET(request:Request){
   ];
   const base=await createPdf(`PRESTAÇÃO DE CONTAS À ADERES - ${associacao.nome} - ${referencias}`,sections);const pdf=await PDFDocument.load(base);const fonte=await pdf.embedFont(StandardFonts.HelveticaBold);
   const arquivos=[...extratos.map(a=>({...a,grupo:"EXTRATO BANCÁRIO"})),...notas.map(a=>({...a,grupo:"NOTA FISCAL"})),...anexos.map(a=>({...a,grupo:"ANEXO TÉCNICO"}))];
-  for(const [indice,arquivo] of arquivos.entries()){const objeto=await env.BUCKET.get(arquivo.key,"arrayBuffer");if(!objeto)continue;const bytes=new Uint8Array(objeto);try{if(arquivo.tipo==="application/pdf"){const anexo=await PDFDocument.load(bytes);const paginas=await pdf.copyPages(anexo,anexo.getPageIndices());paginas.forEach(p=>pdf.addPage(p));}else if(arquivo.tipo==="image/jpeg"||arquivo.tipo==="image/png"){const imagem=arquivo.tipo==="image/png"?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);const pagina=pdf.addPage([595.28,841.89]);pagina.drawRectangle({x:0,y:749.89,width:595.28,height:92,color:rgb(0.02,0.28,0.19)});pagina.drawText(`${arquivo.grupo} ${indice+1}: ${arquivo.nome}`.toLocaleUpperCase("pt-BR"),{x:42,y:790,size:9,font:fonte,color:rgb(1,1,1)});const escala=Math.min(511/imagem.width,650/imagem.height,1);pagina.drawImage(imagem,{x:(595.28-imagem.width*escala)/2,y:60+(650-imagem.height*escala)/2,width:imagem.width*escala,height:imagem.height*escala});}else await pdf.attach(bytes,arquivo.nome,{mimeType:arquivo.tipo||"application/octet-stream"});}catch{await pdf.attach(bytes,arquivo.nome,{mimeType:arquivo.tipo||"application/octet-stream"});}}
+  for(const [indice,arquivo] of arquivos.entries()){
+    const objeto=await env.BUCKET.get(arquivo.key,"arrayBuffer");if(!objeto)continue;
+    const bytes=new Uint8Array(objeto);
+    try{
+      // Copiar muitas páginas de relatórios digitalizados excede o limite de CPU do
+      // Worker. PDFs maiores ficam preservados integralmente como anexos do próprio
+      // documento; PDFs pequenos e imagens continuam visíveis nas páginas finais.
+      if(arquivo.tipo==="application/pdf"&&bytes.byteLength<=750_000){
+        const anexo=await PDFDocument.load(bytes);const paginas=await pdf.copyPages(anexo,anexo.getPageIndices());paginas.forEach(p=>pdf.addPage(p));
+      }else if(arquivo.tipo==="image/jpeg"||arquivo.tipo==="image/png"){
+        const imagem=arquivo.tipo==="image/png"?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);const pagina=pdf.addPage([595.28,841.89]);pagina.drawRectangle({x:0,y:749.89,width:595.28,height:92,color:rgb(0.02,0.28,0.19)});pagina.drawText(`${arquivo.grupo} ${indice+1}: ${arquivo.nome}`.toLocaleUpperCase("pt-BR"),{x:42,y:790,size:9,font:fonte,color:rgb(1,1,1)});const escala=Math.min(511/imagem.width,650/imagem.height,1);pagina.drawImage(imagem,{x:(595.28-imagem.width*escala)/2,y:60+(650-imagem.height*escala)/2,width:imagem.width*escala,height:imagem.height*escala});
+      }else{
+        await pdf.attach(bytes,arquivo.nome,{mimeType:arquivo.tipo||"application/octet-stream",description:`${arquivo.grupo} - ARQUIVO INTEGRAL`});
+      }
+    }catch{
+      await pdf.attach(bytes,arquivo.nome,{mimeType:arquivo.tipo||"application/octet-stream",description:`${arquivo.grupo} - ARQUIVO INTEGRAL`});
+    }
+  }
   const resultado=await pdf.save();return new Response(resultado.buffer.slice(resultado.byteOffset,resultado.byteOffset+resultado.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="prestacao-aderes-${associacao.nome.replace(/[^a-zA-Z0-9_-]/g,"-")}-${identificadorCompetencias}.pdf"`}});
 }
