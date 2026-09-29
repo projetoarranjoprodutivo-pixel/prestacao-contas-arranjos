@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
+import { env } from "cloudflare:workers";
 import { getAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { associacoes, colaboradores, documentosAssociacao, prestacoes } from "@/db/schema";
@@ -47,7 +48,8 @@ function atividadesDosRelatorios(relatorios: Registro[], usuarios: Map<string, t
 }
 
 async function carregarTemplate(request: Request, nome: string) {
-  const response = await fetch(new URL(`/templates/${nome}`, request.url));
+  if (!env.ASSETS) throw new Error("O vínculo de arquivos estáticos não está disponível.");
+  const response = await env.ASSETS.fetch(new URL(`/templates/${nome}`, request.url));
   if (!response.ok) throw new Error("Não foi possível carregar o modelo oficial da planilha.");
   return new Uint8Array(await response.arrayBuffer());
 }
