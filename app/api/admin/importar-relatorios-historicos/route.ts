@@ -65,7 +65,8 @@ export async function POST(request: Request) {
   try {
     const form = await request.formData();
     let dados: DadosImportacao;
-    try { dados = JSON.parse(String(form.get("dados") || "")) as DadosImportacao; }
+    const entradaDados = form.get("dados");
+    try { dados = JSON.parse(entradaDados instanceof File ? await entradaDados.text() : String(entradaDados || "")) as DadosImportacao; }
     catch { return Response.json({ message: "OS DADOS EXTRAÍDOS DOS RELATÓRIOS SÃO INVÁLIDOS." }, { status: 400 }); }
     if (!dados.tecnico?.nomeCompleto || !dados.tecnico?.email || dados.tecnico.associacao !== "AAFAMA" || dados.relatorios.length !== 6) {
       return Response.json({ message: "CONFIRA O TÉCNICO, A ASSOCIAÇÃO E OS SEIS MESES DA IMPORTAÇÃO." }, { status: 400 });
