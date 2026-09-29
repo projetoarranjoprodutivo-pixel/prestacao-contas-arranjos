@@ -16,6 +16,7 @@ type Atividade = {
   data: string;
   inicio: string;
   duracao: string;
+  unidadeDuracao: "horas";
   resumo: string;
   assinaturaProdutor: string;
   assinaturaTecnico: string;
@@ -40,6 +41,7 @@ const vazia = (): Atividade => ({
   data: "",
   inicio: "",
   duracao: "",
+  unidadeDuracao: "horas",
   resumo: "",
   assinaturaProdutor: "",
   assinaturaTecnico: "",
@@ -96,7 +98,8 @@ export default function PrestacaoForm({
                 quantidadeMudas: a.quantidadeMudas || "",
                 data: a.data || "",
                 inicio: a.inicio || "",
-                duracao: a.duracao || "",
+                duracao: a.unidadeDuracao === "horas" ? a.duracao || "" : a.duracao ? String(Number(a.duracao) / 60) : "",
+                unidadeDuracao: "horas",
                 resumo: a.resumo || "",
                 assinaturaProdutor: a.assinaturaProdutor || "",
                 assinaturaTecnico: a.assinaturaTecnico || "",
@@ -478,10 +481,11 @@ export default function PrestacaoForm({
                   </>
                 )}
                 <label className="text-sm font-semibold">
-                  Duração em minutos {a.executada && "*"}
+                  Duração em horas {a.executada && "*"}
                   <input
                     type="number"
                     min="0"
+                    step="0.25"
                     required={a.executada}
                     value={a.duracao}
                     onChange={(e) => alterar(i, "duracao", e.target.value)}
