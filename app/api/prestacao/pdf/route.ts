@@ -74,6 +74,14 @@ export async function GET(request:Request){
   const url=new URL(request.url);const id=Number(url.searchParams.get("id"));const competencia=url.searchParams.get("competencia")||"";if(id&&!isAdminEmail(user.email))return new Response("Acesso restrito",{status:403});
   const db=getDb();const registro=await db.query.prestacoes.findFirst({where:id?eq(prestacoes.id,id):and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});if(!registro)return new Response("Prestação não encontrada",{status:404});
   const [colaborador,associacao]=await Promise.all([db.query.colaboradores.findFirst({where:eq(colaboradores.authUserId,registro.authUserId)}),db.query.associacoes.findFirst({where:eq(associacoes.nome,registro.associacao)})]);
+  const anexos=JSON.parse(registro.anexosJson||"[]") as Array<{key:string;nome:string;tipo:string}>;
+  // Relatórios históricos digitalizados grandes já contêm capa, atividades,
+  // fotos e listas de presença. Reprocessá-los página a página ultrapassa o
+  // limite do Worker; nesses casos entregamos o documento original integral.
+  if(registro.status==="importado"&&anexos.length===1&&anexos[0].tipo==="application/pdf"){
+    const original=await env.BUCKET.get(anexos[0].key,"arrayBuffer");
+    if(original&&original.byteLength>3_000_000)return new Response(original,{headers:{"content-type":"application/pdf","content-disposition":`inline; filename="${anexos[0].nome.replace(/[^a-zA-Z0-9._-]/g,"-")}"`}});
+  }
   const atividades=JSON.parse(registro.atividadesJson) as Atividade[];const pdf=await PDFDocument.create();await adicionarCapa(pdf,registro,colaborador||null,associacao||null);
   const executor=colaborador?.nomeEmpresarial||colaborador?.nomeCompleto||"NÃO INFORMADO",cnpj=colaborador?.mei||"NÃO INFORMADO",municipiosAtendidos=(()=>{try{return (JSON.parse(colaborador?.municipiosAtendidosJson||"[]") as string[]).join(", ")||registro.municipio;}catch{return registro.municipio;}})();
   await copiarRelatorio(pdf,"APRESENTAÇÃO DO PROJETO ARRANJOS PRODUTIVOS",[
@@ -89,7 +97,7 @@ export async function GET(request:Request){
     await adicionarAtividadeComAssinaturas(pdf,a,i);
   }
   await copiarRelatorio(pdf,"OBSERVAÇÕES DA PRESTAÇÃO",[{heading:"OBSERVAÇÕES GERAIS",lines:[registro.observacoes||"Sem observações."]}]);
-  const anexos=JSON.parse(registro.anexosJson||"[]") as Array<{key:string;nome:string;tipo:string}>;const fonte=await pdf.embedFont(StandardFonts.Helvetica);
+  const fonte=await pdf.embedFont(StandardFonts.Helvetica);
   for(const [indice,anexo] of anexos.entries()){
     const objeto=await env.BUCKET.get(anexo.key,"arrayBuffer");if(!objeto)continue;const bytes=new Uint8Array(objeto);
     try{if(anexo.tipo==="application/pdf"){const documento=await PDFDocument.load(bytes);const paginas=await pdf.copyPages(documento,documento.getPageIndices());paginas.forEach(p=>pdf.addPage(p));}else if(anexo.tipo==="image/jpeg"||anexo.tipo==="image/png"){const imagem=anexo.tipo==="image/png"?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);const pagina=pdf.addPage([W,H]);pagina.drawText(`ANEXO ${indice+1}: ${anexo.nome}`,{x:40,y:806,size:11,font:fonte,color:VERDE});const escala=Math.min(515/imagem.width,730/imagem.height,1);pagina.drawImage(imagem,{x:(W-imagem.width*escala)/2,y:45+(730-imagem.height*escala)/2,width:imagem.width*escala,height:imagem.height*escala});}else await pdf.attach(bytes,anexo.nome,{mimeType:anexo.tipo||"application/octet-stream",description:`Anexo da prestação ${registro.competencia}`});}catch{await pdf.attach(bytes,anexo.nome,{mimeType:anexo.tipo||"application/octet-stream",description:`Anexo da prestação ${registro.competencia}`});}
