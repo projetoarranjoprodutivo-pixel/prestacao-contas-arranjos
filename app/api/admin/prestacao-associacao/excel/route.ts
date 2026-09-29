@@ -143,7 +143,7 @@ async function gerarHoras(
   return fillXlsxTemplate(template, { "xl/worksheets/sheet1.xml": cells });
 }
 
-export async function GET(request: Request) {
+async function gerarExcel(request: Request) {
   if (!await getAdminUser()) return new Response("Acesso restrito", { status: 403 });
   const url = new URL(request.url);
   const modelo = url.searchParams.get("modelo") || "agricultura";
@@ -175,4 +175,13 @@ export async function GET(request: Request) {
       "cache-control": "no-store",
     },
   });
+}
+
+export async function GET(request: Request) {
+  try {
+    return await gerarExcel(request);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha desconhecida na geração do Excel";
+    return Response.json({ message }, { status: 500 });
+  }
 }
