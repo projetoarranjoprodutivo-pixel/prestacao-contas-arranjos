@@ -4,5 +4,6 @@ declare namespace Cloudflare {
     BUCKET?: KVNamespace;
     BREVO_API_KEY?: string;
     EMAIL_REMETENTE?: string;
+    ASSETS?: Fetcher;
   }
 }
