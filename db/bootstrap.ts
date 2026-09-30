@@ -1,5 +1,15 @@
 import { env } from "cloudflare:workers";
 
+const SENHA_INICIAL_COLABORADOR = "12345678";
+const bytes = (quantidade: number) => { const valor = new Uint8Array(quantidade); crypto.getRandomValues(valor); return valor; };
+const hex = (valor: ArrayBuffer | Uint8Array) => [...new Uint8Array(valor instanceof Uint8Array ? valor.buffer : valor)].map(item => item.toString(16).padStart(2, "0")).join("");
+async function criarSenhaInicial() {
+  const salt = hex(bytes(16));
+  const chave = await crypto.subtle.importKey("raw", new TextEncoder().encode(SENHA_INICIAL_COLABORADOR), "PBKDF2", false, ["deriveBits"]);
+  const resultado = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: new TextEncoder().encode(salt), iterations: 100000, hash: "SHA-256" }, chave, 256);
+  return { salt, hash: hex(resultado) };
+}
+
 let inicializado: Promise<void> | null = null;
 
 async function criarTabelasDeAcesso() {
@@ -41,6 +51,35 @@ async function criarTabelasDeAcesso() {
     atualizado_em TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
   )`).run();
   await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_documentos_associacao_competencia ON documentos_associacao(associacao, competencia)").run();
+  await garantirUsuariosDosColaboradores();
+}
+
+export async function garantirUsuariosDosColaboradores() {
+  if (!env.DB) throw new Error("O vínculo DB não está disponível no Worker.");
+  const tabela = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'colaboradores'").first<{name:string}>();
+  if (!tabela) return 0;
+  const registros = await env.DB.prepare(`SELECT c.id AS colaborador_id, c.auth_user_id, LOWER(TRIM(c.email)) AS email, u.id AS usuario_id
+    FROM colaboradores c
+    LEFT JOIN usuarios_acesso u ON LOWER(u.email) = LOWER(TRIM(c.email))
+    WHERE TRIM(COALESCE(c.email, '')) <> ''`).all<{colaborador_id:number;auth_user_id:string;email:string;usuario_id:string|null}>();
+  let criados = 0;
+  for (const registro of registros.results) {
+    if (!/^\\S+@\\S+\\.\\S+$/.test(registro.email)) continue;
+    if (registro.usuario_id) {
+      if (registro.usuario_id !== registro.auth_user_id) {
+        await env.DB.prepare("UPDATE colaboradores SET auth_user_id = ? WHERE id = ?").bind(registro.usuario_id, registro.colaborador_id).run();
+        await env.DB.prepare("UPDATE planos_trabalho SET auth_user_id = ? WHERE auth_user_id = ?").bind(registro.usuario_id, registro.auth_user_id).run();
+        await env.DB.prepare("UPDATE prestacoes SET auth_user_id = ? WHERE auth_user_id = ?").bind(registro.usuario_id, registro.auth_user_id).run();
+      }
+      continue;
+    }
+    const segredo = await criarSenhaInicial();
+    await env.DB.prepare(`INSERT INTO usuarios_acesso (id, email, senha_hash, senha_salt, funcao, ativo)
+      VALUES (?, ?, ?, ?, 'colaborador', 1)
+      ON CONFLICT(email) DO NOTHING`).bind(registro.auth_user_id, registro.email, segredo.hash, segredo.salt).run();
+    criados++;
+  }
+  return criados;
 }
 
 export function garantirBanco() {
