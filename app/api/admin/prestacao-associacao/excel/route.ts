@@ -164,13 +164,13 @@ async function gerarHoras(
 ) {
   const profissionais = [...new Set(relatorios.map((item) => usuarios.get(item.authUserId)?.nomeCompleto).filter(Boolean))] as string[];
   const cargos = [...new Set(relatorios.map((item) => usuarios.get(item.authUserId)?.cargo).filter(Boolean))] as string[];
-  const cells: Record<string, CellValue> = { B4: profissionais.join("; "), B5: cargos.join("; "), B6: "" };
+  const cells: Record<string, CellValue> = { B4: profissionais.join("; "), B5: cargos.join("; "), B6: 32.5 };
   const rows = [[11, 12, 13, 15], [19, 20, 21, 23], [27, 28, 29, 31], [35, 36, 37, 39]];
   rows.forEach(([periodoRow, previstasRow, trabalhadasRow, observacoesRow], quarterIndex) => {
     const meses = competencias.filter((competencia) => Math.floor((Number(competencia.slice(5, 7)) - 1) / 3) === quarterIndex);
     const registros = relatorios.filter((relatorio) => meses.includes(relatorio.competencia));
     cells[`B${periodoRow}`] = meses.map(mesReferencia).join("; ");
-    cells[`B${previstasRow}`] = "";
+    cells[`B${previstasRow}`] = meses.length ? 160 : "";
     cells[`B${trabalhadasRow}`] = registros.length ? Number((registros.reduce((total, item) => total + item.totalMinutos, 0) / 60).toFixed(2)) : "";
     cells[`B${observacoesRow}`] = registros.map((item) => texto(item.observacoes)).filter(Boolean).join("; ");
   });
