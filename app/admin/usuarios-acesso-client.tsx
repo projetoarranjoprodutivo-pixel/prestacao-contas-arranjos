@@ -21,6 +21,16 @@ export default function UsuariosAcesso({
   const [usuarioSenha, setUsuarioSenha] = useState<Usuario | null>(null);
   const [enviando, setEnviando] = useState(false);
 
+  async function criarAcessosPendentes() {
+    setEnviando(true);
+    setMensagem("");
+    const response = await fetch("/api/admin/usuarios/sincronizar", { method: "POST" });
+    const body = await response.json().catch(() => ({}));
+    setMensagem(body.message || "NÃO FOI POSSÍVEL CRIAR OS ACESSOS PENDENTES.");
+    setEnviando(false);
+    if (response.ok) location.reload();
+  }
+
   async function alterarStatus(usuario: Usuario) {
     const form = new FormData();
     form.set("id", usuario.id);
@@ -49,8 +59,15 @@ export default function UsuariosAcesso({
   }
 
   return <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
-    <h2 className="text-lg font-bold">Acesso dos usuários</h2>
-    <p className="text-sm text-slate-600">Libere, bloqueie ou altere a senha dos usuários.</p>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 className="text-lg font-bold">Acesso dos usuários</h2>
+        <p className="text-sm text-slate-600">Libere, bloqueie ou altere a senha dos usuários.</p>
+      </div>
+      {podeEditarSenhas && <button type="button" onClick={criarAcessosPendentes} disabled={enviando} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+        {enviando ? "CRIANDO ACESSOS..." : "CRIAR ACESSOS PENDENTES"}
+      </button>}
+    </div>
     {mensagem && <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm font-bold">{mensagem}</p>}
     <div className="mt-4 overflow-x-auto">
       <table className="w-full text-left text-sm">
