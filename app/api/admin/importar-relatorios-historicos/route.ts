@@ -102,7 +102,7 @@ export async function POST(request: Request) {
       email: tecnico.email,
       nomeCompleto: tecnico.nomeCompleto,
       dataNascimento: existente?.dataNascimento || "",
-      cpf: existente?.cpf || `HISTORICO-${authIdHistorico.slice(-12)}`,
+      // O identificador completo evita colisões entre técnicos que usam o mesmo provedor de e-mail.\n      cpf: existente?.cpf || `HISTORICO-${authIdHistorico}`,
       sexo: existente?.sexo || "",
       cargo: tecnico.cargo,
       associacao: tecnico.associacao,
