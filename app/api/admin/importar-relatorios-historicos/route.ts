@@ -97,12 +97,14 @@ export async function POST(request: Request) {
 
     const tecnico = dados.tecnico;
     const existente = await db.query.colaboradores.findFirst({ where: eq(colaboradores.email, tecnico.email) });
+    const acessoExistente = await db.query.usuariosAcesso.findFirst({ where: eq(usuariosAcesso.email, tecnico.email.toLowerCase()) });
     const cadastro = {
-      authUserId: existente?.authUserId || authIdHistorico,
+      authUserId: acessoExistente?.id || existente?.authUserId || authIdHistorico,
       email: tecnico.email,
       nomeCompleto: tecnico.nomeCompleto,
       dataNascimento: existente?.dataNascimento || "",
-      // O identificador completo evita colisões entre técnicos que usam o mesmo provedor de e-mail.\n      cpf: existente?.cpf || `HISTORICO-${authIdHistorico}`,
+      // O identificador completo evita colisões entre técnicos que usam o mesmo provedor de e-mail.
+      cpf: existente?.cpf || `HISTORICO-${authIdHistorico}`,
       sexo: existente?.sexo || "",
       cargo: tecnico.cargo,
       associacao: tecnico.associacao,
@@ -175,6 +177,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("importacao_historica_error", error);
-    return Response.json({ message: "NÃO FOI POSSÍVEL IMPORTAR OS RELATÓRIOS HISTÓRICOS." }, { status: 500 });
+    const detalhe = error instanceof Error ? error.message : String(error);
+    return Response.json({ message: "NÃO FOI POSSÍVEL IMPORTAR OS RELATÓRIOS HISTÓRICOS.", detalhe }, { status: 500 });
   }
 }
