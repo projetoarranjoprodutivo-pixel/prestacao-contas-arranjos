@@ -58,26 +58,23 @@ export async function garantirUsuariosDosColaboradores() {
   if (!env.DB) throw new Error("O vínculo DB não está disponível no Worker.");
   const tabela = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'colaboradores'").first<{name:string}>();
   if (!tabela) return 0;
-  const registros = await env.DB.prepare(`SELECT c.id AS colaborador_id, c.auth_user_id, LOWER(TRIM(c.email)) AS email, u.id AS usuario_id
+  const registros = await env.DB.prepare(`SELECT c.auth_user_id, LOWER(TRIM(c.email)) AS email
     FROM colaboradores c
-    LEFT JOIN usuarios_acesso u ON LOWER(u.email) = LOWER(TRIM(c.email))
-    WHERE TRIM(COALESCE(c.email, '')) <> ''`).all<{colaborador_id:number;auth_user_id:string;email:string;usuario_id:string|null}>();
+    WHERE TRIM(COALESCE(c.email, '')) <> ''
+      AND NOT EXISTS (
+        SELECT 1 FROM usuarios_acesso u
+        WHERE LOWER(u.email) = LOWER(TRIM(c.email)) OR u.id = c.auth_user_id
+      )`).all<{auth_user_id:string;email:string}>();
   let criados = 0;
   for (const registro of registros.results) {
-    if (!/^\\S+@\\S+\\.\\S+$/.test(registro.email)) continue;
-    if (registro.usuario_id) {
-      if (registro.usuario_id !== registro.auth_user_id) {
-        await env.DB.prepare("UPDATE colaboradores SET auth_user_id = ? WHERE id = ?").bind(registro.usuario_id, registro.colaborador_id).run();
-        await env.DB.prepare("UPDATE planos_trabalho SET auth_user_id = ? WHERE auth_user_id = ?").bind(registro.usuario_id, registro.auth_user_id).run();
-        await env.DB.prepare("UPDATE prestacoes SET auth_user_id = ? WHERE auth_user_id = ?").bind(registro.usuario_id, registro.auth_user_id).run();
-      }
-      continue;
-    }
+    if (!/^\S+@\S+\.\S+$/.test(registro.email)) continue;
     const segredo = await criarSenhaInicial();
-    await env.DB.prepare(`INSERT INTO usuarios_acesso (id, email, senha_hash, senha_salt, funcao, ativo)
-      VALUES (?, ?, ?, ?, 'colaborador', 1)
-      ON CONFLICT(email) DO NOTHING`).bind(registro.auth_user_id, registro.email, segredo.hash, segredo.salt).run();
-    criados++;
+    const resultado = await env.DB.prepare(`INSERT OR IGNORE INTO usuarios_acesso
+      (id, email, senha_hash, senha_salt, funcao, ativo)
+      VALUES (?, ?, ?, ?, 'colaborador', 1)`).bind(
+        registro.auth_user_id, registro.email, segredo.hash, segredo.salt
+      ).run();
+    if (resultado.meta.changes > 0) criados++;
   }
   return criados;
 }
