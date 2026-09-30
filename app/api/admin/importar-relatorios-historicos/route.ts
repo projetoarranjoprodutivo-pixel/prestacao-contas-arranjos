@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { getAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { garantirUsuariosDosColaboradores } from "@/db/bootstrap";
-import { colaboradores, planosTrabalho, prestacoes } from "@/db/schema";
+import { colaboradores, planosTrabalho, prestacoes, usuariosAcesso } from "@/db/schema";
 
 export const runtime = "edge";
 
