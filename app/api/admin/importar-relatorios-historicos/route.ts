@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import { getAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
+import { garantirUsuariosDosColaboradores } from "@/db/bootstrap";
 import { colaboradores, planosTrabalho, prestacoes } from "@/db/schema";
 
 export const runtime = "edge";
@@ -129,6 +130,7 @@ export async function POST(request: Request) {
     };
     if (existente) await db.update(colaboradores).set(cadastro).where(eq(colaboradores.id, existente.id));
     else await db.insert(colaboradores).values(cadastro);
+    await garantirUsuariosDosColaboradores();
 
     const authUserId = cadastro.authUserId;
     for (const relatorio of dados.relatorios) {
