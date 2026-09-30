@@ -75,12 +75,12 @@ export async function GET(request:Request){
   const db=getDb();const registro=await db.query.prestacoes.findFirst({where:id?eq(prestacoes.id,id):and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});if(!registro)return new Response("Prestação não encontrada",{status:404});
   const [colaborador,associacao]=await Promise.all([db.query.colaboradores.findFirst({where:eq(colaboradores.authUserId,registro.authUserId)}),db.query.associacoes.findFirst({where:eq(associacoes.nome,registro.associacao)})]);
   const anexos=JSON.parse(registro.anexosJson||"[]") as Array<{key:string;nome:string;tipo:string}>;
-  // Relatórios históricos digitalizados grandes já contêm capa, atividades,
-  // fotos e listas de presença. Reprocessá-los página a página ultrapassa o
-  // limite do Worker; nesses casos entregamos o documento original integral.
+  // Os anexos históricos já são preparados apenas com fotos, listas de
+  // presença e fichas assinadas. Transmiti-los diretamente do R2 evita que o
+  // Worker carregue PDFs grandes na memória e ultrapasse o limite de CPU.
   if(registro.status==="importado"&&anexos.length===1&&anexos[0].tipo==="application/pdf"){
-    const original=await env.BUCKET.get(anexos[0].key,"arrayBuffer");
-    if(original&&original.byteLength>3_000_000)return new Response(original,{headers:{"content-type":"application/pdf","content-disposition":`inline; filename="${anexos[0].nome.replace(/[^a-zA-Z0-9._-]/g,"-")}"`}});
+    const original=await env.BUCKET.get(anexos[0].key);
+    if(original)return new Response(original.body,{headers:{"content-type":"application/pdf","content-length":String(original.size),"content-disposition":`inline; filename="${anexos[0].nome.replace(/[^a-zA-Z0-9._-]/g,"-")}"`}});
   }
   const atividades=JSON.parse(registro.atividadesJson) as Atividade[];const pdf=await PDFDocument.create();await adicionarCapa(pdf,registro,colaborador||null,associacao||null);
   const executor=colaborador?.nomeEmpresarial||colaborador?.nomeCompleto||"NÃO INFORMADO",cnpj=colaborador?.mei||"NÃO INFORMADO",municipiosAtendidos=(()=>{try{return (JSON.parse(colaborador?.municipiosAtendidosJson||"[]") as string[]).join(", ")||registro.municipio;}catch{return registro.municipio;}})();
