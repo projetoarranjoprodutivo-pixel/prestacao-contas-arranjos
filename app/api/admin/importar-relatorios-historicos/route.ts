@@ -17,7 +17,7 @@ type DadosImportacao = {
   tecnico: {
     nomeCompleto: string; email: string; cargo: string; associacao: string; municipiosAtendidos: string[];
     mei: string; nomeEmpresarial: string; celular: string; endereco: string;
-    superiores?: { agroindustria: string; projetos: string; associativismo: string; geral: string; mobilizador: string };
+    superiores?: Record<string, string>;
   };
   relatorios: Array<{
     competencia: string; arquivo: string; descricao: string; atividades: Atividade[]; totalMinutos: number;
@@ -104,7 +104,8 @@ export async function POST(request: Request) {
       email: tecnico.email,
       nomeCompleto: tecnico.nomeCompleto,
       dataNascimento: existente?.dataNascimento || "",
-      // O identificador completo evita colisões entre técnicos que usam o mesmo provedor de e-mail.
+      // O identificador completo evita colisões entre técnicos que usam o
+      // mesmo provedor de e-mail (por exemplo, vários endereços Hotmail).
       cpf: existente?.cpf || `HISTORICO-${authIdHistorico}`,
       sexo: existente?.sexo || "",
       cargo: tecnico.cargo,
@@ -123,7 +124,9 @@ export async function POST(request: Request) {
       uf: existente?.uf || "ES",
       celular: tecnico.celular,
       atendimentosJson: JSON.stringify(agricultoresDasAtividades(dados)),
-      superioresJson: tecnico.superiores ? JSON.stringify(tecnico.superiores) : existente?.superioresJson || "{}",
+      superioresJson: tecnico.superiores && Object.keys(tecnico.superiores).length
+        ? JSON.stringify(tecnico.superiores)
+        : existente?.superioresJson || "{}",
       documentoKey: existente?.documentoKey || null,
       documentoNome: existente?.documentoNome || null,
       documentoTipo: existente?.documentoTipo || null,
