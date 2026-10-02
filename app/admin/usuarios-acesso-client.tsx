@@ -5,6 +5,7 @@ import { useState } from "react";
 type Usuario = {
   id: string;
   email: string;
+  nomeCompleto: string;
   funcao: string;
   associacao: string | null;
   ativo: boolean;
@@ -71,11 +72,12 @@ export default function UsuariosAcesso({
     {mensagem && <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm font-bold">{mensagem}</p>}
     <div className="mt-4 overflow-x-auto">
       <table className="w-full text-left text-sm">
-        <thead><tr className="border-b text-slate-500"><th className="py-2">E-mail</th><th>Perfil</th><th>Associação</th><th>Status</th><th>Ações</th></tr></thead>
+        <thead><tr className="border-b text-slate-500"><th className="py-2">Nome do colaborador</th><th>E-mail</th><th>Perfil</th><th>Associação</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody>{usuarios.map(usuario => {
           const principal = usuario.email.trim().toLowerCase() === "rafaeldalla@hotmail.com";
           return <tr key={usuario.id} className="border-b">
-            <td className="py-3 font-semibold">{usuario.email}</td>
+            <td className="py-3 font-semibold">{usuario.nomeCompleto}</td>
+            <td>{usuario.email}</td>
             <td>{usuario.funcao}</td>
             <td>{usuario.associacao || "-"}</td>
             <td>{usuario.ativo ? "Liberado" : "Bloqueado"}</td>
