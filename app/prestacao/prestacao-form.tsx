@@ -74,6 +74,11 @@ export default function PrestacaoForm({
   const campo =
     "mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-emerald-700 focus:ring-4 focus:ring-emerald-700/10";
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const competenciaInicial = params.get("competencia") || "";
+    if (/^\d{4}-\d{2}$/.test(competenciaInicial)) setCompetencia(competenciaInicial);
+  }, []);
+  useEffect(() => {
     if (!/^\d{4}-\d{2}$/.test(competencia)) return;
     const controller = new AbortController();
     setCarregando(true);
@@ -83,9 +88,9 @@ export default function PrestacaoForm({
     })
       .then((r) => r.json())
       .then((d) => {
+        const novaEntrega = new URLSearchParams(window.location.search).get("novaEntrega") === "1";
         if (d.atividades?.length) {
-          setAtividades(
-            d.atividades.map(
+          const carregadas = d.atividades.map(
               (a: Partial<Atividade> & { beneficiario?: string }) => ({
                 executada: a.executada !== false,
                 municipio: a.municipio || "",
@@ -104,9 +109,9 @@ export default function PrestacaoForm({
                 assinaturaProdutor: a.assinaturaProdutor || "",
                 assinaturaTecnico: a.assinaturaTecnico || "",
               }),
-            ),
-          );
-        } else setAtividades([vazia()]);
+            );
+          setAtividades(novaEntrega ? [...carregadas, { ...vazia(), tipoAtividade: "Entrega de mudas" }] : carregadas);
+        } else setAtividades([{ ...vazia(), tipoAtividade: novaEntrega ? "Entrega de mudas" : "" }]);
         setObservacoes(d.observacoes || "");
         setAnexosSalvos(d.anexos || []);
         setOrigem(d.origem || "");
