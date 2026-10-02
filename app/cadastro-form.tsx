@@ -12,13 +12,15 @@ const superioresVazios:Superiores={agroindustria:"",projetos:"",associativismo:"
 const atendimentoVazio=(id=crypto.randomUUID()):Atendimento=>({id,municipio:"",comunidade:"",propriedade:"",agricultor:"",telefone:""});
 const cargos = ["Técnico de campo", "Mobilizador", "Consultor de agroindústria", "Consultor de projetos", "Consultor de associativismo", "Coordenador geral", "Subcoordenador", "Comunicação"];
 const cargosMultiplasAssociacoes = new Set(cargos.filter(cargo => cargo !== "Técnico de campo"));
+const normalizarCargo=(cargo?:string|null)=>cargos.find(item=>item.localeCompare(cargo||"","pt-BR",{sensitivity:"accent"})===0)||cargo||"";
+const cargoTecnico=(cargo:string)=>cargo.localeCompare("Técnico de campo","pt-BR",{sensitivity:"accent"})===0;
 
 export default function CadastroForm({ userEmail, initialData, associacoes }: { userEmail: string; initialData: Cadastro | null; associacoes:Array<{nome:string;municipios:string[]}> }) {
   const router = useRouter();
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [documentos, setDocumentos] = useState<DocumentoNovo[]>([]);
-  const [cargoSelecionado,setCargoSelecionado]=useState(initialData?.cargo||"");
+  const [cargoSelecionado,setCargoSelecionado]=useState(()=>normalizarCargo(initialData?.cargo));
   const [associacaoSelecionada,setAssociacaoSelecionada]=useState(initialData?.associacao||"");
   const [associacoesSelecionadas,setAssociacoesSelecionadas]=useState<string[]>(()=>{try{const salvas=JSON.parse(initialData?.associacoesJson||"[]") as string[];return salvas.length?salvas:(initialData?.associacao?[initialData.associacao]:[]);}catch{return initialData?.associacao?[initialData.associacao]:[];}});
   const [municipiosAtendidos,setMunicipiosAtendidos]=useState<string[]>(()=>{try{return JSON.parse(initialData?.municipiosAtendidosJson||"[]");}catch{return[];}});
@@ -28,7 +30,7 @@ export default function CadastroForm({ userEmail, initialData, associacoes }: { 
   const [agricultorEscolhido,setAgricultorEscolhido]=useState("");
   const [carregandoAgricultores,setCarregandoAgricultores]=useState(false);
   useEffect(()=>{
-    if(cargoSelecionado!=="Técnico de campo"||!associacaoSelecionada){setAgricultoresBase([]);setAgricultorEscolhido("");return;}
+    if(!cargoTecnico(cargoSelecionado)||!associacaoSelecionada){setAgricultoresBase([]);setAgricultorEscolhido("");return;}
     const controller=new AbortController();setCarregandoAgricultores(true);
     fetch(`/api/agricultores?associacao=${encodeURIComponent(associacaoSelecionada)}`,{signal:controller.signal})
       .then(response=>response.ok?response.json():Promise.reject())
