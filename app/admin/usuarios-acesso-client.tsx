@@ -5,7 +5,7 @@ import { useState } from "react";
 type Usuario = {
   id: string;
   email: string;
-  nomeCompleto: string;
+  nomeCompleto?: string;
   funcao: string;
   associacao: string | null;
   ativo: boolean;
@@ -76,7 +76,7 @@ export default function UsuariosAcesso({
         <tbody>{usuarios.map(usuario => {
           const principal = usuario.email.trim().toLowerCase() === "rafaeldalla@hotmail.com";
           return <tr key={usuario.id} className="border-b">
-            <td className="py-3 font-semibold">{usuario.nomeCompleto}</td>
+            <td className="py-3 font-semibold">{usuario.nomeCompleto || usuario.email}</td>
             <td>{usuario.email}</td>
             <td>{usuario.funcao}</td>
             <td>{usuario.associacao || "-"}</td>
