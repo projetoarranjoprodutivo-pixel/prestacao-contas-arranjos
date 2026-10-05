@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { Download, FileCheck2, FileClock, Plus, Users } from "lucide-react";
 import { getDb } from "@/db";
-import { garantirAssociacoesCompletas, garantirNomeEmpresarial } from "@/db/bootstrap";
 import { associacoes, colaboradores, documentosAssociacao, planosTrabalho, prestacoes, usuariosAcesso } from "@/db/schema";
 import { getAdminUser, isAdminEmail } from "@/lib/admin";
 import AssociacoesClient from "./associacoes-client";
@@ -35,14 +34,12 @@ function formatarValor(valor?:string){const numero=Number(String(valor||"").repl
 
 export default async function AdminPage({searchParams}:{searchParams:Promise<{competencia?:string;competencias?:string|string[];mudas?:string;aba?:string;associacaoDocumentos?:string}>}){
   const admin=await getAdminUser();if(!admin)redirect("/");
-  await garantirNomeEmpresarial();
-  await garantirAssociacoesCompletas();
   const params=await searchParams;const recebidas=Array.isArray(params.competencias)?params.competencias:params.competencias?[params.competencias]:[];const competenciasSelecionadas=[...new Set([...recebidas,...(params.competencia?[params.competencia]:[])])].filter(valor=>/^\d{4}-\d{2}$/.test(valor)).sort();if(!competenciasSelecionadas.length)competenciasSelecionadas.push(competenciaAtual());const competencia=competenciasSelecionadas[0];const rotuloCompetencias=competenciasSelecionadas.join(" · ");const queryCompetencias=competenciasSelecionadas.map(valor=>`competencias=${encodeURIComponent(valor)}`).join("&");const abasValidas=new Set(["resumo","pdfs","prestacoes","planos","documentos-associacoes","associacoes","usuarios","acessos","pendencias"]);const aba=abasValidas.has(params.aba||"")?params.aba!:"resumo";
   const db=getDb();
   await garantirEntregasPlanilha2026();
   // Filtra os registros pesados no próprio D1. Antes, todos os JSONs históricos
   // eram transferidos e processados a cada troca de aba, excedendo a CPU do Worker.
-  const [usuarios,todosPlanos,todasPrestacoes,listaAssociacoes,acessos,documentosDasAssociacoes,competenciasPlanos,competenciasPrestacoes,competenciasDocumentos]=await Promise.all([db.select().from(colaboradores),db.select().from(planosTrabalho).where(inArray(planosTrabalho.competencia,competenciasSelecionadas)),db.select().from(prestacoes).where(inArray(prestacoes.competencia,competenciasSelecionadas)),db.select().from(associacoes),aba==="acessos"?db.select().from(usuariosAcesso):Promise.resolve([]),db.select().from(documentosAssociacao).where(inArray(documentosAssociacao.competencia,competenciasSelecionadas)),db.select({competencia:planosTrabalho.competencia}).from(planosTrabalho),db.select({competencia:prestacoes.competencia}).from(prestacoes),db.select({competencia:documentosAssociacao.competencia}).from(documentosAssociacao)]);
+  const [usuarios,todosPlanos,todasPrestacoes,listaAssociacoes,acessos,documentosDasAssociacoes,competenciasPlanos,competenciasPrestacoes,competenciasDocumentos]=await Promise.all([db.select().from(colaboradores),db.select().from(planosTrabalho).where(inArray(planosTrabalho.competencia,competenciasSelecionadas)),db.select().from(prestacoes).where(inArray(prestacoes.competencia,competenciasSelecionadas)),db.select().from(associacoes),aba==="acessos"?db.select().from(usuariosAcesso):Promise.resolve([]),db.select().from(documentosAssociacao).where(inArray(documentosAssociacao.competencia,competenciasSelecionadas)),db.select({competencia:planosTrabalho.competencia}).from(planosTrabalho).groupBy(planosTrabalho.competencia),db.select({competencia:prestacoes.competencia}).from(prestacoes).groupBy(prestacoes.competencia),db.select({competencia:documentosAssociacao.competencia}).from(documentosAssociacao).groupBy(documentosAssociacao.competencia)]);
   const colaboradoresPorId=new Map(usuarios.map(usuario=>[usuario.authUserId,usuario]));
   const colaboradoresPorEmail=new Map(usuarios.map(usuario=>[usuario.email.trim().toLowerCase(),usuario]));
   const acessosDetalhados=acessos.map(acesso=>{const colaborador=colaboradoresPorId.get(acesso.id)||colaboradoresPorEmail.get(acesso.email.trim().toLowerCase());let associacoesColaborador:string[]=[];try{associacoesColaborador=JSON.parse(colaborador?.associacoesJson||"[]");}catch{}if(!associacoesColaborador.length&&colaborador?.associacao)associacoesColaborador=[colaborador.associacao];const associacao=associacoesColaborador.join(", ")||acesso.associacao||null;return{...acesso,nomeCompleto:colaborador?.nomeCompleto||acesso.associacao||"SEM CADASTRO DE COLABORADOR",associacao};}).sort((a,b)=>(a.associacao||"SEM ASSOCIAÇÃO").localeCompare(b.associacao||"SEM ASSOCIAÇÃO","pt-BR")||a.nomeCompleto.localeCompare(b.nomeCompleto,"pt-BR"));
