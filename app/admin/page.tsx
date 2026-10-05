@@ -49,7 +49,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const nomes=new Map(usuarios.map(u=>[u.authUserId,u]));const comPlano=new Set(planos.map(p=>`${p.authUserId}|${p.competencia}`));const comPrestacao=new Set(relatorios.map(p=>`${p.authUserId}|${p.competencia}`));
   const pendentesPlano=competenciasSelecionadas.flatMap(competenciaPendente=>usuarios.filter(u=>!comPlano.has(`${u.authUserId}|${competenciaPendente}`)).map(u=>({...u,competencia:competenciaPendente})));
   const pendentesPrestacao=competenciasSelecionadas.flatMap(competenciaPendente=>usuarios.filter(u=>!comPrestacao.has(`${u.authUserId}|${competenciaPendente}`)).map(u=>({...u,competencia:competenciaPendente})));
-  const notasServicoPendentes=listarNotasServicoPendentes(usuarios,documentosDasAssociacoes,competenciasSelecionadas);
+  const notasServicoPendentes=aba==="pendencias"?listarNotasServicoPendentes(usuarios,documentosDasAssociacoes.filter(item=>competenciasSelecionadas.includes(item.competencia)),competenciasSelecionadas):[];
   const hoje=new Date().toISOString().slice(0,10);const vencidos=usuarios.filter(u=>u.documentoValidade<hoje);
   const cargos=Object.entries(usuarios.reduce<Record<string,number>>((acc,u)=>{acc[u.cargo]=(acc[u.cargo]||0)+1;return acc;},{})).sort((a,b)=>a[0].localeCompare(b[0]));
   const mudasPorMunicipio=new Map<string,{quantidade:number;datas:Set<string>;tipos:Map<string,number>;tiposSemQuantidade:Set<string>;incompletas:number}>();
