@@ -12,6 +12,7 @@ import CompetenciasFiltro from "./competencias-filtro";
 import DocumentosAssociacaoAdmin from "./documentos-associacao-admin";
 import { listarNotasServicoPendentes } from "@/lib/notas-servico";
 import { ehEntregaMudas, quantidadeEntregue, tipoMudaEntregue } from "@/lib/entregas-mudas";
+import {inArray} from "drizzle-orm";
 
 export const dynamic="force-dynamic";
 // CENTRAL DE PDFS - PUBLICAÇÃO 24/09/2026
@@ -37,7 +38,9 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   await garantirAssociacoesCompletas();
   const params=await searchParams;const recebidas=Array.isArray(params.competencias)?params.competencias:params.competencias?[params.competencias]:[];const competenciasSelecionadas=[...new Set([...recebidas,...(params.competencia?[params.competencia]:[])])].filter(valor=>/^\d{4}-\d{2}$/.test(valor)).sort();if(!competenciasSelecionadas.length)competenciasSelecionadas.push(competenciaAtual());const competencia=competenciasSelecionadas[0];const rotuloCompetencias=competenciasSelecionadas.join(" · ");const queryCompetencias=competenciasSelecionadas.map(valor=>`competencias=${encodeURIComponent(valor)}`).join("&");const abasValidas=new Set(["resumo","pdfs","prestacoes","planos","documentos-associacoes","associacoes","usuarios","acessos","pendencias"]);const aba=abasValidas.has(params.aba||"")?params.aba!:"resumo";
   const db=getDb();
-  const [usuarios,todosPlanos,todasPrestacoes,listaAssociacoes,acessos,documentosDasAssociacoes]=await Promise.all([db.select().from(colaboradores),db.select().from(planosTrabalho),db.select().from(prestacoes),db.select().from(associacoes),db.select().from(usuariosAcesso),db.select().from(documentosAssociacao)]);
+  // Filtra os registros pesados no próprio D1. Antes, todos os JSONs históricos
+  // eram transferidos e processados a cada troca de aba, excedendo a CPU do Worker.
+  const [usuarios,todosPlanos,todasPrestacoes,listaAssociacoes,acessos,documentosDasAssociacoes,competenciasPlanos,competenciasPrestacoes,competenciasDocumentos]=await Promise.all([db.select().from(colaboradores),db.select().from(planosTrabalho).where(inArray(planosTrabalho.competencia,competenciasSelecionadas)),db.select().from(prestacoes).where(inArray(prestacoes.competencia,competenciasSelecionadas)),db.select().from(associacoes),aba==="acessos"?db.select().from(usuariosAcesso):Promise.resolve([]),db.select().from(documentosAssociacao).where(inArray(documentosAssociacao.competencia,competenciasSelecionadas)),db.select({competencia:planosTrabalho.competencia}).from(planosTrabalho),db.select({competencia:prestacoes.competencia}).from(prestacoes),db.select({competencia:documentosAssociacao.competencia}).from(documentosAssociacao)]);
   const colaboradoresPorId=new Map(usuarios.map(usuario=>[usuario.authUserId,usuario]));
   const colaboradoresPorEmail=new Map(usuarios.map(usuario=>[usuario.email.trim().toLowerCase(),usuario]));
   const acessosDetalhados=acessos.map(acesso=>{const colaborador=colaboradoresPorId.get(acesso.id)||colaboradoresPorEmail.get(acesso.email.trim().toLowerCase());let associacoesColaborador:string[]=[];try{associacoesColaborador=JSON.parse(colaborador?.associacoesJson||"[]");}catch{}if(!associacoesColaborador.length&&colaborador?.associacao)associacoesColaborador=[colaborador.associacao];const associacao=associacoesColaborador.join(", ")||acesso.associacao||null;return{...acesso,nomeCompleto:colaborador?.nomeCompleto||acesso.associacao||"SEM CADASTRO DE COLABORADOR",associacao};}).sort((a,b)=>(a.associacao||"SEM ASSOCIAÇÃO").localeCompare(b.associacao||"SEM ASSOCIAÇÃO","pt-BR")||a.nomeCompleto.localeCompare(b.nomeCompleto,"pt-BR"));
@@ -62,7 +65,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const documentosFiltrados=documentosDasAssociacoes.filter(item=>competenciasSelecionadas.includes(item.competencia)&&(!associacaoDocumentos||item.associacao===associacaoDocumentos));
   const resumoDocumentos=[...documentosFiltrados.reduce((mapa,item)=>{const extratos=arquivosAssociacao(item.extratosJson);const notas=arquivosAssociacao(item.notasFiscaisJson);const atual=mapa.get(item.associacao)||{associacao:item.associacao,competencias:new Set<string>(),extratos:[] as ArquivoAssociacao[],notas:[] as ArquivoAssociacao[],atualizadoEm:""};atual.competencias.add(item.competencia);atual.extratos.push(...extratos);atual.notas.push(...notas);if(item.atualizadoEm>atual.atualizadoEm)atual.atualizadoEm=item.atualizadoEm;mapa.set(item.associacao,atual);return mapa;},new Map<string,{associacao:string;competencias:Set<string>;extratos:ArquivoAssociacao[];notas:ArquivoAssociacao[];atualizadoEm:string}>()).values()].sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR"));
   const totalDocumentosResumo=resumoDocumentos.reduce((total,item)=>total+item.extratos.length+item.notas.length,0);
-  const competenciasDisponiveis=[...new Set([...todosPlanos.map(p=>p.competencia),...todasPrestacoes.map(p=>p.competencia),...documentosDasAssociacoes.map(d=>d.competencia)])].filter(c=>/^\d{4}-\d{2}$/.test(c)).sort().reverse();
+  const competenciasDisponiveis=[...new Set([...competenciasPlanos.map(p=>p.competencia),...competenciasPrestacoes.map(p=>p.competencia),...competenciasDocumentos.map(d=>d.competencia)])].filter(c=>/^\d{4}-\d{2}$/.test(c)).sort().reverse();
   const indicadores=[
     {rotulo:"Usuários",valor:usuarios.length,Icon:Users},
     {rotulo:"Planos",valor:planos.length,Icon:FileCheck2},
