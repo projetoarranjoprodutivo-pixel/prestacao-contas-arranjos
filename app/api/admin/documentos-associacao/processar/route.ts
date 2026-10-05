@@ -26,7 +26,7 @@ const produtos:Record<string,Pick<Arquivo,"descricao"|"quantidade"|"valor"|"data
 function nomeNormalizado(nome=""){return nome.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/_/g," ").replace(/\s+/g," ").trim().toUpperCase()}
 function mesExtenso(competencia:string){const [ano,mes]=competencia.split("-");const nomes=["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];return `${nomes[Number(mes)-1]||mes} DE ${ano}`}
 
-export async function POST(){
+async function processar(){
   const user=await getChatGPTUser();
   if(!user||!isAdminEmail(user.email))return Response.json({message:"ACESSO NEGADO."},{status:403});
   await garantirBanco();const db=getDb();const registros=await db.select().from(documentosAssociacao);let alterados=0;
@@ -47,3 +47,5 @@ export async function POST(){
   }
   return Response.json({message:"DOCUMENTOS PROCESSADOS COM SUCESSO.",alterados});
 }
+export const POST=processar;
+export const GET=processar;
