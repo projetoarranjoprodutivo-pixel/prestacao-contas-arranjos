@@ -28,10 +28,10 @@ export async function retirarEntregasAnterioresUmaVez(){
  limpezaVerificada=true;
  if(!env.DB)return;
  await env.DB.prepare("CREATE TABLE IF NOT EXISTS migracoes_sistema (chave TEXT PRIMARY KEY NOT NULL, executado_em TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)").run();
- const chave="manter_somente_planilha_mudas_2026_v1";
+ const chave="manter_somente_planilha_mudas_2026_v2";
  if(await env.DB.prepare("SELECT chave FROM migracoes_sistema WHERE chave = ?").bind(chave).first())return;
  await env.DB.batch([
-  env.DB.prepare(`UPDATE prestacoes SET atividades_json = COALESCE((SELECT json_group_array(json(value)) FROM json_each(prestacoes.atividades_json) WHERE NOT (LOWER(COALESCE(json_extract(value,'$.tipoAtividade'),'')) LIKE '%muda%' OR TRIM(COALESCE(json_extract(value,'$.tipoMuda'),'')) <> '' OR TRIM(COALESCE(json_extract(value,'$.quantidadeMudas'),'')) <> '')), '[]'), atualizado_em = CURRENT_TIMESTAMP WHERE auth_user_id <> ? AND LOWER(atividades_json) LIKE '%muda%'`).bind(RESPONSAVEL),
+  env.DB.prepare(`UPDATE prestacoes SET atividades_json = COALESCE((SELECT json_group_array(json(value)) FROM json_each(prestacoes.atividades_json) WHERE NOT (TRIM(COALESCE(json_extract(value,'$.tipoMuda'),'')) <> '' OR TRIM(COALESCE(json_extract(value,'$.quantidadeMudas'),'')) <> '' OR (LOWER(value) LIKE '%muda%' AND (LOWER(value) LIKE '%entreg%' OR LOWER(value) LIKE '%distrib%' OR LOWER(value) LIKE '%fornec%' OR LOWER(value) LIKE '%receb%')))), '[]'), atualizado_em = CURRENT_TIMESTAMP WHERE auth_user_id <> ? AND LOWER(atividades_json) LIKE '%muda%'`).bind(RESPONSAVEL),
   env.DB.prepare("INSERT OR IGNORE INTO migracoes_sistema (chave) VALUES (?)").bind(chave)
  ]);
 }
