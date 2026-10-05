@@ -12,7 +12,7 @@ import DocumentosAssociacaoAdmin from "./documentos-associacao-admin";
 import { listarNotasServicoPendentes } from "@/lib/notas-servico";
 import { ehEntregaMudas, quantidadeEntregue, tipoMudaEntregue } from "@/lib/entregas-mudas";
 import {inArray} from "drizzle-orm";
-import {garantirEntregasPlanilha2026} from "@/lib/entregas-mudas-planilha";
+import {garantirEntregasPlanilha2026, retirarEntregasAnterioresUmaVez} from "@/lib/entregas-mudas-planilha";
 
 export const dynamic="force-dynamic";
 // CENTRAL DE PDFS - PUBLICAÇÃO 24/09/2026
@@ -37,6 +37,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const params=await searchParams;const recebidas=Array.isArray(params.competencias)?params.competencias:params.competencias?[params.competencias]:[];const competenciasSelecionadas=[...new Set([...recebidas,...(params.competencia?[params.competencia]:[])])].filter(valor=>/^\d{4}-\d{2}$/.test(valor)).sort();if(!competenciasSelecionadas.length)competenciasSelecionadas.push(competenciaAtual());const competencia=competenciasSelecionadas[0];const rotuloCompetencias=competenciasSelecionadas.join(" · ");const queryCompetencias=competenciasSelecionadas.map(valor=>`competencias=${encodeURIComponent(valor)}`).join("&");const abasValidas=new Set(["resumo","pdfs","prestacoes","planos","documentos-associacoes","associacoes","usuarios","acessos","pendencias"]);const aba=abasValidas.has(params.aba||"")?params.aba!:"resumo";
   const db=getDb();
   await garantirEntregasPlanilha2026();
+  await retirarEntregasAnterioresUmaVez();
   // Filtra os registros pesados no próprio D1. Antes, todos os JSONs históricos
   // eram transferidos e processados a cada troca de aba, excedendo a CPU do Worker.
   const [usuarios,todosPlanos,todasPrestacoes,listaAssociacoes,acessos,documentosDasAssociacoes,competenciasPlanos,competenciasPrestacoes,competenciasDocumentos]=await Promise.all([db.select().from(colaboradores),db.select().from(planosTrabalho).where(inArray(planosTrabalho.competencia,competenciasSelecionadas)),db.select().from(prestacoes).where(inArray(prestacoes.competencia,competenciasSelecionadas)),db.select().from(associacoes),aba==="acessos"?db.select().from(usuariosAcesso):Promise.resolve([]),db.select().from(documentosAssociacao).where(inArray(documentosAssociacao.competencia,competenciasSelecionadas)),db.select({competencia:planosTrabalho.competencia}).from(planosTrabalho).groupBy(planosTrabalho.competencia),db.select({competencia:prestacoes.competencia}).from(prestacoes).groupBy(prestacoes.competencia),db.select({competencia:documentosAssociacao.competencia}).from(documentosAssociacao).groupBy(documentosAssociacao.competencia)]);
