@@ -28,7 +28,7 @@ function mesExtenso(competencia:string){const [ano,mes]=competencia.split("-");c
 
 async function processar(){
   const user=await getChatGPTUser();
-  if(!user||!isAdminEmail(user.email))return Response.json({message:"ACESSO NEGADO."},{status:403});
+  if(!user||(user.role!=="aderes"&&user.role!=="admin"&&!isAdminEmail(user.email)))return Response.json({message:"ACESSO NEGADO."},{status:403});
   await garantirBanco();const db=getDb();const registros=await db.select().from(documentosAssociacao);let alterados=0;
   for(const registro of registros){
     let notas:Arquivo[]=[];try{notas=JSON.parse(registro.notasFiscaisJson||"[]")}catch{continue}

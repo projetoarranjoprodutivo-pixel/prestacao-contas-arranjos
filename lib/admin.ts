@@ -10,3 +10,8 @@ export async function getAdminUser() {
   const user = await getChatGPTUser();
   return user && (isAdminEmail(user.email) || user.role === "admin") ? user : null;
 }
+
+export async function getAderesOrAdminUser() {
+  const user = await getChatGPTUser();
+  return user && (isAdminEmail(user.email) || user.role === "admin" || user.role === "aderes") ? user : null;
+}

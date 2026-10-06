@@ -6,7 +6,7 @@ export const runtime="edge";
 
 export async function GET(request:Request){
   const user=await getChatGPTUser();
-  if(!user||!isAdminEmail(user.email))return new Response("ACESSO NEGADO.",{status:403});
+  if(!user||(user.role!=="aderes"&&user.role!=="admin"&&!isAdminEmail(user.email)))return new Response("ACESSO NEGADO.",{status:403});
   const key=new URL(request.url).searchParams.get("key")||"";
   if(!key.startsWith("associacoes-financeiro/"))return new Response("ARQUIVO INVÁLIDO.",{status:400});
   const arquivo=await env.BUCKET.get(key,"stream");

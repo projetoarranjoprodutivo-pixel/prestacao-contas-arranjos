@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const senha = String(form.get("senha") || "");
   const confirmar = String(form.get("confirmarSenha") || "");
   const funcaoInformada=String(form.get("funcao"));
-  const funcao = funcaoInformada === "admin" ? "admin" : funcaoInformada === "associacao" ? "associacao" : "colaborador";
+  const funcao = funcaoInformada === "admin" ? "admin" : funcaoInformada === "aderes" ? "aderes" : funcaoInformada === "associacao" ? "associacao" : "colaborador";
   const associacao=funcao==="associacao"?String(form.get("associacao")||"").trim():null;
   if (!/^\S+@\S+\.\S+$/.test(email)) return Response.json({ message: "Informe um e-mail válido." }, { status: 400 });
   if (senha.length < 8) return Response.json({ message: "A senha deve ter pelo menos 8 caracteres." }, { status: 400 });
@@ -25,5 +25,5 @@ export async function POST(request: Request) {
   if (await db.query.usuariosAcesso.findFirst({ where: eq(usuariosAcesso.email, email) })) return Response.json({ message: "Este e-mail já possui usuário." }, { status: 409 });
   const segredo = await criarSenha(senha);
   await db.insert(usuariosAcesso).values({ id: crypto.randomUUID(), email, senhaHash: segredo.hash, senhaSalt: segredo.salt, funcao, associacao, ativo: true });
-  return Response.json({ message: funcao === "admin" ? "Novo administrador criado com sucesso." : funcao==="associacao"?"Acesso da associação criado com sucesso.":"Novo colaborador criado com sucesso." });
+  return Response.json({ message: funcao === "admin" ? "Novo administrador criado com sucesso." : funcao==="aderes"?"Acesso exclusivo ADERES criado com sucesso.":funcao==="associacao"?"Acesso da associação criado com sucesso.":"Novo colaborador criado com sucesso." });
 }

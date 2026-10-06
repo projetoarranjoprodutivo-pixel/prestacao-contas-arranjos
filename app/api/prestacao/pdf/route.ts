@@ -71,7 +71,7 @@ async function adicionarTabelaAssociacoes(pdf:PDFDocument){
 
 export async function GET(request:Request){
   const user=await getChatGPTUser();if(!user)return new Response("Não autorizado",{status:401});
-  const url=new URL(request.url);const id=Number(url.searchParams.get("id"));const competencia=url.searchParams.get("competencia")||"";if(id&&!isAdminEmail(user.email))return new Response("Acesso restrito",{status:403});
+  const url=new URL(request.url);const id=Number(url.searchParams.get("id"));const competencia=url.searchParams.get("competencia")||"";if(id&&user.role!=="aderes"&&user.role!=="admin"&&!isAdminEmail(user.email))return new Response("Acesso restrito",{status:403});
   const db=getDb();const registro=await db.query.prestacoes.findFirst({where:id?eq(prestacoes.id,id):and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});if(!registro)return new Response("Prestação não encontrada",{status:404});
   const [colaborador,associacao]=await Promise.all([db.query.colaboradores.findFirst({where:eq(colaboradores.authUserId,registro.authUserId)}),db.query.associacoes.findFirst({where:eq(associacoes.nome,registro.associacao)})]);
   const anexos=JSON.parse(registro.anexosJson||"[]") as Array<{key:string;nome:string;tipo:string}>;

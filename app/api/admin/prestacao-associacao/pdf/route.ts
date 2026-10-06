@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { and, eq, inArray } from "drizzle-orm";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { getAdminUser } from "@/lib/admin";
+import { getAderesOrAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { associacoes, colaboradores, documentosAssociacao, prestacoes } from "@/db/schema";
 import { createPdf, PdfSection } from "@/lib/pdf";
@@ -16,7 +16,7 @@ const lista=<T,>(json:string|null|undefined):T[]=>{try{const v=JSON.parse(json||
 const mesReferencia=(competencia:string)=>new Intl.DateTimeFormat("pt-BR",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(`${competencia}-02T12:00:00Z`));
 
 export async function GET(request:Request){
-  if(!await getAdminUser())return new Response("Acesso restrito",{status:403});
+  if(!await getAderesOrAdminUser())return new Response("Acesso restrito",{status:403});
   const url=new URL(request.url);const competenciaUnica=url.searchParams.get("competencia")||"";const nomeAssociacao=url.searchParams.get("associacao")||"";
   const competencias=[...new Set([...url.searchParams.getAll("competencias"),...(competenciaUnica?[competenciaUnica]:[])])].filter(valor=>/^\d{4}-\d{2}$/.test(valor)).sort();
   if(!competencias.length)return new Response("Selecione ao menos uma competência válida",{status:400});

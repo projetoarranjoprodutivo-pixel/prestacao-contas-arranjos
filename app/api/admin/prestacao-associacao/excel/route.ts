@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { env } from "cloudflare:workers";
-import { getAdminUser } from "@/lib/admin";
+import { getAderesOrAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { associacoes, colaboradores, documentosAssociacao, prestacoes } from "@/db/schema";
 import { excelDate, fillXlsxTemplate, type CellValue } from "@/lib/xlsx-template";
@@ -228,7 +228,7 @@ async function gerarHoras(
 }
 
 async function gerarExcel(request: Request) {
-  if (!await getAdminUser()) return new Response("Acesso restrito", { status: 403 });
+  if (!await getAderesOrAdminUser()) return new Response("Acesso restrito", { status: 403 });
   const url = new URL(request.url);
   const modelo = url.searchParams.get("modelo") || "agricultura";
   const nomeAssociacao = url.searchParams.get("associacao") || "";
