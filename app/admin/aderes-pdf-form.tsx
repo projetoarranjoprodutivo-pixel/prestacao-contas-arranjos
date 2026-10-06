@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Download, FileSpreadsheet } from "lucide-react";
+import { PDFDocument } from "pdf-lib";
 
 type Props = {
   associacoes: string[];
@@ -40,10 +41,17 @@ export default function AderesPdfForm({
     if(!competencias.length){alert("SELECIONE AO MENOS UMA COMPETÊNCIA.");return;}
     setGerandoPdf(true);
     try{
-      const parametros=new URLSearchParams({associacao});competencias.forEach(competencia=>parametros.append("competencias",competencia));
-      const resposta=await fetch(`/api/admin/prestacao-associacao/pdf?${parametros.toString()}`);
-      if(!resposta.ok){const detalhe=await resposta.text().catch(()=>"");throw new Error(detalhe||"NÃO FOI POSSÍVEL GERAR O RELATÓRIO GERAL ADERES.");}
-      const blob=await resposta.blob();const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`prestacao-aderes-${associacao.replace(/[^a-zA-Z0-9_-]/g,"-")}-${competencias.join("_")}.pdf`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+      const consolidado=await PDFDocument.create();
+      for(const competencia of competencias){
+        const parametros=new URLSearchParams({associacao,competencia});
+        const resposta=await fetch(`/api/admin/prestacao-associacao/pdf?${parametros.toString()}`);
+        if(!resposta.ok){const detalhe=await resposta.text().catch(()=>"");throw new Error(detalhe||`NÃO FOI POSSÍVEL GERAR A COMPETÊNCIA ${competencia}.`);}
+        const mensal=await PDFDocument.load(await resposta.arrayBuffer());
+        const paginas=await consolidado.copyPages(mensal,mensal.getPageIndices());
+        paginas.forEach(pagina=>consolidado.addPage(pagina));
+      }
+      const bytes=await consolidado.save();
+      const blob=new Blob([bytes],{type:"application/pdf"});const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`prestacao-aderes-${associacao.replace(/[^a-zA-Z0-9_-]/g,"-")}-${competencias.join("_")}.pdf`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
     }catch(error){alert(error instanceof Error?error.message:"NÃO FOI POSSÍVEL GERAR O PDF.");}finally{setGerandoPdf(false);}
   }
 
