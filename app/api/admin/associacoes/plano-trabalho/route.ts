@@ -1,4 +1,5 @@
 import {eq} from "drizzle-orm";
+import {env} from "cloudflare:workers";
 import {strFromU8,strToU8,unzipSync,zipSync} from "fflate";
 import {getAdminUser} from "@/lib/admin";
 import {getDb} from "@/db";
@@ -16,7 +17,8 @@ export async function POST(request:Request){
   const dados=await request.json() as {associacaoId:number;inicio:string;termino:string;culturas:string[];etapas:Linha[];objetivos:Linha[];equipe:Linha[];itens:Linha[];repasses:Array<{mes:string;valor:string}>};
   const associacao=await getDb().query.associacoes.findFirst({where:eq(associacoes.id,Number(dados.associacaoId))});if(!associacao)return Response.json({message:"ASSOCIAÇÃO NÃO ENCONTRADA."},{status:404});
   let municipios:string[]=[];try{municipios=JSON.parse(associacao.municipiosJson||"[]");}catch{}const listaMunicipios=municipios.join(", ")||associacao.municipio||"MUNICÍPIOS A DEFINIR";const culturas=(dados.culturas||[]).join(", ")||"CULTURAS A DEFINIR";
-  const resposta=await fetch(new URL("/modelo-plano-trabalho-associacao.docx",request.url));if(!resposta.ok)throw new Error("MODELO DO PLANO NÃO ENCONTRADO.");const arquivos=unzipSync(new Uint8Array(await resposta.arrayBuffer()));let documento=strFromU8(arquivos["word/document.xml"]);
+  if(!env.ASSETS)throw new Error("O VÍNCULO DE ARQUIVOS ESTÁTICOS NÃO ESTÁ DISPONÍVEL.");
+  const resposta=await env.ASSETS.fetch(new URL("/modelo-plano-trabalho-associacao.docx",request.url));if(!resposta.ok)throw new Error("MODELO DO PLANO NÃO ENCONTRADO.");const arquivos=unzipSync(new Uint8Array(await resposta.arrayBuffer()));let documento=strFromU8(arquivos["word/document.xml"]);
   const endereco=[associacao.endereco,associacao.numero,associacao.bairro].filter(Boolean).join(", ");const enderecoPresidente=[associacao.presidenteEndereco,associacao.presidenteNumero,associacao.presidenteBairro].filter(Boolean).join(", ");
   const apresentacao=`O fortalecimento dos Arranjos Produtivos visa o desenvolvimento sustentável e o contínuo avanço das cadeias produtivas dos agricultores familiares. Este projeto tem como objetivo fortalecer a produção agrícola familiar nos municípios de ${listaMunicipios}, reduzir o êxodo rural, gerar renda, desenvolver as comunidades e ampliar a diversificação produtiva, com prioridade para as culturas de ${culturas}.`;
   const diagnostico=`Nos municípios de ${listaMunicipios}, o diagnóstico territorial considera as cadeias produtivas de ${culturas}. Serão trabalhados o conhecimento e a capacitação técnica, a gestão da produção, o preparo do solo, o plantio, o manejo, a colheita, o armazenamento, a comercialização e o beneficiamento por agroindústrias, promovendo o desenvolvimento econômico e sustentável.`;
