@@ -26,8 +26,8 @@ function organizarModelo(documento:string,dados:{etapas:Linha[];objetivos:Linha[
  documento=ajustarLinhas(documento,"REPASSE_MES",dados.repasses.length,2);
  documento=ajustarLinhas(documento,"APL_ITEM",dados.itens.length,8);
  return documento.replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/g,tabela=>tabela
-  .replace(/<w:trPr>([\s\S]*?)<\/w:trPr>/g,"<w:trPr><w:cantSplit/>$1</w:trPr>")
-  .replace(/<w:tr(?!Pr)([^>]*)>(?!<w:trPr>)/g,'<w:tr$1><w:trPr><w:cantSplit/></w:trPr>')
+  .replace(/<w:trHeight\b[^>]*\/>/g,"")
+  .replace(/<w:cantSplit\b[^>]*\/>/g,"")
   .replace(/<w:p\b([^>]*)>([\s\S]*?)<\/w:p>/g,(_paragrafo,atributos:string,conteudo:string)=>{
    const limpo=conteudo.replace(/<w:spacing\b[^>]*\/>/g,"");const espacamento='<w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>';
    return limpo.includes("<w:pPr>")?`<w:p${atributos}>${limpo.replace("<w:pPr>",`<w:pPr>${espacamento}`)}</w:p>`:`<w:p${atributos}><w:pPr>${espacamento}</w:pPr>${limpo}</w:p>`;
