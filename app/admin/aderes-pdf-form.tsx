@@ -23,7 +23,8 @@ function rotuloCompetencia(valor: string) {
 type RelatorioJson={titulo:string;sections:Array<{heading:string;lines:string[]}>};
 
 function quebrarTexto(texto:string,fonte:PDFFont,tamanho:number,largura:number){
-  const palavras=String(texto||"").replace(/\s+/g," ").trim().split(" ");const linhas:string[]=[];let atual="";
+  const seguro=Array.from(String(texto||"")).filter(caractere=>{try{fonte.encodeText(caractere);return true;}catch{return false;}}).join("");
+  const palavras=seguro.replace(/\s+/g," ").trim().split(" ");const linhas:string[]=[];let atual="";
   for(const palavra of palavras){const teste=atual?`${atual} ${palavra}`:palavra;if(fonte.widthOfTextAtSize(teste,tamanho)<=largura)atual=teste;else{if(atual)linhas.push(atual);atual=palavra;}}
   if(atual)linhas.push(atual);return linhas.length?linhas:[""];
 }
