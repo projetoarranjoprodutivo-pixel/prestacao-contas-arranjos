@@ -71,9 +71,11 @@ export async function GET(request:Request){
     {heading:"RESUMO GERAL DA EXECUÇÃO DO FOMENTO",lines:[`AGRICULTORES CADASTRADOS: ${agricultores.length}`,`VISITAS TÉCNICAS REGISTRADAS: ${visitas.length}`,`EVENTOS / AÇÕES REGISTRADOS: ${eventos.length}`,`TOTAL DE MUDAS ENTREGUES: ${totalMudasEntregues.toLocaleString("pt-BR")}`,`TOTAL DE MUDAS COMPRADAS IDENTIFICADAS: ${totalMudasCompradas?totalMudasCompradas.toLocaleString("pt-BR"):"NÃO IDENTIFICADO"}`,`TOTAL PAGO AOS COLABORADORES: ${totalPagamentosColaboradores.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`,`FICHAS DE VISITA: ${fichasVisita.length}`,`FOTOS SELECIONADAS: ${fotos.length}`,`EXTRATOS BANCÁRIOS: ${extratos.length}`,`NOTAS FISCAIS: ${notas.length}`,`ANEXOS TÉCNICOS: ${anexos.length}`]},
     {heading:"RELAÇÃO DE ARQUIVOS ENVIADOS",lines:arquivos.length?arquivos.map((a,i)=>`${i+1}. ${a.grupo}: ${a.nome} | ARQUIVO REGISTRADO NO SISTEMA`):["NENHUM ARQUIVO ENVIADO NAS COMPETÊNCIAS SELECIONADAS."]},
   ];
+  const titulo=`RELATÓRIO GERAL DE PRESTAÇÃO DE CONTAS À ADERES - ${associacao.nome} - ${referencias}`;
+  if(url.searchParams.get("formato")==="json")return Response.json({titulo,sections});
   // O PDF principal não abre nem descompacta os binários enviados. Fotos, fichas,
   // notas e extratos permanecem relacionados por nome e contabilizados no corpo.
   // Isso mantém a geração dentro dos limites do plano gratuito do Cloudflare.
-  const resultado=await createPdf(`RELATÓRIO GERAL DE PRESTAÇÃO DE CONTAS À ADERES - ${associacao.nome} - ${referencias}`,sections);
+  const resultado=await createPdf(titulo,sections);
   return new Response(resultado.buffer.slice(resultado.byteOffset,resultado.byteOffset+resultado.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="prestacao-aderes-${associacao.nome.replace(/[^a-zA-Z0-9_-]/g,"-")}-${identificadorCompetencias}.pdf"`}});
 }
