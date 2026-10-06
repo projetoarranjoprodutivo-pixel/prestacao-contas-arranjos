@@ -43,7 +43,16 @@ export async function GET(request:Request){
   const comprasMudas=notas.filter(ehCompraMudas);
   const totalMudasCompradas=comprasMudas.reduce((total,arquivo)=>total+numero(arquivo.quantidade),0);
   const totalMudasEntregues=entregas.reduce((total,item)=>total+quantidadeEntregue(item.a),0);
-  const identificarPrestador=(arquivo:Arquivo)=>{const texto=chaveTexto(`${arquivo.nome} ${arquivo.descricao}`);return usuarios.find(usuario=>{const nomes=[usuario.nomeCompleto,usuario.nomeEmpresarial,usuario.email].filter(Boolean).map(chaveTexto);const partes=chaveTexto(usuario.nomeCompleto).split(/\s+/).filter(parte=>parte.length>3).slice(0,2);return nomes.some(nome=>nome.length>4&&texto.includes(nome))||(partes.length>0&&partes.every(parte=>texto.includes(parte)));});};
+  const identificarPrestador=(arquivo:Arquivo)=>{
+    const texto=chaveTexto(`${arquivo.nome} ${arquivo.descricao}`);const ignorar=new Set(["TECNICO","TECNICA","CAMPO","SERVICOS","SERVICO","EIRELI","LTDA"]);
+    return usuarios.map(usuario=>{
+      const campos=[usuario.nomeCompleto,usuario.nomeEmpresarial,usuario.email?.split("@")[0]].filter(Boolean).map(chaveTexto);
+      let pontos=campos.some(campo=>campo.length>4&&texto.includes(campo))?1000:0;
+      const partes=[...new Set(campos.flatMap(campo=>campo.split(/[^A-Z0-9]+/)).filter(parte=>parte.length>=5&&!ignorar.has(parte)))];
+      for(const parte of partes)if(texto.includes(parte))pontos=Math.max(pontos,parte.length);
+      return{usuario,pontos};
+    }).filter(item=>item.pontos>0).sort((a,b)=>b.pontos-a.pontos)[0]?.usuario;
+  };
   const pagamentosColaboradores=notas.map(arquivo=>({arquivo,prestador:identificarPrestador(arquivo)})).filter(item=>!!item.prestador||/SERVIÇO|SERVICO|TÉCNIC|TECNIC|CONSULT|MOBILIZ|COORDENA|COMUNICAÇÃO|COMUNICACAO/i.test(`${item.arquivo.descricao||""} ${item.arquivo.nome||""}`));
   const totalPagamentosColaboradores=pagamentosColaboradores.reduce((total,item)=>total+numero(item.arquivo.valor),0);
   const relatoriosEvidencia=anexos.filter(arquivo=>arquivo.tipo==="application/pdf");
