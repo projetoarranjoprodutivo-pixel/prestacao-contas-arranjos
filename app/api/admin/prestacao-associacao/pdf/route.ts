@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { getAderesOrAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { associacoes, colaboradores, documentosAssociacao, prestacoes } from "@/db/schema";
@@ -25,8 +25,9 @@ export async function GET(request:Request){
   const associacao=await db.query.associacoes.findFirst({where:and(eq(associacoes.nome,nomeAssociacao),eq(associacoes.ativo,true))});
   if(!associacao)return new Response("Associação não encontrada",{status:404});
   let relatorios:typeof prestacoes.$inferSelect[]=[],usuarios:typeof colaboradores.$inferSelect[]=[],financeiro:typeof documentosAssociacao.$inferSelect[]=[];
+  const colunasPrestacao=getTableColumns(prestacoes);
   try{[relatorios,usuarios,financeiro]=await Promise.all([
-    db.select().from(prestacoes).where(and(eq(prestacoes.associacao,associacao.nome),inArray(prestacoes.competencia,competencias))),
+    db.select({...colunasPrestacao,atividadesJson:sql<string>`COALESCE((SELECT json_group_array(json_remove(value, '$.assinaturaProdutor', '$.assinaturaTecnico')) FROM json_each(${prestacoes.atividadesJson})), '[]')`}).from(prestacoes).where(and(eq(prestacoes.associacao,associacao.nome),inArray(prestacoes.competencia,competencias))),
     db.select().from(colaboradores),
     db.select().from(documentosAssociacao).where(and(eq(documentosAssociacao.associacao,associacao.nome),inArray(documentosAssociacao.competencia,competencias))),
   ]);}catch(error){return new Response(`FALHA AO CONSULTAR OS DADOS: ${error instanceof Error?error.message:String(error)}`,{status:500});}
