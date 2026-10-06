@@ -74,25 +74,21 @@ export async function GET(request:Request){
     {heading:"RELAÇÃO DE ARQUIVOS ENVIADOS",lines:arquivos.length?arquivos.map((a,i)=>`${i+1}. ${a.grupo}: ${a.nome} | ARQUIVO REGISTRADO NO SISTEMA`):["NENHUM ARQUIVO ENVIADO NAS COMPETÊNCIAS SELECIONADAS."]},
   ];
   const base=await createPdf(`RELATÓRIO GERAL DE PRESTAÇÃO DE CONTAS À ADERES - ${associacao.nome} - ${referencias}`,sections);const pdf=await PDFDocument.load(base);const fonte=await pdf.embedFont(StandardFonts.HelveticaBold);
-  const evidencias=[...fichasVisita.map(arquivo=>({...arquivo,grupo:"FICHA DE VISITA"})),...fotos.map(arquivo=>({...arquivo,grupo:"REGISTRO FOTOGRÁFICO"}))];
+  // As fichas de visita permanecem identificadas na relação do relatório. Copiar
+  // todos os PDFs digitalizados para dentro do consolidado fazia o Worker atingir
+  // o limite de CPU/memória (erro 1102). Somente as fotos leves são renderizadas;
+  // arquivos maiores continuam relacionados pelo nome, sem descompactação.
+  const evidencias=fotos.map(arquivo=>({...arquivo,grupo:"REGISTRO FOTOGRÁFICO"}));
   const arquivosParaIncorporar=[...new Map(evidencias.map(arquivo=>[arquivo.key,arquivo])).values()];
   for(const [indice,arquivo] of arquivosParaIncorporar.entries()){
     const objeto=await env.BUCKET.get(arquivo.key,"arrayBuffer");if(!objeto)continue;
     const bytes=new Uint8Array(objeto);
     try{
-      // Copiar muitas páginas de relatórios digitalizados excede o limite de CPU do
-      // Worker. PDFs maiores ficam preservados integralmente como anexos do próprio
-      // documento; PDFs pequenos e imagens continuam visíveis nas páginas finais.
-      if(arquivo.tipo==="application/pdf"&&bytes.byteLength<=750_000){
-        const anexo=await PDFDocument.load(bytes);const paginas=await pdf.copyPages(anexo,anexo.getPageIndices());paginas.forEach(p=>pdf.addPage(p));
-      }else if(arquivo.tipo==="image/jpeg"||arquivo.tipo==="image/png"){
+      const limiteImagem=arquivo.tipo==="image/png"?500_000:1_000_000;
+      if((arquivo.tipo==="image/jpeg"||arquivo.tipo==="image/png")&&bytes.byteLength<=limiteImagem){
         const imagem=arquivo.tipo==="image/png"?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);const pagina=pdf.addPage([595.28,841.89]);pagina.drawRectangle({x:0,y:749.89,width:595.28,height:92,color:rgb(0.02,0.28,0.19)});pagina.drawText(`${arquivo.grupo} ${indice+1}: ${arquivo.nome}`.toLocaleUpperCase("pt-BR"),{x:42,y:790,size:9,font:fonte,color:rgb(1,1,1)});const escala=Math.min(511/imagem.width,650/imagem.height,1);pagina.drawImage(imagem,{x:(595.28-imagem.width*escala)/2,y:60+(650-imagem.height*escala)/2,width:imagem.width*escala,height:imagem.height*escala});
-      }else{
-        await pdf.attach(bytes,arquivo.nome,{mimeType:arquivo.tipo||"application/octet-stream",description:`${arquivo.grupo} - ARQUIVO INTEGRAL`});
       }
-    }catch{
-      await pdf.attach(bytes,arquivo.nome,{mimeType:arquivo.tipo||"application/octet-stream",description:`${arquivo.grupo} - ARQUIVO INTEGRAL`});
-    }
+    }catch{}
   }
   const resultado=await pdf.save();return new Response(resultado.buffer.slice(resultado.byteOffset,resultado.byteOffset+resultado.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="prestacao-aderes-${associacao.nome.replace(/[^a-zA-Z0-9_-]/g,"-")}-${identificadorCompetencias}.pdf"`}});
 }
