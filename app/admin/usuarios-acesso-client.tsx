@@ -59,7 +59,7 @@ export default function UsuariosAcesso({
     }
   }
 
-  return <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+  return <section id="lista-acessos" className="scroll-mt-5 mt-6 rounded-2xl border bg-white p-5 shadow-sm">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 className="text-lg font-bold">Acesso dos usuários</h2>
