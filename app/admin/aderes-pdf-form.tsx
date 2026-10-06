@@ -61,12 +61,10 @@ export default function AderesPdfForm({
     setGerandoPdf(true);
     try{
       const consolidado=await PDFDocument.create();
-      for(const competencia of competencias){
-        const parametros=new URLSearchParams({associacao,competencia,formato:"json"});
-        const resposta=await fetch(`/api/admin/prestacao-associacao/pdf?${parametros.toString()}`);
-        if(!resposta.ok){const detalhe=await resposta.text().catch(()=>"");throw new Error(detalhe||`NÃO FOI POSSÍVEL GERAR A COMPETÊNCIA ${competencia}.`);}
-        await adicionarRelatorio(consolidado,await resposta.json() as RelatorioJson);
-      }
+      const parametros=new URLSearchParams({associacao,formato:"json"});competencias.forEach(competencia=>parametros.append("competencias",competencia));
+      const resposta=await fetch(`/api/admin/prestacao-associacao/pdf?${parametros.toString()}`);
+      if(!resposta.ok){const detalhe=await resposta.text().catch(()=>"");throw new Error(detalhe||"NÃO FOI POSSÍVEL CONSULTAR OS DADOS DO RELATÓRIO ADERES.");}
+      await adicionarRelatorio(consolidado,await resposta.json() as RelatorioJson);
       const bytes=await consolidado.save();
       const blob=new Blob([bytes],{type:"application/pdf"});const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`prestacao-aderes-${associacao.replace(/[^a-zA-Z0-9_-]/g,"-")}-${competencias.join("_")}.pdf`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
     }catch(error){alert(error instanceof Error?error.message:"NÃO FOI POSSÍVEL GERAR O PDF.");}finally{setGerandoPdf(false);}
