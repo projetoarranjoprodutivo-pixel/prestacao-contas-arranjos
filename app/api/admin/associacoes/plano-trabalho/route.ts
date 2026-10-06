@@ -25,6 +25,10 @@ function organizarModelo(documento:string,dados:{etapas:Linha[];objetivos:Linha[
  documento=ajustarLinhas(documento,"EQ_CARGO",dados.equipe.length,4);
  documento=ajustarLinhas(documento,"REPASSE_MES",dados.repasses.length,2);
  documento=ajustarLinhas(documento,"APL_ITEM",dados.itens.length,8);
+ documento=documento.replace(/<w:sectPr([^>]*)>([\s\S]*?)<\/w:sectPr>/g,(_secao,atributos:string,conteudo:string)=>{
+  const continuo='<w:type w:val="continuous"/>';const semTipo=conteudo.replace(/<w:type\b[^>]*\/>/g,"");return `<w:sectPr${atributos}>${continuo}${semTipo}</w:sectPr>`;
+ });
+ documento=documento.replace(/<w:lastRenderedPageBreak\s*\/>/g,"");
  return documento.replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/g,tabela=>tabela
   .replace(/<w:trHeight\b[^>]*\/>/g,"")
   .replace(/<w:cantSplit\b[^>]*\/>/g,"")
