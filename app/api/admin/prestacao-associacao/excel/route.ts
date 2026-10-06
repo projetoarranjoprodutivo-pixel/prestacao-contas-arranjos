@@ -23,7 +23,14 @@ type Atividade = {
   duracao?: string;
   resumo?: string;
 };
-type Arquivo = { nome?: string };
+type Arquivo = {
+  nome?: string;
+  descricao?: string;
+  quantidade?: string;
+  valor?: string;
+  dataEmissao?: string;
+  fornecedor?: string;
+};
 type AgricultorCadastro = { agricultor?: string; municipio?: string; comunidade?: string; propriedade?: string; telefone?: string };
 type AgricultorInicial = { n: string; m: string; a: string };
 type Registro = typeof prestacoes.$inferSelect;
@@ -39,6 +46,27 @@ const chaveNome = (value: unknown) => texto(value).normalize("NFD").replace(/[\u
 const mesReferencia = (competencia: string) => new Intl.DateTimeFormat("pt-BR", {
   month: "long", year: "numeric", timeZone: "UTC",
 }).format(new Date(`${competencia}-02T12:00:00Z`));
+
+function numeroDocumento(value: unknown, monetario = false) {
+  const original = texto(value).replace(/[^\d,.-]/g, "");
+  if (!original) return 0;
+  let normalizado = original;
+  if (original.includes(",")) normalizado = original.replaceAll(".", "").replace(",", ".");
+  else if (!monetario && /^-?\d{1,3}(\.\d{3})+$/.test(original)) normalizado = original.replaceAll(".", "");
+  const numero = Number(normalizado);
+  return Number.isFinite(numero) ? numero : 0;
+}
+
+function categoriaAquisicao(descricao: unknown) {
+  const valor = chaveNome(descricao);
+  if (/MUDA|PLANTULA/.test(valor)) return "Mudas";
+  if (/SEMENTE/.test(valor)) return "Sementes";
+  if (/ADUBO|FERTILIZANTE/.test(valor)) return "Adubo/Fertilizante";
+  if (/CALCARIO|CORRETIVO/.test(valor)) return "Calcário/Corretivo";
+  if (/IRRIGACAO/.test(valor)) return "Irrigação";
+  if (/EQUIPAMENTO|MAQUINA|IMPLEMENTO/.test(valor)) return "Equipamento";
+  return "Outros";
+}
 
 function colocar(cells: Record<string, CellValue>, row: number, columns: string[], values: CellValue[]) {
   columns.forEach((column, index) => { cells[`${column}${row}`] = values[index] ?? ""; });
@@ -140,11 +168,31 @@ async function gerarAgricultura(
     excelDate(atividade.data), "Mudas", tipoMudaEntregue(atividade), quantidadeEntregue(atividade) || "", "", "",
     texto(atividade.agricultor || atividade.beneficiario || atividade.comunidade), texto(atividade.resumo),
   ]));
-  const notas = documentos.flatMap((item) => lista<Arquivo>(item.notasFiscaisJson)).filter((item) => item.nome);
-  notas.slice(0, Math.max(0, 300 - entregas.length)).forEach((arquivo, index) => {
+  const notas = documentos.flatMap((documento) =>
+    lista<Arquivo>(documento.notasFiscaisJson).map((arquivo) => ({ arquivo, competencia: documento.competencia }))
+  ).filter(({ arquivo }) => arquivo.nome || arquivo.descricao || arquivo.valor || arquivo.dataEmissao);
+  notas.slice(0, Math.max(0, 300 - entregas.length)).forEach(({ arquivo, competencia }, index) => {
     const row = Math.min(entregas.length, 300) + index + 2;
-    aquisicoesCells[`I${row}`] = texto(arquivo.nome);
-    aquisicoesCells[`K${row}`] = "DOCUMENTO FISCAL ENVIADO NO PORTAL";
+    const descricao = texto(arquivo.descricao) || "ITEM NÃO DESCRITO";
+    const quantidade = numeroDocumento(arquivo.quantidade);
+    const valorTotal = numeroDocumento(arquivo.valor, true);
+    const quantidadePlanilha = quantidade > 0 ? quantidade : 1;
+    const valorUnitario = valorTotal > 0 ? Number((valorTotal / quantidadePlanilha).toFixed(6)) : "";
+    colocar(aquisicoesCells, row, ["B", "C", "D", "E", "F", "H", "I", "J", "K"], [
+      excelDate(arquivo.dataEmissao),
+      categoriaAquisicao(descricao),
+      descricao,
+      quantidadePlanilha,
+      valorUnitario,
+      texto(arquivo.fornecedor),
+      texto(arquivo.nome) || "DOCUMENTO FISCAL ENVIADO",
+      "",
+      [
+        `COMPETÊNCIA ${competencia}`,
+        !quantidade && arquivo.quantidade ? `QUANTIDADE INFORMADA: ${texto(arquivo.quantidade)}` : "",
+        "DOCUMENTO FISCAL ENVIADO NO PORTAL",
+      ].filter(Boolean).join(" · "),
+    ]);
   });
 
   const template = await carregarTemplate(request, "controle-agricultura-familiar-fomento.xlsx");
