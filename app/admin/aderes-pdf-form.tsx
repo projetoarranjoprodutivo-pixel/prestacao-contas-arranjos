@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Download, FileSpreadsheet } from "lucide-react";
-import { PDFDocument } from "pdf-lib";
 
 type Props = {
   associacoes: string[];
@@ -38,17 +37,13 @@ export default function AderesPdfForm({
     const formulario=formRef.current;if(!formulario||gerandoPdf)return;
     const associacao=String(new FormData(formulario).get("associacao")||"");
     if(!associacao){alert("SELECIONE A ASSOCIAÇÃO.");return;}
+    if(!competencias.length){alert("SELECIONE AO MENOS UMA COMPETÊNCIA.");return;}
     setGerandoPdf(true);
     try{
-      const destino=await PDFDocument.create();
-      for(const competencia of competencias){
-        const resposta=await fetch(`/api/admin/prestacao-associacao/pdf?competencias=${encodeURIComponent(competencia)}&associacao=${encodeURIComponent(associacao)}`);
-        if(!resposta.ok)throw new Error(`NÃO FOI POSSÍVEL GERAR A COMPETÊNCIA ${competencia}.`);
-        const origem=await PDFDocument.load(await resposta.arrayBuffer());
-        const paginas=await destino.copyPages(origem,origem.getPageIndices());paginas.forEach(pagina=>destino.addPage(pagina));
-      }
-      const bytes=await destino.save();
-      const blob=new Blob([bytes],{type:"application/pdf"});const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`prestacao-aderes-${associacao.replace(/[^a-zA-Z0-9_-]/g,"-")}-${competencias.join("_")}.pdf`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+      const parametros=new URLSearchParams({associacao});competencias.forEach(competencia=>parametros.append("competencias",competencia));
+      const resposta=await fetch(`/api/admin/prestacao-associacao/pdf?${parametros.toString()}`);
+      if(!resposta.ok){const detalhe=await resposta.text().catch(()=>"");throw new Error(detalhe||"NÃO FOI POSSÍVEL GERAR O RELATÓRIO GERAL ADERES.");}
+      const blob=await resposta.blob();const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`prestacao-aderes-${associacao.replace(/[^a-zA-Z0-9_-]/g,"-")}-${competencias.join("_")}.pdf`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
     }catch(error){alert(error instanceof Error?error.message:"NÃO FOI POSSÍVEL GERAR O PDF.");}finally{setGerandoPdf(false);}
   }
 
