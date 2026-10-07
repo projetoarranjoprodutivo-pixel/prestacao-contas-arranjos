@@ -86,12 +86,16 @@ export default function AderesPdfForm({
     setGerandoPdf(true);
     try{
       const consolidado=await PDFDocument.create();
-      const parametros=new URLSearchParams({associacao,formato:"json"});competencias.forEach(competencia=>parametros.append("competencias",competencia));
-      const resposta=await fetch(`/api/admin/prestacao-associacao/pdf?${parametros.toString()}`);
-      if(!resposta.ok){const detalhe=await resposta.text().catch(()=>"");throw new Error(detalhe||"NÃO FOI POSSÍVEL CONSULTAR OS DADOS DO RELATÓRIO ADERES.");}
-      const relatorio=await resposta.json() as RelatorioJson;
-      await adicionarRelatorio(consolidado,relatorio);
-      await incorporarArquivos(consolidado,relatorio.arquivos||[]);
+      const relatorios:RelatorioJson[]=[];
+      for(const competencia of competencias){
+        const parametros=new URLSearchParams({associacao,formato:"json",competencia});
+        const resposta=await fetch(`/api/admin/prestacao-associacao/pdf?${parametros.toString()}`);
+        if(!resposta.ok){const detalhe=await resposta.text().catch(()=>"");throw new Error(detalhe||`NÃO FOI POSSÍVEL CONSULTAR A COMPETÊNCIA ${competencia}.`);}
+        relatorios.push(await resposta.json() as RelatorioJson);
+      }
+      for(const relatorio of relatorios)await adicionarRelatorio(consolidado,relatorio);
+      const arquivos=[...new Map(relatorios.flatMap(relatorio=>relatorio.arquivos||[]).map(arquivo=>[arquivo.key,arquivo])).values()];
+      await incorporarArquivos(consolidado,arquivos);
       const bytes=await consolidado.save();
       const blob=new Blob([bytes],{type:"application/pdf"});const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`prestacao-aderes-${associacao.replace(/[^a-zA-Z0-9_-]/g,"-")}-${competencias.join("_")}.pdf`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
     }catch(error){alert(error instanceof Error?error.message:"NÃO FOI POSSÍVEL GERAR O PDF.");}finally{setGerandoPdf(false);}
