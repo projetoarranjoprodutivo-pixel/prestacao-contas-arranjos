@@ -51,6 +51,17 @@ async function criarTabelasDeAcesso() {
     atualizado_em TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
   )`).run();
   await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_documentos_associacao_competencia ON documentos_associacao(associacao, competencia)").run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS itens_plano_associacao (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    item TEXT NOT NULL,
+    descricao TEXT DEFAULT '' NOT NULL,
+    quantidade TEXT DEFAULT '' NOT NULL,
+    unidade TEXT DEFAULT '' NOT NULL,
+    valor_unitario TEXT DEFAULT '' NOT NULL,
+    criado_em TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    atualizado_em TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+  )`).run();
+  await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_itens_plano_associacao_item ON itens_plano_associacao(item)").run();
   await garantirUsuariosDosColaboradores();
 }
 

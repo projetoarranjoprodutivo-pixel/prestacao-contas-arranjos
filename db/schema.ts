@@ -79,3 +79,14 @@ export const documentosAssociacao = sqliteTable("documentos_associacao", {
   criadoEm: text("criado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
   atualizadoEm: text("atualizado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, table => ({ competenciaAssociacaoUnique: uniqueIndex("idx_documentos_associacao_competencia").on(table.associacao, table.competencia) }));
+
+export const itensPlanoAssociacao = sqliteTable("itens_plano_associacao", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  item: text("item").notNull(),
+  descricao: text("descricao").notNull().default(""),
+  quantidade: text("quantidade").notNull().default(""),
+  unidade: text("unidade").notNull().default(""),
+  valorUnitario: text("valor_unitario").notNull().default(""),
+  criadoEm: text("criado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
+  atualizadoEm: text("atualizado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, table => ({ itemUnique: uniqueIndex("idx_itens_plano_associacao_item").on(table.item) }));
