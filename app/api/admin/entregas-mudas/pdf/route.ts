@@ -30,7 +30,7 @@ export async function GET(request:Request){
   const entregas:Array<{associacao:string;municipio:string;data:string;tipo:string;quantidade:number;competencia:string;responsavel:string}>=[];
 
   for(const registro of registros){
-    if(registro.authUserId==="admin-importacao-mudas-2026")continue;
+    if(registro.authUserId!=="admin-importacao-mudas-2026")continue;
     let atividades:Array<Record<string,unknown>>=[];
     try{atividades=JSON.parse(registro.atividadesJson||"[]");}catch{}
     for(const atividade of atividades){
@@ -43,7 +43,7 @@ export async function GET(request:Request){
         tipo:tipoMudaEntregue(atividade),
         quantidade:quantidadeEntregue(atividade),
         competencia:registro.competencia,
-        responsavel:nomes.get(registro.authUserId)||"COLABORADOR NÃO IDENTIFICADO",
+        responsavel:"LANÇAMENTO ADMINISTRATIVO",
       });
     }
   }

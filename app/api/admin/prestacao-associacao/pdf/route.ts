@@ -1,9 +1,10 @@
-import { and, eq, getTableColumns, inArray, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import { getAderesOrAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { associacoes, colaboradores, documentosAssociacao, prestacoes } from "@/db/schema";
 import { createPdf, PdfSection } from "@/lib/pdf";
 import { ehEntregaMudas, quantidadeEntregue, tipoMudaEntregue } from "@/lib/entregas-mudas";
+import { chaveMunicipio, mapaAssociacoesPorMunicipio } from "@/lib/associacoes-municipios";
 
 export const runtime="edge";
 type Atividade={executada?:boolean;municipio?:string;comunidade?:string;propriedade?:string;agricultor?:string;beneficiario?:string;telefone?:string;tipoAtividade?:string;tipoMuda?:string;quantidadeMudas?:string;data?:string;inicio?:string;duracao?:string;resumo?:string;assinaturaProdutor?:string;assinaturaTecnico?:string};
@@ -28,15 +29,16 @@ export async function GET(request:Request){
   let relatorios:typeof prestacoes.$inferSelect[]=[],usuarios:typeof colaboradores.$inferSelect[]=[],financeiro:typeof documentosAssociacao.$inferSelect[]=[];
   const colunasPrestacao=getTableColumns(prestacoes);
   try{[relatorios,usuarios,financeiro]=await Promise.all([
-    db.select({...colunasPrestacao,atividadesJson:sql<string>`COALESCE((SELECT json_group_array(json_remove(value, '$.assinaturaProdutor', '$.assinaturaTecnico')) FROM json_each(${prestacoes.atividadesJson})), '[]')`}).from(prestacoes).where(and(eq(prestacoes.associacao,associacao.nome),inArray(prestacoes.competencia,competencias))),
+    db.select({...colunasPrestacao,atividadesJson:sql<string>`COALESCE((SELECT json_group_array(json_remove(value, '$.assinaturaProdutor', '$.assinaturaTecnico')) FROM json_each(${prestacoes.atividadesJson})), '[]')`}).from(prestacoes).where(and(or(eq(prestacoes.associacao,associacao.nome),eq(prestacoes.authUserId,"admin-importacao-mudas-2026")),inArray(prestacoes.competencia,competencias))),
     db.select().from(colaboradores),
     db.select().from(documentosAssociacao).where(and(eq(documentosAssociacao.associacao,associacao.nome),inArray(documentosAssociacao.competencia,competencias))),
   ]);}catch(error){return new Response(`FALHA AO CONSULTAR OS DADOS: ${error instanceof Error?error.message:String(error)}`,{status:500});}
   const nomes=new Map(usuarios.map(u=>[u.authUserId,u]));
-  const atividades=relatorios.flatMap(r=>lista<Atividade>(r.atividadesJson).filter(a=>a.executada!==false).map(a=>({a,r,u:nomes.get(r.authUserId)})));
+  const associacaoPorMunicipio=mapaAssociacoesPorMunicipio([{nome:associacao.nome,municipiosJson:associacao.municipiosJson}]);
+  const atividades=relatorios.flatMap(r=>lista<Atividade>(r.atividadesJson).filter(a=>a.executada!==false&&(r.authUserId!=="admin-importacao-mudas-2026"||associacaoPorMunicipio.get(chaveMunicipio(a.municipio))===associacao.nome)).map(a=>({a,r,u:nomes.get(r.authUserId)})));
   const visitas=atividades.filter(x=>informado(x.a.tipoAtividade).toLocaleLowerCase("pt-BR")==="visita técnica");
   const eventos=atividades.filter(x=>informado(x.a.tipoAtividade).toLocaleLowerCase("pt-BR")!=="visita técnica"&&!ehEntregaMudas(x.a));
-  const entregas=atividades.filter(x=>ehEntregaMudas(x.a));
+  const entregas=atividades.filter(x=>x.r.authUserId==="admin-importacao-mudas-2026"&&ehEntregaMudas(x.a));
   const agricultoresMap=new Map<string,{nome:string;municipio:string;beneficios:string[];quantidade:number;observacoes:string[]}>();
   for(const {a} of atividades){const nome=informado(a.agricultor||a.beneficiario);if(nome==="NÃO INFORMADO")continue;const atual=agricultoresMap.get(nome)||{nome,municipio:informado(a.municipio),beneficios:[],quantidade:0,observacoes:[]};if(a.tipoAtividade)atual.beneficios.push(informado(a.tipoAtividade));if(ehEntregaMudas(a))atual.beneficios.push(`MUDAS DE ${tipoMudaEntregue(a)}`);atual.quantidade+=quantidadeEntregue(a);if(a.resumo)atual.observacoes.push(a.resumo);agricultoresMap.set(nome,atual);}
   const agricultores=[...agricultoresMap.values()];
