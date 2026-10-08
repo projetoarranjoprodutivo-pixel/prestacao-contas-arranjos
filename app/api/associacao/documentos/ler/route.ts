@@ -14,10 +14,20 @@ type AiBinding={
 };
 
 function jsonResposta(valor:unknown){
- const objeto=valor as {response?:string;result?:{response?:string}};
- const texto=objeto?.response||objeto?.result?.response||JSON.stringify(valor);
+ const objeto=valor as {response?:string;result?:{response?:string};choices?:Array<{message?:{content?:string};text?:string}>};
+ const texto=objeto?.response||objeto?.result?.response||objeto?.choices?.[0]?.message?.content||objeto?.choices?.[0]?.text||JSON.stringify(valor);
  const trecho=texto.match(/\{[\s\S]*\}/)?.[0]||"{}";
  try{return JSON.parse(trecho) as Record<string,unknown>}catch{return {}}
+}
+
+const meses:Record<string,string>={JANEIRO:"01",FEVEREIRO:"02",MARCO:"03",ABRIL:"04",MAIO:"05",JUNHO:"06",JULHO:"07",AGOSTO:"08",SETEMBRO:"09",OUTUBRO:"10",NOVEMBRO:"11",DEZEMBRO:"12"};
+function competenciaFallback(nome:string,data:string){
+ if(/^20\d{2}-(0[1-9]|1[0-2])-[0-3]\d$/.test(data))return data.slice(0,7);
+ const texto=nome.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
+ let achado=texto.match(/\b(0?[1-9]|1[0-2])[-_ ]+(20\d{2})\b/);if(achado)return `${achado[2]}-${achado[1].padStart(2,"0")}`;
+ achado=texto.match(/\b(20\d{2})[-_ ]+(0?[1-9]|1[0-2])\b/);if(achado)return `${achado[1]}-${achado[2].padStart(2,"0")}`;
+ for(const [mes,numero] of Object.entries(meses)){const ano=texto.match(new RegExp(`${mes}[^0-9]*(20\\d{2})`));if(ano)return `${ano[1]}-${numero}`;}
+ return "";
 }
 
 function textoResultado(valor:Awaited<ReturnType<AiBinding["toMarkdown"]>>){
@@ -47,11 +57,14 @@ export async function POST(request:Request){
   const resposta=await ai.run("@cf/zai-org/glm-4.7-flash",{messages:[
    {role:"system",content:"Extraia dados de uma nota fiscal brasileira. Responda SOMENTE JSON válido, sem markdown. Não invente. Campos: descricao (descrição principal dos produtos ou serviços, texto curto), quantidade (soma ou quantidade principal como texto), valor (valor total da nota apenas em número decimal com ponto), dataEmissao (AAAA-MM-DD), associacao (nome exato de uma associação da lista, somente se houver evidência), competencia (AAAA-MM, normalmente o mês da emissão)."},
    {role:"user",content:`NOME DO ARQUIVO: ${arquivo.name}\nASSOCIAÇÕES POSSÍVEIS: ${JSON.stringify(lista)}\nCONTEÚDO EXTRAÍDO:\n${conteudo}`}
-  ],max_tokens:700,temperature:0});
+  ],max_completion_tokens:700,temperature:0,response_format:{type:"json_object"}});
   const dados=jsonResposta(resposta);
+  const dataEmissao=String(dados.dataEmissao||"");
+  const competencia=String(dados.competencia||"")||competenciaFallback(arquivo.name,dataEmissao);
+  const descricao=String(dados.descricao||"");const quantidade=String(dados.quantidade||"");const valor=String(dados.valor||"").replace(",",".");
+  if(!descricao&&!quantidade&&!valor&&!dataEmissao)throw new Error("O DOCUMENTO FOI LIDO, MAS OS DADOS DA NOTA NÃO FORAM IDENTIFICADOS. CONFIRA SE O ARQUIVO ESTÁ LEGÍVEL.");
   return Response.json({
-   descricao:String(dados.descricao||""),quantidade:String(dados.quantidade||""),valor:String(dados.valor||"").replace(",","."),
-   dataEmissao:String(dados.dataEmissao||""),associacao:String(dados.associacao||""),competencia:String(dados.competencia||"")
+   descricao,quantidade,valor,dataEmissao,associacao:String(dados.associacao||""),competencia
   });
  }catch(error){return Response.json({message:error instanceof Error?error.message:"NÃO FOI POSSÍVEL LER O DOCUMENTO."},{status:500})}
 }
