@@ -36,6 +36,28 @@ function textoResultado(valor:Awaited<ReturnType<AiBinding["toMarkdown"]>>){
  return item.data||"";
 }
 
+function normalizar(texto:string){return texto.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase()}
+function numeroDecimal(valor:string){
+ const limpo=valor.replace(/[^0-9,.-]/g,"");
+ if(limpo.includes(","))return limpo.replace(/\./g,"").replace(",",".");
+ return limpo;
+}
+function dadosDeterministicos(conteudo:string,nome:string,lista:Array<{nome:string|null;razaoSocial:string|null;cnpj:string|null}>){
+ const fonte=`${nome}\n${conteudo}`;const fonteNormalizada=normalizar(fonte);
+ const dataBr=fonte.match(/\b([0-3]?\d)[\/.\-]([01]?\d)[\/.\-](20\d{2})\b/);
+ const dataIso=fonte.match(/\b(20\d{2})-([01]\d)-([0-3]\d)\b/);
+ const dataEmissao=dataIso?.[0]||(dataBr?`${dataBr[3]}-${dataBr[2].padStart(2,"0")}-${dataBr[1].padStart(2,"0")}`:"");
+ const valores=[...conteudo.matchAll(/(?:R\$\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+),\d{2})\b/g)].map(item=>({original:item[1],numero:Number(numeroDecimal(item[1]))})).filter(item=>Number.isFinite(item.numero));
+ const valor=valores.sort((a,b)=>b.numero-a.numero)[0]?.numero.toFixed(2)||"";
+ const linhas=conteudo.split(/\r?\n/).map(item=>item.replace(/\s+/g," ").trim()).filter(Boolean);
+ const indiceDescricao=linhas.findIndex(item=>/DESCRI[CÇ][AÃ]O|DISCRIMINA[CÇ][AÃ]O|SERVI[CÇ]OS? PRESTADOS?|PRODUTO.*SERVI[CÇ]O/i.test(item));
+ const candidatas=indiceDescricao>=0?linhas.slice(indiceDescricao+1,indiceDescricao+6):linhas;
+ const descricao=candidatas.find(item=>item.length>=12&&!/^(QUANTIDADE|VALOR|TOTAL|DATA|CNPJ|CPF|NFS|NOTA FISCAL)/i.test(item))||"";
+ const quantidade=(conteudo.match(/(?:QUANTIDADE|QTD\.?)[\s:;-]*(\d+(?:[.,]\d+)?)/i)?.[1]||"").replace(",",".");
+ const associacao=lista.find(item=>[item.nome,item.razaoSocial,item.cnpj].filter(Boolean).some(valorItem=>fonteNormalizada.includes(normalizar(String(valorItem)))))?.nome||"";
+ return {descricao,quantidade,valor,dataEmissao,associacao:String(associacao||""),competencia:competenciaFallback(nome,dataEmissao)};
+}
+
 export async function POST(request:Request){
  await garantirBanco();
  const user=await getChatGPTUser();
@@ -59,12 +81,13 @@ export async function POST(request:Request){
    {role:"user",content:`NOME DO ARQUIVO: ${arquivo.name}\nASSOCIAÇÕES POSSÍVEIS: ${JSON.stringify(lista)}\nCONTEÚDO EXTRAÍDO:\n${conteudo}`}
   ],max_completion_tokens:700,temperature:0,response_format:{type:"json_object"}});
   const dados=jsonResposta(resposta);
-  const dataEmissao=String(dados.dataEmissao||"");
-  const competencia=String(dados.competencia||"")||competenciaFallback(arquivo.name,dataEmissao);
-  const descricao=String(dados.descricao||"");const quantidade=String(dados.quantidade||"");const valor=String(dados.valor||"").replace(",",".");
+  const fallback=dadosDeterministicos(conteudo,arquivo.name,lista);
+  const dataEmissao=String(dados.dataEmissao||fallback.dataEmissao||"");
+  const competencia=String(dados.competencia||fallback.competencia||"")||competenciaFallback(arquivo.name,dataEmissao);
+  const descricao=String(dados.descricao||fallback.descricao||"");const quantidade=String(dados.quantidade||fallback.quantidade||"");const valor=numeroDecimal(String(dados.valor||fallback.valor||""));
   if(!descricao&&!quantidade&&!valor&&!dataEmissao)throw new Error("O DOCUMENTO FOI LIDO, MAS OS DADOS DA NOTA NÃO FORAM IDENTIFICADOS. CONFIRA SE O ARQUIVO ESTÁ LEGÍVEL.");
   return Response.json({
-   descricao,quantidade,valor,dataEmissao,associacao:String(dados.associacao||""),competencia
+   descricao,quantidade,valor,dataEmissao,associacao:String(dados.associacao||fallback.associacao||""),competencia
   });
  }catch(error){return Response.json({message:error instanceof Error?error.message:"NÃO FOI POSSÍVEL LER O DOCUMENTO."},{status:500})}
 }
