@@ -42,6 +42,22 @@ function numeroDecimal(valor:string){
  if(limpo.includes(","))return limpo.replace(/\./g,"").replace(",",".");
  return limpo;
 }
+function normalizarDataEmissao(valor:unknown){
+ const texto=String(valor||"").trim();
+ let partes=texto.match(/\b(20\d{2})[-\/.]([01]?\d)[-\/.]([0-3]?\d)\b/);
+ if(partes)return dataIsoValida(partes[1],partes[2],partes[3]);
+ partes=texto.match(/\b([0-3]?\d)[-\/.]([01]?\d)[-\/.](20\d{2}|\d{2})\b/);
+ if(partes)return dataIsoValida(partes[3].length===2?`20${partes[3]}`:partes[3],partes[2],partes[1]);
+ const compacta=texto.replace(/\D/g,"");
+ if(/^20\d{6}$/.test(compacta))return dataIsoValida(compacta.slice(0,4),compacta.slice(4,6),compacta.slice(6,8));
+ if(/^\d{8}$/.test(compacta))return dataIsoValida(compacta.slice(4,8),compacta.slice(2,4),compacta.slice(0,2));
+ return "";
+}
+function dataIsoValida(ano:string,mes:string,dia:string){
+ const resultado=`${ano}-${mes.padStart(2,"0")}-${dia.padStart(2,"0")}`;
+ const data=new Date(`${resultado}T00:00:00Z`);
+ return data.getUTCFullYear()===Number(ano)&&data.getUTCMonth()+1===Number(mes)&&data.getUTCDate()===Number(dia)?resultado:"";
+}
 function dadosDeterministicos(conteudo:string,nome:string,lista:Array<{nome:string|null;razaoSocial:string|null;cnpj:string|null}>){
  const fonte=`${nome}\n${conteudo}`;const fonteNormalizada=normalizar(fonte);
  const dataBr=fonte.match(/\b([0-3]?\d)[\/.\-]([01]?\d)[\/.\-](20\d{2}|\d{2})\b/);
@@ -90,11 +106,16 @@ export async function POST(request:Request){
   ],max_completion_tokens:700,temperature:0,response_format:{type:"json_object"}});
   const dados=jsonResposta(resposta);
   const fallback=dadosDeterministicos(conteudo,arquivo.name,lista);
-  const dataEmissao=String(dados.dataEmissao||fallback.dataEmissao||"");
+  // O modelo pode devolver a data brasileira (DD/MM/AAAA), que um input
+  // type="date" ignora silenciosamente. Sempre convertemos para AAAA-MM-DD.
+  const dataEmissao=normalizarDataEmissao(dados.dataEmissao)||normalizarDataEmissao(fallback.dataEmissao);
   const competencia=String(dados.competencia||fallback.competencia||"")||competenciaFallback(arquivo.name,dataEmissao);
-  const descricao=String(dados.descricao||fallback.descricao||"");const quantidade=String(fallback.quantidade||dados.quantidade||"");
+  const descricao=String(dados.descricao||fallback.descricao||"");
   const valorAi=Number(numeroDecimal(String(dados.valor||"")));const valorFallback=Number(fallback.valor||0);
   const valor=String(valorFallback>valorAi?fallback.valor:(numeroDecimal(String(dados.valor||fallback.valor||""))));
+  const valorNumerico=Number(valor);const quantidadeAi=String(dados.quantidade||"").replace(",",".");
+  const quantidadePadrao=!fallback.quantidade&&!quantidadeAi&&valorNumerico>0&&Number.isInteger(valorNumerico/32.5)?String(valorNumerico/32.5):"";
+  const quantidade=String(fallback.quantidade||quantidadeAi||quantidadePadrao);
   if(!descricao&&!quantidade&&!valor&&!dataEmissao)throw new Error("O DOCUMENTO FOI LIDO, MAS OS DADOS DA NOTA NÃO FORAM IDENTIFICADOS. CONFIRA SE O ARQUIVO ESTÁ LEGÍVEL.");
   return Response.json({
    descricao,quantidade,valor,dataEmissao,associacao:String(dados.associacao||fallback.associacao||""),competencia
