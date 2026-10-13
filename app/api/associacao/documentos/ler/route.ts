@@ -44,16 +44,24 @@ function numeroDecimal(valor:string){
 }
 function dadosDeterministicos(conteudo:string,nome:string,lista:Array<{nome:string|null;razaoSocial:string|null;cnpj:string|null}>){
  const fonte=`${nome}\n${conteudo}`;const fonteNormalizada=normalizar(fonte);
- const dataBr=fonte.match(/\b([0-3]?\d)[\/.\-]([01]?\d)[\/.\-](20\d{2})\b/);
+ const dataBr=fonte.match(/\b([0-3]?\d)[\/.\-]([01]?\d)[\/.\-](20\d{2}|\d{2})\b/);
  const dataIso=fonte.match(/\b(20\d{2})-([01]\d)-([0-3]\d)\b/);
- const dataEmissao=dataIso?.[0]||(dataBr?`${dataBr[3]}-${dataBr[2].padStart(2,"0")}-${dataBr[1].padStart(2,"0")}`:"");
+ const mesesTexto:Record<string,string>={JANEIRO:"01",FEVEREIRO:"02",MARCO:"03",ABRIL:"04",MAIO:"05",JUNHO:"06",JULHO:"07",AGOSTO:"08",SETEMBRO:"09",OUTUBRO:"10",NOVEMBRO:"11",DEZEMBRO:"12"};
+ const dataExtenso=fonteNormalizada.match(/\b([0-3]?\d)\s+DE\s+(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\s+DE\s+(20\d{2})\b/);
+ const anoData=dataBr?.[3]?(dataBr[3].length===2?`20${dataBr[3]}`:dataBr[3]):"";
+ const dataEmissao=dataIso?.[0]||(dataBr?`${anoData}-${dataBr[2].padStart(2,"0")}-${dataBr[1].padStart(2,"0")}`:(dataExtenso?`${dataExtenso[3]}-${mesesTexto[dataExtenso[2]]}-${dataExtenso[1].padStart(2,"0")}`:""));
  const valores=[...conteudo.matchAll(/(?:R\$\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+),\d{2})\b/g)].map(item=>({original:item[1],numero:Number(numeroDecimal(item[1]))})).filter(item=>Number.isFinite(item.numero));
- const valor=valores.sort((a,b)=>b.numero-a.numero)[0]?.numero.toFixed(2)||"";
+ const valorTotalRotulado=conteudo.match(/(?:VALOR\s+(?:TOTAL|L[IÍ]QUIDO)(?:\s+DA\s+NOTA)?|TOTAL\s+(?:DA\s+NOTA|DOS\s+SERVI[CÇ]OS|A\s+PAGAR))[^0-9]{0,40}(?:R\$\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+),\d{2})/i)?.[1];
+ const valor=valorTotalRotulado?Number(numeroDecimal(valorTotalRotulado)).toFixed(2):(valores.sort((a,b)=>b.numero-a.numero)[0]?.numero.toFixed(2)||"");
  const linhas=conteudo.split(/\r?\n/).map(item=>item.replace(/\s+/g," ").trim()).filter(Boolean);
  const indiceDescricao=linhas.findIndex(item=>/DESCRI[CÇ][AÃ]O|DISCRIMINA[CÇ][AÃ]O|SERVI[CÇ]OS? PRESTADOS?|PRODUTO.*SERVI[CÇ]O/i.test(item));
  const candidatas=indiceDescricao>=0?linhas.slice(indiceDescricao+1,indiceDescricao+6):linhas;
  const descricao=candidatas.find(item=>item.length>=12&&!/^(QUANTIDADE|VALOR|TOTAL|DATA|CNPJ|CPF|NFS|NOTA FISCAL)/i.test(item))||"";
- const quantidade=(conteudo.match(/(?:QUANTIDADE|QTD\.?)[\s:;-]*(\d+(?:[.,]\d+)?)/i)?.[1]||"").replace(",",".");
+ const quantidadeInformada=(conteudo.match(/(?:QUANTIDADE|QTD\.?|HORAS?)[\s:;-]*(\d+(?:[.,]\d+)?)/i)?.[1]||"").replace(",",".");
+ const valorUnitarioTexto=conteudo.match(/(?:VALOR\s+UNIT[AÁ]RIO|VALOR\s+DA\s+HORA|VLR\.?\s*UNIT\.?)[^0-9]{0,30}(?:R\$\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+),\d{2})/i)?.[1];
+ const valorUnitario=Number(numeroDecimal(valorUnitarioTexto||""));const valorNumerico=Number(valor);
+ const quantidadeCalculada=!quantidadeInformada&&valorUnitario>0&&valorNumerico>0&&Number.isInteger(valorNumerico/valorUnitario)?String(valorNumerico/valorUnitario):"";
+ const quantidade=quantidadeInformada||quantidadeCalculada;
  const associacao=lista.find(item=>[item.nome,item.razaoSocial,item.cnpj].filter(Boolean).some(valorItem=>fonteNormalizada.includes(normalizar(String(valorItem)))))?.nome||"";
  return {descricao,quantidade,valor,dataEmissao,associacao:String(associacao||""),competencia:competenciaFallback(nome,dataEmissao)};
 }
@@ -84,7 +92,9 @@ export async function POST(request:Request){
   const fallback=dadosDeterministicos(conteudo,arquivo.name,lista);
   const dataEmissao=String(dados.dataEmissao||fallback.dataEmissao||"");
   const competencia=String(dados.competencia||fallback.competencia||"")||competenciaFallback(arquivo.name,dataEmissao);
-  const descricao=String(dados.descricao||fallback.descricao||"");const quantidade=String(dados.quantidade||fallback.quantidade||"");const valor=numeroDecimal(String(dados.valor||fallback.valor||""));
+  const descricao=String(dados.descricao||fallback.descricao||"");const quantidade=String(fallback.quantidade||dados.quantidade||"");
+  const valorAi=Number(numeroDecimal(String(dados.valor||"")));const valorFallback=Number(fallback.valor||0);
+  const valor=String(valorFallback>valorAi?fallback.valor:(numeroDecimal(String(dados.valor||fallback.valor||""))));
   if(!descricao&&!quantidade&&!valor&&!dataEmissao)throw new Error("O DOCUMENTO FOI LIDO, MAS OS DADOS DA NOTA NÃO FORAM IDENTIFICADOS. CONFIRA SE O ARQUIVO ESTÁ LEGÍVEL.");
   return Response.json({
    descricao,quantidade,valor,dataEmissao,associacao:String(dados.associacao||fallback.associacao||""),competencia
