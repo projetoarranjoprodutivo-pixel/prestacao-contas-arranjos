@@ -58,6 +58,24 @@ function dataIsoValida(ano:string,mes:string,dia:string){
  const data=new Date(`${resultado}T00:00:00Z`);
  return data.getUTCFullYear()===Number(ano)&&data.getUTCMonth()+1===Number(mes)&&data.getUTCDate()===Number(dia)?resultado:"";
 }
+function extrairDataEmissao(conteudo:string){
+ const texto=conteudo.replace(/\u00a0/g," ");
+ const rotulos=[...texto.matchAll(/(?:DATA(?:\s+E\s+HORA)?\s+(?:DA\s+)?EMISS[AÃ]O|EMITID[AO]\s+EM|DATA\s+DE\s+GERA[CÇ][AÃ]O)/gi)];
+ const trechos=[...rotulos.map(item=>texto.slice(item.index||0,(item.index||0)+180)),texto];
+ const mesesTexto:Record<string,string>={JANEIRO:"01",FEVEREIRO:"02",MARCO:"03",ABRIL:"04",MAIO:"05",JUNHO:"06",JULHO:"07",AGOSTO:"08",SETEMBRO:"09",OUTUBRO:"10",NOVEMBRO:"11",DEZEMBRO:"12",JAN:"01",FEV:"02",MAR:"03",ABR:"04",MAI:"05",JUN:"06",JUL:"07",AGO:"08",SET:"09",OUT:"10",NOV:"11",DEZ:"12"};
+ for(const trechoOriginal of trechos){
+  const trecho=normalizar(trechoOriginal);
+  let partes=trecho.match(/\b([0-3]?\d)\s*[\/.\-]\s*([01]?\d)\s*[\/.\-]\s*(20\d{2}|\d{2})\b/);
+  if(partes){const data=dataIsoValida(partes[3].length===2?`20${partes[3]}`:partes[3],partes[2],partes[1]);if(data)return data;}
+  partes=trecho.match(/\b(20\d{2})\s*[\/.\-]\s*([01]?\d)\s*[\/.\-]\s*([0-3]?\d)\b/);
+  if(partes){const data=dataIsoValida(partes[1],partes[2],partes[3]);if(data)return data;}
+  partes=trecho.match(/\b([0-3]?\d)\s+(?:DE\s+)?(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO|JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(?:DE\s+)?(20\d{2})\b/);
+  if(partes){const data=dataIsoValida(partes[3],mesesTexto[partes[2]],partes[1]);if(data)return data;}
+  const compacta=trecho.match(/\b([0-3]\d)([01]\d)(20\d{2})\b/);
+  if(compacta){const data=dataIsoValida(compacta[3],compacta[2],compacta[1]);if(data)return data;}
+ }
+ return "";
+}
 function dadosDeterministicos(conteudo:string,nome:string,lista:Array<{nome:string|null;razaoSocial:string|null;cnpj:string|null}>){
  const fonte=`${nome}\n${conteudo}`;const fonteNormalizada=normalizar(fonte);
  const dataBr=fonte.match(/\b([0-3]?\d)[\/.\-]([01]?\d)[\/.\-](20\d{2}|\d{2})\b/);
@@ -65,7 +83,7 @@ function dadosDeterministicos(conteudo:string,nome:string,lista:Array<{nome:stri
  const mesesTexto:Record<string,string>={JANEIRO:"01",FEVEREIRO:"02",MARCO:"03",ABRIL:"04",MAIO:"05",JUNHO:"06",JULHO:"07",AGOSTO:"08",SETEMBRO:"09",OUTUBRO:"10",NOVEMBRO:"11",DEZEMBRO:"12"};
  const dataExtenso=fonteNormalizada.match(/\b([0-3]?\d)\s+DE\s+(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\s+DE\s+(20\d{2})\b/);
  const anoData=dataBr?.[3]?(dataBr[3].length===2?`20${dataBr[3]}`:dataBr[3]):"";
- const dataEmissao=dataIso?.[0]||(dataBr?`${anoData}-${dataBr[2].padStart(2,"0")}-${dataBr[1].padStart(2,"0")}`:(dataExtenso?`${dataExtenso[3]}-${mesesTexto[dataExtenso[2]]}-${dataExtenso[1].padStart(2,"0")}`:""));
+ const dataEmissao=extrairDataEmissao(conteudo)||dataIso?.[0]||(dataBr?`${anoData}-${dataBr[2].padStart(2,"0")}-${dataBr[1].padStart(2,"0")}`:(dataExtenso?`${dataExtenso[3]}-${mesesTexto[dataExtenso[2]]}-${dataExtenso[1].padStart(2,"0")}`:""));
  const valores=[...conteudo.matchAll(/(?:R\$\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+),\d{2})\b/g)].map(item=>({original:item[1],numero:Number(numeroDecimal(item[1]))})).filter(item=>Number.isFinite(item.numero));
  const valorTotalRotulado=conteudo.match(/(?:VALOR\s+(?:TOTAL|L[IÍ]QUIDO)(?:\s+DA\s+NOTA)?|TOTAL\s+(?:DA\s+NOTA|DOS\s+SERVI[CÇ]OS|A\s+PAGAR))[^0-9]{0,40}(?:R\$\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+),\d{2})/i)?.[1];
  const valor=valorTotalRotulado?Number(numeroDecimal(valorTotalRotulado)).toFixed(2):(valores.sort((a,b)=>b.numero-a.numero)[0]?.numero.toFixed(2)||"");
