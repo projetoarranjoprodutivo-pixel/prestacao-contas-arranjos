@@ -39,6 +39,7 @@ export default function AssinaturaCanvas({
     };
   }
   function iniciar(e: React.PointerEvent<HTMLCanvasElement>) {
+    e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     desenhando.current = true;
     const p = ponto(e),
@@ -47,6 +48,7 @@ export default function AssinaturaCanvas({
     ctx?.moveTo(p.x, p.y);
   }
   function mover(e: React.PointerEvent<HTMLCanvasElement>) {
+    e.preventDefault();
     if (!desenhando.current) return;
     const p = ponto(e),
       ctx = e.currentTarget.getContext("2d");
@@ -96,6 +98,7 @@ export default function AssinaturaCanvas({
           <button
             type="button"
             onClick={() => setAberto(true)}
+            onTouchEnd={(e) => { e.preventDefault(); setAberto(true); }}
             className="inline-flex items-center gap-2 rounded-lg bg-[#176344] px-4 py-2 text-sm font-bold text-white"
           >
             <PenLine className="h-4 w-4" />
@@ -104,7 +107,7 @@ export default function AssinaturaCanvas({
         </div>
       </div>
       {aberto && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center">
+        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/60 p-3 sm:items-center">
           <div className="w-full max-w-2xl rounded-2xl bg-white p-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <div>
@@ -129,6 +132,8 @@ export default function AssinaturaCanvas({
               onPointerMove={mover}
               onPointerUp={terminar}
               onPointerCancel={terminar}
+              onPointerLeave={terminar}
+              style={{ touchAction: "none" }}
               className="mt-4 h-48 w-full touch-none rounded-xl border-2 border-slate-300 bg-white"
             />
             <div className="mt-4 flex gap-3">
