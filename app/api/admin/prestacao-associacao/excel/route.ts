@@ -208,6 +208,7 @@ async function gerarAgricultura(
 async function gerarHoras(
   request: Request,
   competencias: string[],
+  trimestres: string[][],
   relatorios: Registro[],
   usuarios: Map<string, typeof colaboradores.$inferSelect>,
 ) {
@@ -216,7 +217,7 @@ async function gerarHoras(
   const cells: Record<string, CellValue> = { B4: profissionais.join("; "), B5: cargos.join("; "), B6: 32.5 };
   const rows = [[11, 12, 13, 15], [19, 20, 21, 23], [27, 28, 29, 31], [35, 36, 37, 39]];
   rows.forEach(([periodoRow, previstasRow, trabalhadasRow, observacoesRow], quarterIndex) => {
-    const meses = competencias.filter((competencia) => Math.floor((Number(competencia.slice(5, 7)) - 1) / 3) === quarterIndex);
+    const meses = trimestres[quarterIndex]?.filter(competencia=>competencias.includes(competencia))||[];
     const registros = relatorios.filter((relatorio) => meses.includes(relatorio.competencia));
     cells[`B${periodoRow}`] = meses.map(mesReferencia).join("; ");
     cells[`B${previstasRow}`] = meses.length ? 160 : "";
@@ -237,6 +238,8 @@ async function gerarExcel(request: Request) {
     .filter((value) => /^\d{4}-\d{2}$/.test(value)).sort();
   if (!competencias.length) return new Response("Selecione ao menos uma competência válida", { status: 400 });
   if (!['agricultura', 'horas'].includes(modelo)) return new Response("Modelo de planilha inválido", { status: 400 });
+  const trimestres=Array.from({length:4},(_,indice)=>competencias.filter(mes=>url.searchParams.get(`mes_trimestre_${mes}`)===String(indice+1)));
+  const mesesClassificados=new Set(trimestres.flat());competencias.filter(mes=>!mesesClassificados.has(mes)).forEach((mes,indice)=>trimestres[Math.min(3,Math.floor(indice/3))].push(mes));
 
   const db = getDb();
   const associacao = await db.query.associacoes.findFirst({ where: and(eq(associacoes.nome, nomeAssociacao), eq(associacoes.ativo, true)) });
@@ -249,7 +252,7 @@ async function gerarExcel(request: Request) {
   const usuarios = new Map(cadastros.map((item) => [item.authUserId, item]));
   const arquivo = modelo === "agricultura"
     ? await gerarAgricultura(request, associacao, competencias, relatorios, usuarios, documentos)
-    : await gerarHoras(request, competencias, relatorios, usuarios);
+    : await gerarHoras(request, competencias, trimestres, relatorios, usuarios);
   const sufixo = modelo === "agricultura" ? "controle-agricultura-familiar" : "controle-de-horas";
   const associacaoArquivo = associacao.nome.replace(/[^a-zA-Z0-9_-]/g, "-");
   return new Response(arquivo.buffer.slice(arquivo.byteOffset, arquivo.byteOffset + arquivo.byteLength), {
