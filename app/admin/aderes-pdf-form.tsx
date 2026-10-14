@@ -70,12 +70,16 @@ export default function AderesPdfForm({
   compacto = false,
 }: Props) {
   const [competencias, setCompetencias] = useState<string[]>([competenciaInicial]);
+  const [trimestres, setTrimestres] = useState<Record<string,string>>({[competenciaInicial]:"1"});
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     const selecionadas = new URLSearchParams(window.location.search).getAll("competencias").filter(item => /^\d{4}-\d{2}$/.test(item));
-    if (selecionadas.length) setCompetencias([...new Set(selecionadas)].sort());
+    if (selecionadas.length) {
+      const meses=[...new Set(selecionadas)].sort();setCompetencias(meses);
+      setTrimestres(Object.fromEntries(meses.map((mes,indice)=>[mes,String(Math.min(4,Math.floor(indice/3)+1))])));
+    }
   }, [competenciaInicial]);
 
   async function gerarPdfComAnexos() {
@@ -126,6 +130,12 @@ export default function AderesPdfForm({
           <option value="">SELECIONE A ASSOCIAÇÃO</option>
           {associacoes.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
         </select>
+      </div>
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+        <p className="text-sm font-black text-amber-950">TRIMESTRES DA PLANILHA DE CONTROLE DE HORAS</p>
+        <p className="mt-1 text-xs text-amber-900">DEFINA A QUAL TRIMESTRE CADA MÊS PERTENCE. O PADRÃO AGRUPA OS MESES SELECIONADOS DE TRÊS EM TRÊS.</p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{competencias.map(mes=><label key={mes} className="text-xs font-bold">{rotuloCompetencia(mes).toLocaleUpperCase("pt-BR")}<select name={`trimestre_${trimestres[mes]||"1"}`} value={trimestres[mes]||"1"} onChange={e=>setTrimestres(atual=>({...atual,[mes]:e.target.value}))} className="mt-1 h-10 w-full rounded-lg border bg-white px-3"><option value="1">1º TRIMESTRE</option><option value="2">2º TRIMESTRE</option><option value="3">3º TRIMESTRE</option><option value="4">4º TRIMESTRE</option></select><input type="hidden" name={`mes_trimestre_${mes}`} value={trimestres[mes]||"1"}/></label>)}</div>
       </div>
 
       <div className="grid gap-2 lg:grid-cols-3">
