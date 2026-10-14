@@ -62,6 +62,8 @@ async function criarTabelasDeAcesso() {
     atualizado_em TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
   )`).run();
   await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_itens_plano_associacao_item ON itens_plano_associacao(item)").run();
+  const colunasColaborador = await env.DB.prepare("PRAGMA table_info(colaboradores)").all<{name:string}>();
+  if (colunasColaborador.results.length && !colunasColaborador.results.some(coluna => coluna.name === "data_admissao")) await env.DB.prepare("ALTER TABLE colaboradores ADD COLUMN data_admissao TEXT NOT NULL DEFAULT '2026-03-17'").run();
   await garantirUsuariosDosColaboradores();
 }
 
