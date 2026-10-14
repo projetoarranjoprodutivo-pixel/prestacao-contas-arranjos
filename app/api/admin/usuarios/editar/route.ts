@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     where: or(eq(colaboradores.authUserId, id), eq(colaboradores.email, atual.email)),
   });
 
-  await db.update(usuariosAcesso).set({ email, funcao, associacao }).where(eq(usuariosAcesso.id, id));
+  await db.update(usuariosAcesso).set({ nome: nomeCompleto, email, funcao, associacao }).where(eq(usuariosAcesso.id, id));
   if (colaborador) {
     await db.update(colaboradores)
       .set({ nomeCompleto, email, atualizadoEm: new Date().toISOString() })
