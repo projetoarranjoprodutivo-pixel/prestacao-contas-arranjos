@@ -66,9 +66,24 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const perfil=await getChatGPTUser();const admin=await getAdminUser();const acessoAderes=perfil?.role==="aderes";if(!perfil||(!admin&&!acessoAderes))redirect("/");
   const params=await searchParams;const recebidas=Array.isArray(params.competencias)?params.competencias:params.competencias?[params.competencias]:[];const competenciasSelecionadas=[...new Set([...recebidas,...(params.competencia?[params.competencia]:[])])].filter(valor=>/^\d{4}-\d{2}$/.test(valor)).sort();if(!competenciasSelecionadas.length)competenciasSelecionadas.push(competenciaAtual());const competencia=competenciasSelecionadas[0];const rotuloCompetencias=competenciasSelecionadas.join(" · ");const queryCompetencias=competenciasSelecionadas.map(valor=>`competencias=${encodeURIComponent(valor)}`).join("&");const abasValidas=new Set(["resumo","pdfs","prestacoes","planos","envio-doc-associacao","documentos-associacoes","associacoes","usuarios","acessos","pendencias"]);const aba=acessoAderes?"documentos-associacoes":abasValidas.has(params.aba||"")?params.aba!:"resumo";
   const db=getDb();
-  // Filtra os registros pesados no próprio D1. Antes, todos os JSONs históricos
-  // eram transferidos e processados a cada troca de aba, excedendo a CPU do Worker.
-  const [usuarios,todosPlanos,todasPrestacoes,listaAssociacoes,acessos,documentosDasAssociacoes,competenciasPlanos,competenciasPrestacoes,competenciasDocumentos,relatoriosMudasTodasCompetencias]=await Promise.all([db.select().from(colaboradores),db.select().from(planosTrabalho).where(inArray(planosTrabalho.competencia,competenciasSelecionadas)),db.select().from(prestacoes).where(inArray(prestacoes.competencia,competenciasSelecionadas)),db.select().from(associacoes),aba==="acessos"?db.select().from(usuariosAcesso):Promise.resolve([]),db.select().from(documentosAssociacao).where(inArray(documentosAssociacao.competencia,competenciasSelecionadas)),db.select({competencia:planosTrabalho.competencia}).from(planosTrabalho).groupBy(planosTrabalho.competencia),db.select({competencia:prestacoes.competencia}).from(prestacoes).groupBy(prestacoes.competencia),db.select({competencia:documentosAssociacao.competencia}).from(documentosAssociacao).groupBy(documentosAssociacao.competencia),aba==="resumo"?db.select().from(prestacoes).where(eq(prestacoes.authUserId,"admin-importacao-mudas-2026")):Promise.resolve([])]);
+  // Cada módulo consulta apenas os dados que realmente utiliza. Isso mantém a
+  // página dentro do limite de CPU do Cloudflare Worker, inclusive no celular.
+  const usaPlanos=new Set(["resumo","planos","pendencias"]).has(aba);
+  const usaPrestacoes=new Set(["resumo","prestacoes","pendencias"]).has(aba);
+  const usaDocumentos=new Set(["documentos-associacoes","pendencias"]).has(aba);
+  const usaCompetencias=new Set(["resumo","pdfs","prestacoes","planos","documentos-associacoes","pendencias"]).has(aba);
+  const [usuarios,todosPlanos,todasPrestacoes,listaAssociacoes,acessos,documentosDasAssociacoes,competenciasPlanos,competenciasPrestacoes,competenciasDocumentos,relatoriosMudasTodasCompetencias]=await Promise.all([
+    db.select().from(colaboradores),
+    usaPlanos?db.select().from(planosTrabalho).where(inArray(planosTrabalho.competencia,competenciasSelecionadas)):Promise.resolve([]),
+    usaPrestacoes?db.select().from(prestacoes).where(inArray(prestacoes.competencia,competenciasSelecionadas)):Promise.resolve([]),
+    db.select().from(associacoes),
+    aba==="acessos"?db.select().from(usuariosAcesso):Promise.resolve([]),
+    usaDocumentos?db.select().from(documentosAssociacao).where(inArray(documentosAssociacao.competencia,competenciasSelecionadas)):Promise.resolve([]),
+    usaCompetencias?db.select({competencia:planosTrabalho.competencia}).from(planosTrabalho).groupBy(planosTrabalho.competencia):Promise.resolve([]),
+    usaCompetencias?db.select({competencia:prestacoes.competencia}).from(prestacoes).groupBy(prestacoes.competencia):Promise.resolve([]),
+    usaCompetencias?db.select({competencia:documentosAssociacao.competencia}).from(documentosAssociacao).groupBy(documentosAssociacao.competencia):Promise.resolve([]),
+    aba==="resumo"?db.select().from(prestacoes).where(eq(prestacoes.authUserId,"admin-importacao-mudas-2026")):Promise.resolve([])
+  ]);
   const pesquisa=String(params.pesquisa||"").trim();const termoPesquisa=pesquisa.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleUpperCase("pt-BR");
   const usuariosFiltrados=termoPesquisa?usuarios.filter(u=>[u.nomeCompleto,u.email,u.cargo,u.associacao,u.associacoesJson,u.municipiosAtendidosJson,u.mei,u.nomeEmpresarial,u.cftaCrea].some(valor=>String(valor||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleUpperCase("pt-BR").includes(termoPesquisa))):usuarios;
   const colaboradoresPorId=new Map(usuarios.map(usuario=>[usuario.authUserId,usuario]));
