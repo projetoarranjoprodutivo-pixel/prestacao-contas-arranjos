@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, FileUp, Loader2, Plus, Trash2 } from "lucide-react";
 import { TIPOS_MUDAS } from "@/lib/opcoes-atividades";
 import AssinaturaCanvas from "./assinatura-canvas";
+import {enviarOuEnfileirar} from "@/lib/offline";
 type Atividade = {
   executada: boolean;
   municipio: string;
@@ -165,11 +166,11 @@ export default function PrestacaoForm({
     fd.set("modo", "individual");
     fd.set("atividadeIndice", String(indice));
     fd.set("atividades", JSON.stringify([atividades[indice]]));
-    const r = await fetch("/api/prestacao", { method: "POST", body: fd });
-    const b = await r.json().catch(() => ({}));
-    setStatus(r.ok ? "success" : "error");
-    setMsg(b.message || (r.ok ? `Atividade ${indice + 1} salva.` : "Não foi possível salvar a atividade."));
-    if (r.ok) {
+    const resultado = await enviarOuEnfileirar("/api/prestacao", fd);
+    const b = resultado.dados;
+    setStatus(resultado.ok ? "success" : "error");
+    setMsg(b.message || (resultado.ok ? `Atividade ${indice + 1} salva.` : "Não foi possível salvar a atividade."));
+    if (resultado.ok && !resultado.pendente) {
       setOrigem("prestacao");
       setAnexosSalvos(b.anexos || anexosSalvos);
     }
@@ -184,13 +185,13 @@ export default function PrestacaoForm({
     fd.delete("seletor-anexos");
     fd.set("atividades", JSON.stringify(atividades));
     anexos.forEach((a) => fd.append("anexos", a.file, a.file.name));
-    const r = await fetch("/api/prestacao", { method: "POST", body: fd });
-    const b = await r.json().catch(() => ({}));
-    setStatus(r.ok ? "success" : "error");
+    const resultado = await enviarOuEnfileirar("/api/prestacao", fd);
+    const b = resultado.dados;
+    setStatus(resultado.ok ? "success" : "error");
     setMsg(
-      b.message || (r.ok ? "Prestação salva." : "Não foi possível salvar."),
+      b.message || (resultado.ok ? "Prestação salva." : "Não foi possível salvar."),
     );
-    if (r.ok) {
+    if (resultado.ok && !resultado.pendente) {
       setOrigem("prestacao");
       setAnexosSalvos(b.anexos || []);
       setAnexos([]);
