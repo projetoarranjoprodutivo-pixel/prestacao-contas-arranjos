@@ -68,8 +68,8 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const db=getDb();
   // Cada módulo consulta apenas os dados que realmente utiliza. Isso mantém a
   // página dentro do limite de CPU do Cloudflare Worker, inclusive no celular.
-  const usaPlanos=new Set(["resumo","planos","pendencias"]).has(aba);
-  const usaPrestacoes=new Set(["resumo","prestacoes","pendencias"]).has(aba);
+  const usaPlanos=new Set(["resumo","planos","pendencias","pdfs"]).has(aba);
+  const usaPrestacoes=new Set(["resumo","prestacoes","pendencias","pdfs"]).has(aba);
   const usaDocumentos=new Set(["documentos-associacoes","pendencias"]).has(aba);
   const usaCompetencias=new Set(["resumo","pdfs","prestacoes","planos","documentos-associacoes","pendencias"]).has(aba);
   const [usuarios,todosPlanos,todasPrestacoes,listaAssociacoes,acessos,documentosDasAssociacoes,competenciasPlanos,competenciasPrestacoes,competenciasDocumentos,relatoriosMudasTodasCompetencias]=await Promise.all([
