@@ -73,5 +73,5 @@ export async function POST(request:Request){
     await db.insert(prestacoes).values(values).onConflictDoUpdate({target:[prestacoes.authUserId,prestacoes.competencia],set:values});
     const message=modoIndividual?`Atividade ${indiceExibicao+1} salva individualmente.`:`Todas as atividades foram salvas com ${anexos.length} anexo(s).`;
     return Response.json({message,anexos});
-  }catch(error){console.error("prestacao_error",error);return Response.json({message:"Não foi possível salvar a prestação. Tente novamente."},{status:500});}
+  }catch(error){console.error("prestacao_error",error);const detalhe=error instanceof Error?error.message:String(error||"ERRO DESCONHECIDO");return Response.json({message:`NÃO FOI POSSÍVEL SALVAR A PRESTAÇÃO. DETALHE: ${detalhe}`},{status:500});}
 }
