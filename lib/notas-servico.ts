@@ -1,4 +1,4 @@
-type ColaboradorNota={id:number;nomeCompleto:string;nomeEmpresarial:string|null;mei:string|null;email:string;cargo:string;associacao:string|null;associacoesJson:string};
+type ColaboradorNota={id:number;nomeCompleto:string;nomeEmpresarial:string|null;mei:string|null;email:string;cargo:string;associacao:string|null;associacoesJson:string;dataAdmissao?:string|null};
 type DocumentoNota={associacao:string;competencia:string;notasFiscaisJson:string};
 type ArquivoNota={nome?:string;descricao?:string};
 
@@ -30,16 +30,23 @@ function pertence(nota:ArquivoNota,usuario:ColaboradorNota,usuariosAssociacao:Co
 
 function ehNotaServico(nota:ArquivoNota){const texto=normalizar(`${nota.nome||""} ${nota.descricao||""}`);return /\bNFS\w*\b|NOTA FISCAL DE SERVICO|PRESTACAO DE SERVICO|SERVICOS TECNICOS|CONSULTORIA|160 H/.test(texto);}
 
+function ativoNaCompetencia(usuario:ColaboradorNota,competencia:string){
+  const mesAdmissao=String(usuario.dataAdmissao||"2026-03-17").slice(0,7);
+  return !mesAdmissao||competencia>=mesAdmissao;
+}
+
 export function listarNotasServicoPendentes(usuarios:ColaboradorNota[],documentos:DocumentoNota[],competencias:string[]){
   const porAssociacaoCompetencia=new Map(documentos.map(item=>[`${item.associacao}|${item.competencia}`,arquivos(item.notasFiscaisJson)]));
   const associacoes=[...new Set(usuarios.flatMap(associacoesDoColaborador))];const pendentes=[];
   for(const associacao of associacoes){
     const vinculados=usuarios.filter(usuario=>associacoesDoColaborador(usuario).includes(associacao));
     for(const competencia of competencias){
+      const ativos=vinculados.filter(usuario=>ativoNaCompetencia(usuario,competencia));
+      if(!ativos.length)continue;
       const notas=(porAssociacaoCompetencia.get(`${associacao}|${competencia}`)||[]).filter(ehNotaServico);
-      const identificados=vinculados.filter(usuario=>notas.some(nota=>pertence(nota,usuario,vinculados)));
-      const semIdentificacao=vinculados.filter(usuario=>!identificados.includes(usuario));
-      const notasIdentificadas=notas.filter(nota=>vinculados.some(usuario=>pertence(nota,usuario,vinculados))).length;
+      const identificados=ativos.filter(usuario=>notas.some(nota=>pertence(nota,usuario,ativos)));
+      const semIdentificacao=ativos.filter(usuario=>!identificados.includes(usuario));
+      const notasIdentificadas=notas.filter(nota=>ativos.some(usuario=>pertence(nota,usuario,ativos))).length;
       const notasGenericasDisponiveis=Math.max(0,notas.length-notasIdentificadas);
       if(notasGenericasDisponiveis>=semIdentificacao.length)continue;
       for(const usuario of semIdentificacao){pendentes.push({id:usuario.id,nomeCompleto:usuario.nomeCompleto,cargo:usuario.cargo,email:usuario.email,associacao,competencia});}
