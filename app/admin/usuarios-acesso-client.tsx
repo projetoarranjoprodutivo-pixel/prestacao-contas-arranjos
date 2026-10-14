@@ -58,6 +58,20 @@ export default function UsuariosAcesso({
     if (response.ok) location.reload();
   }
 
+  async function excluirUsuario(usuario: Usuario) {
+    const nome = usuario.nomeCompleto || usuario.email;
+    if (!confirm(`EXCLUIR O ACESSO DE ${nome}? O CADASTRO E OS RELATÓRIOS SERÃO MANTIDOS.`)) return;
+    setEnviando(true);
+    setMensagem("");
+    const form = new FormData();
+    form.set("id", usuario.id);
+    const response = await fetch("/api/admin/usuarios/excluir", { method: "POST", body: form });
+    const body = await response.json().catch(() => ({}));
+    setMensagem(body.message || "NÃO FOI POSSÍVEL EXCLUIR O ACESSO.");
+    setEnviando(false);
+    if (response.ok) location.reload();
+  }
+
   async function alterarSenha(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!usuarioSenha) return;
@@ -127,6 +141,7 @@ export default function UsuariosAcesso({
             <td>{usuario.ativo ? "Liberado" : "Bloqueado"}</td>
             <td><div className="flex flex-wrap justify-end gap-2">
               {podeEditarSenhas && !principal && <button onClick={() => { setUsuarioEdicao(usuario); setUsuarioSenha(null); setMensagem(""); }} className="rounded-lg bg-amber-600 px-3 py-2 font-bold text-white">Editar</button>}
+              {podeEditarSenhas && !principal && <button onClick={() => excluirUsuario(usuario)} disabled={enviando} className="rounded-lg bg-slate-800 px-3 py-2 font-bold text-white disabled:opacity-50">Excluir</button>}
               <button onClick={() => alterarStatus(usuario)} disabled={usuario.funcao === "admin"} className={`rounded-lg px-3 py-2 font-bold text-white disabled:opacity-40 ${usuario.ativo ? "bg-red-700" : "bg-emerald-700"}`}>{usuario.ativo ? "Bloquear" : "Liberar"}</button>
               {podeEditarSenhas && !principal && <button onClick={() => { setUsuarioSenha(usuario); setUsuarioEdicao(null); setMensagem(""); }} className="rounded-lg bg-blue-800 px-3 py-2 font-bold text-white">Alterar senha</button>}
             </div></td>
