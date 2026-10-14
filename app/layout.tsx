@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import OfflineManager from "./offline-manager";
 
 export const metadata: Metadata = {
   title: "Prestação de Contas | Arranjos Produtivos",
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({
@@ -20,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">{children}<OfflineManager/></body>
     </html>
   );
 }
