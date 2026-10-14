@@ -60,6 +60,18 @@ function dataIsoValida(ano:string,mes:string,dia:string){
 }
 function extrairDataEmissao(conteudo:string){
  const texto=conteudo.replace(/\u00a0/g," ");
+ // A DANFSe nacional apresenta, no mesmo cabeçalho, a competência e duas
+ // ocorrências da emissão (NFS-e e DPS). A conversão para texto pode perder
+ // as colunas; nesse caso a data de emissão é a data válida mais repetida.
+ if(/DANFSE|DOCUMENTO\s+AUXILIAR\s+DA\s+NFS-?E/i.test(texto)){
+  const cabecalho=texto.slice(0,5000);
+  const datas=[...cabecalho.matchAll(/\b([0-3]?\d)\s*[\/.\-]\s*([01]?\d)\s*[\/.\-]\s*(20\d{2}|\d{2})\b/g)]
+   .map(item=>dataIsoValida(item[3].length===2?`20${item[3]}`:item[3],item[2],item[1])).filter(Boolean);
+  const contagem=new Map<string,number>();for(const data of datas)contagem.set(data,(contagem.get(data)||0)+1);
+  const repetida=[...contagem.entries()].sort((a,b)=>b[1]-a[1])[0];
+  if(repetida&&repetida[1]>1)return repetida[0];
+  if(datas.length>1)return datas[1];
+ }
  const rotulos=[...texto.matchAll(/(?:DATA(?:\s+E\s+HORA)?\s+(?:DA\s+)?EMISS[AÃ]O|EMITID[AO]\s+EM|DATA\s+DE\s+GERA[CÇ][AÃ]O)/gi)];
  const trechos=[...rotulos.map(item=>texto.slice(item.index||0,(item.index||0)+180)),texto];
  const mesesTexto:Record<string,string>={JANEIRO:"01",FEVEREIRO:"02",MARCO:"03",ABRIL:"04",MAIO:"05",JUNHO:"06",JULHO:"07",AGOSTO:"08",SETEMBRO:"09",OUTUBRO:"10",NOVEMBRO:"11",DEZEMBRO:"12",JAN:"01",FEV:"02",MAR:"03",ABR:"04",MAI:"05",JUN:"06",JUL:"07",AGO:"08",SET:"09",OUT:"10",NOV:"11",DEZ:"12"};
