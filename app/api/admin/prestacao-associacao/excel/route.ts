@@ -1,3 +1,4 @@
+import {numeroMonetario} from "@/lib/moeda";
 import { and, eq, inArray } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { getAderesOrAdminUser } from "@/lib/admin";
@@ -48,6 +49,7 @@ const mesReferencia = (competencia: string) => new Intl.DateTimeFormat("pt-BR", 
 }).format(new Date(`${competencia}-02T12:00:00Z`));
 
 function numeroDocumento(value: unknown, monetario = false) {
+  if(monetario)return numeroMonetario(value)||0;
   const original = texto(value).replace(/[^\d,.-]/g, "");
   if (!original) return 0;
   let normalizado = original;
