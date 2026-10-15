@@ -127,7 +127,7 @@ function associacaoPeloNome(nome:string,lista:Array<{nome:string|null;razaoSocia
 export async function POST(request:Request){
  await garantirBanco();
  const user=await getChatGPTUser();
- const permitido=!!user&&(user.role==="associacao"||user.role==="admin"||user.role==="aderes"||isAdminEmail(user.email));
+ const permitido=!!user&&(user.role==="associacao"||user.role==="colaborador"||user.role==="admin"||user.role==="aderes"||isAdminEmail(user.email));
  if(!permitido)return Response.json({message:"ACESSO NÃO AUTORIZADO."},{status:403});
  try{
   const form=await request.formData();
