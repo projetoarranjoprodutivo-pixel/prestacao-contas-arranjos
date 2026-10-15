@@ -1,3 +1,4 @@
+import {valorMonetarioDecimal} from "@/lib/moeda";
 import { and, eq } from "drizzle-orm";
 import { getGestorMudasUser } from "@/lib/admin";
 import { getDb } from "@/db";
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
     if (acao === "excluir") notas.splice(indice,1);
     else {
       const campos = Object.fromEntries(["numeroNota","descricao","quantidade","valor","dataEmissao"].map(campo => [campo,String(dados[campo] || "").trim()]));
+      campos.valor=valorMonetarioDecimal(campos.valor);
       if (!campos.descricao || !/^\d+(\.\d{1,2})?$/.test(campos.valor) || (campos.dataEmissao && (!/^\d{4}-\d{2}-\d{2}$/.test(campos.dataEmissao) || !Number.isFinite(Date.parse(campos.dataEmissao))))) return Response.json({message:"CONFIRA DESCRIÇÃO, VALOR E DATA DE EMISSÃO."},{status:400});
       notas[indice] = {...notas[indice],...campos};
     }
