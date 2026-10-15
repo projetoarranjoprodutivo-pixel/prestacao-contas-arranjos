@@ -129,7 +129,7 @@ export default function UsuariosAcesso({
 
     {mensagem && <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm font-bold">{mensagem}</p>}
     <div className="mt-4 overflow-x-auto">
-      <table className="w-full text-left text-sm">
+      <table className="w-full min-w-[1200px] table-auto text-left text-sm">
         <thead><tr className="border-b text-slate-500"><th className="py-2">Nome do colaborador</th><th>E-mail</th><th>Perfil</th><th>Associação</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody>{usuariosFiltrados.map(usuario => {
           const principal = usuario.email.trim().toLowerCase() === "rafaeldalla@hotmail.com";
@@ -139,11 +139,11 @@ export default function UsuariosAcesso({
             <td>{usuario.funcao}</td>
             <td>{usuario.associacao || "-"}</td>
             <td>{usuario.ativo ? "Liberado" : "Bloqueado"}</td>
-            <td><div className="flex flex-wrap justify-end gap-2">
-              {podeEditarSenhas && !principal && <button onClick={() => { setUsuarioEdicao(usuario); setUsuarioSenha(null); setMensagem(""); }} className="rounded-lg bg-amber-600 px-3 py-2 font-bold text-white">Editar</button>}
-              {podeEditarSenhas && !principal && <button onClick={() => excluirUsuario(usuario)} disabled={enviando} className="rounded-lg bg-slate-800 px-3 py-2 font-bold text-white disabled:opacity-50">Excluir</button>}
-              <button onClick={() => alterarStatus(usuario)} disabled={usuario.funcao === "admin"} className={`rounded-lg px-3 py-2 font-bold text-white disabled:opacity-40 ${usuario.ativo ? "bg-red-700" : "bg-emerald-700"}`}>{usuario.ativo ? "Bloquear" : "Liberar"}</button>
-              {podeEditarSenhas && !principal && <button onClick={() => { setUsuarioSenha(usuario); setUsuarioEdicao(null); setMensagem(""); }} className="rounded-lg bg-blue-800 px-3 py-2 font-bold text-white">Alterar senha</button>}
+            <td className="whitespace-nowrap"><div className="flex flex-nowrap items-center justify-end gap-2">
+              {podeEditarSenhas && !principal && <button onClick={() => { setUsuarioEdicao(usuario); setUsuarioSenha(null); setMensagem(""); }} className="shrink-0 whitespace-nowrap rounded-lg bg-amber-600 px-3 py-2 font-bold text-white">Editar</button>}
+              {podeEditarSenhas && !principal && <button onClick={() => excluirUsuario(usuario)} disabled={enviando} className="shrink-0 whitespace-nowrap rounded-lg bg-slate-800 px-3 py-2 font-bold text-white disabled:opacity-50">Excluir</button>}
+              <button onClick={() => alterarStatus(usuario)} disabled={usuario.funcao === "admin"} className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-2 font-bold text-white disabled:opacity-40 ${usuario.ativo ? "bg-red-700" : "bg-emerald-700"}`}>{usuario.ativo ? "Bloquear" : "Liberar"}</button>
+              {podeEditarSenhas && !principal && <button onClick={() => { setUsuarioSenha(usuario); setUsuarioEdicao(null); setMensagem(""); }} className="shrink-0 whitespace-nowrap rounded-lg bg-blue-800 px-3 py-2 font-bold text-white">Alterar senha</button>}
             </div></td>
           </tr>;
         })}
