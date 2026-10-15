@@ -143,7 +143,7 @@ export async function POST(request:Request){
   if (hash === "affc19a48ddfb6386174b0fde5d9a27c7246e85e50265b5ad571f20c08262092") {
     return Response.json({
       descricao: "COMPRA DE MUDAS — CACAU CCN 51: 1.689; CACAU PS 13.19: 3.450; GOIABA CORTIBEL RG: 500; LARANJA BAHIA: 1.400; LARANJA FOLHA MURCHA: 1.395; LARANJA PERA: 1.300; LARANJA VALÊNCIA: 1.300; LIMA ÁCIDA TAHITI: 1.000; TANGERINA PONKAN: 1.500. NF-E 24.502 — FRUCAFÉ.",
-      quantidade: "13534", valor: "250000.00", dataEmissao: "2026-04-10",
+      numeroNota: "24502", quantidade: "13534", valor: "250000.00", dataEmissao: "2026-04-10",
       associacao: "CAF COLATINA", competencia: "2026-04"
     });
   }
@@ -155,7 +155,7 @@ export async function POST(request:Request){
   const db=getDb();
   const lista=await db.select({nome:associacoes.nome,razaoSocial:associacoes.razaoSocial,cnpj:associacoes.cnpj}).from(associacoes).where(eq(associacoes.ativo,true));
   const resposta=await ai.run("@cf/zai-org/glm-4.7-flash",{messages:[
-   {role:"system",content:"Extraia dados de uma nota fiscal brasileira. Responda SOMENTE JSON válido, sem markdown. Não invente. Campos: descricao (descrição principal dos produtos ou serviços, texto curto), quantidade (soma ou quantidade principal como texto), valor (valor total da nota apenas em número decimal com ponto), dataEmissao (AAAA-MM-DD), associacao (nome exato de uma associação da lista, somente se houver evidência), competencia (AAAA-MM, normalmente o mês da emissão)."},
+   {role:"system",content:"Extraia dados de uma nota fiscal brasileira. Responda SOMENTE JSON válido, sem markdown. Não invente. Campos: numeroNota (número da NF-e ou NFS-e, como texto, preserve zeros à esquerda; não confundir com série, chave de acesso ou protocolo), descricao (descrição principal dos produtos ou serviços, texto curto), quantidade (soma ou quantidade principal como texto), valor (valor total da nota apenas em número decimal com ponto), dataEmissao (AAAA-MM-DD), associacao (nome exato de uma associação da lista, somente se houver evidência), competencia (AAAA-MM, normalmente o mês da emissão)."},
    {role:"user",content:`NOME DO ARQUIVO: ${arquivo.name}\nASSOCIAÇÕES POSSÍVEIS: ${JSON.stringify(lista)}\nCONTEÚDO EXTRAÍDO:\n${conteudo}`}
   ],max_completion_tokens:700,temperature:0,response_format:{type:"json_object"}});
   const dados=jsonResposta(resposta);
@@ -173,6 +173,7 @@ export async function POST(request:Request){
   const quantidade=String(conhecida?.quantidade||fallback.quantidade||quantidadeAi||quantidadePadrao);
   if(!descricao&&!quantidade&&!valor&&!dataEmissao)throw new Error("O DOCUMENTO FOI LIDO, MAS OS DADOS DA NOTA NÃO FORAM IDENTIFICADOS. CONFIRA SE O ARQUIVO ESTÁ LEGÍVEL.");
   return Response.json({
+   numeroNota:String(dados.numeroNota||conteudo.match(/(?:N[ÚU]MERO\s+(?:DA\s+)?(?:NOTA|NFS-?E)|N[º°.]\s*)[\s:.-]*([0-9][0-9.]*)/i)?.[1]||""),
    descricao,quantidade,valor,dataEmissao,associacao:String(conhecida?.associacao||dados.associacao||fallback.associacao||associacaoPeloNome(arquivo.name,lista)||""),competencia
   });
  }catch(error){return Response.json({message:error instanceof Error?error.message:"NÃO FOI POSSÍVEL LER O DOCUMENTO."},{status:500})}

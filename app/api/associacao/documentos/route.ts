@@ -6,8 +6,8 @@ import {garantirBanco} from "@/db/bootstrap";
 import {associacoes,colaboradores,documentosAssociacao} from "@/db/schema";
 import {isAdminEmail} from "@/lib/admin";
 export const runtime="edge";
-type Arquivo={key:string;nome:string;tipo:string;descricao?:string;quantidade?:string;valor?:string;dataEmissao?:string};
-type DadosNota=Pick<Arquivo,"descricao"|"quantidade"|"valor"|"dataEmissao">&{associacao?:string;competencia?:string};
+type Arquivo={key:string;nome:string;tipo:string;descricao?:string;quantidade?:string;valor?:string;numeroNota?:string;dataEmissao?:string};
+type DadosNota=Pick<Arquivo,"numeroNota"|"descricao"|"quantidade"|"valor"|"dataEmissao">&{associacao?:string;competencia?:string};
 type DocumentoRecebido={file:File;grupo:"extrato"|"nota";dados?:DadosNota};
 const meses:Record<string,string>={JANEIRO:"01",FEVEREIRO:"02",MARCO:"03",ABRIL:"04",MAIO:"05",JUNHO:"06",JULHO:"07",AGOSTO:"08",SETEMBRO:"09",OUTUBRO:"10",NOVEMBRO:"11",DEZEMBRO:"12"};
 function normalizar(valor:string){return valor.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()}
