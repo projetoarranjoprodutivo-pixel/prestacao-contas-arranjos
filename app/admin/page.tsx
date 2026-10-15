@@ -72,7 +72,7 @@ const atalhosInternos:Record<string,Array<[string,string,string]>>={
 };
 
 export default async function AdminPage({searchParams}:{searchParams:Promise<{competencia?:string;competencias?:string|string[];mudas?:string;aba?:string;associacaoDocumentos?:string;pesquisa?:string;pesquisaPdf?:string}>}){
-  const perfil=await getChatGPTUser();const admin=await getAdminUser();const acessoAderes=perfil?.role==="aderes";if(!perfil||(!admin&&!acessoAderes))redirect("/");
+  const perfil=await getChatGPTUser();const admin=perfil&&(isAdminEmail(perfil.email)||perfil.role==="admin")?perfil:null;const acessoAderes=perfil?.role==="aderes";if(!perfil||(!admin&&!acessoAderes))redirect("/");
   const params=await searchParams;const recebidas=Array.isArray(params.competencias)?params.competencias:params.competencias?[params.competencias]:[];const competenciasSelecionadas=[...new Set([...recebidas,...(params.competencia?[params.competencia]:[])])].filter(valor=>/^\d{4}-\d{2}$/.test(valor)).sort();if(!competenciasSelecionadas.length)competenciasSelecionadas.push(competenciaAtual());const competencia=competenciasSelecionadas[0];const rotuloCompetencias=competenciasSelecionadas.join(" · ");const queryCompetencias=competenciasSelecionadas.map(valor=>`competencias=${encodeURIComponent(valor)}`).join("&");const abasValidas=new Set(["resumo","pdfs","prestacoes","planos","envio-doc-associacao","documentos-associacoes","associacoes","usuarios","acessos","pendencias"]);const aba=acessoAderes?"documentos-associacoes":abasValidas.has(params.aba||"")?params.aba!:"resumo";
   const db=getDb();
   // Cada módulo consulta apenas os dados que realmente utiliza. Isso mantém a
@@ -82,16 +82,16 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const usaDocumentos=new Set(["documentos-associacoes","pendencias"]).has(aba);
   const usaCompetencias=new Set(["resumo","pdfs","prestacoes","planos","documentos-associacoes","pendencias"]).has(aba);
   const [usuarios,todosPlanos,todasPrestacoes,listaAssociacoes,acessos,documentosDasAssociacoes,competenciasPlanos,competenciasPrestacoes,competenciasDocumentos,relatoriosMudasTodasCompetencias]=await Promise.all([
-    db.select().from(colaboradores),
-    usaPlanos?db.select().from(planosTrabalho).where(inArray(planosTrabalho.competencia,competenciasSelecionadas)):Promise.resolve([]),
-    usaPrestacoes?db.select().from(prestacoes).where(inArray(prestacoes.competencia,competenciasSelecionadas)):Promise.resolve([]),
+    db.select({id:colaboradores.id,authUserId:colaboradores.authUserId,email:colaboradores.email,nomeCompleto:colaboradores.nomeCompleto,cargo:colaboradores.cargo,associacao:colaboradores.associacao,associacoesJson:colaboradores.associacoesJson,municipiosAtendidosJson:colaboradores.municipiosAtendidosJson,mei:colaboradores.mei,nomeEmpresarial:colaboradores.nomeEmpresarial,cftaCrea:colaboradores.cftaCrea,documentoValidade:colaboradores.documentoValidade,dataAdmissao:colaboradores.dataAdmissao,dataSaida:colaboradores.dataSaida}).from(colaboradores),
+    usaPlanos?db.select({id:planosTrabalho.id,authUserId:planosTrabalho.authUserId,competencia:planosTrabalho.competencia,associacao:planosTrabalho.associacao,status:planosTrabalho.status,atualizadoEm:planosTrabalho.atualizadoEm}).from(planosTrabalho).where(inArray(planosTrabalho.competencia,competenciasSelecionadas)):Promise.resolve([]),
+    usaPrestacoes?db.select({id:prestacoes.id,authUserId:prestacoes.authUserId,competencia:prestacoes.competencia,associacao:prestacoes.associacao,status:prestacoes.status,atualizadoEm:prestacoes.atualizadoEm}).from(prestacoes).where(inArray(prestacoes.competencia,competenciasSelecionadas)):Promise.resolve([]),
     db.select().from(associacoes),
     aba==="acessos"?db.select().from(usuariosAcesso):Promise.resolve([]),
     usaDocumentos?db.select().from(documentosAssociacao).where(inArray(documentosAssociacao.competencia,competenciasSelecionadas)):Promise.resolve([]),
     usaCompetencias?db.select({competencia:planosTrabalho.competencia}).from(planosTrabalho).groupBy(planosTrabalho.competencia):Promise.resolve([]),
     usaCompetencias?db.select({competencia:prestacoes.competencia}).from(prestacoes).groupBy(prestacoes.competencia):Promise.resolve([]),
     usaCompetencias?db.select({competencia:documentosAssociacao.competencia}).from(documentosAssociacao).groupBy(documentosAssociacao.competencia):Promise.resolve([]),
-    aba==="resumo"?db.select().from(prestacoes).where(eq(prestacoes.authUserId,"admin-importacao-mudas-2026")):Promise.resolve([])
+    aba==="resumo"?db.select({id:prestacoes.id,competencia:prestacoes.competencia,atividadesJson:prestacoes.atividadesJson}).from(prestacoes).where(eq(prestacoes.authUserId,"admin-importacao-mudas-2026")):Promise.resolve([])
   ]);
   const pesquisa=String(params.pesquisa||"").trim();const termoPesquisa=pesquisa.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleUpperCase("pt-BR");
   const usuariosFiltrados=termoPesquisa?usuarios.filter(u=>[u.nomeCompleto,u.email,u.cargo,u.associacao,u.associacoesJson,u.municipiosAtendidosJson,u.mei,u.nomeEmpresarial,u.cftaCrea].some(valor=>String(valor||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleUpperCase("pt-BR").includes(termoPesquisa))):usuarios;
