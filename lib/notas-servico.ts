@@ -1,5 +1,6 @@
+import { ativoNaCompetencia } from "@/lib/vinculo-colaborador";
 import { categoriaDaNota } from "@/lib/classificacao-notas";
-type ColaboradorNota={id:number;nomeCompleto:string;nomeEmpresarial:string|null;mei:string|null;email:string;cargo:string;associacao:string|null;associacoesJson:string;dataAdmissao?:string|null};
+type ColaboradorNota={id:number;nomeCompleto:string;nomeEmpresarial:string|null;mei:string|null;email:string;cargo:string;associacao:string|null;associacoesJson:string;dataSaida?:string|null;dataAdmissao?:string|null};
 type DocumentoNota={associacao:string;competencia:string;notasFiscaisJson:string};
 type ArquivoNota={categoriaNota?:string;nome?:string;descricao?:string};
 
@@ -30,11 +31,6 @@ function pertence(nota:ArquivoNota,usuario:ColaboradorNota,usuariosAssociacao:Co
 }
 
 function ehNotaServico(nota:ArquivoNota){return categoriaDaNota(nota)==="servico";}
-
-function ativoNaCompetencia(usuario:ColaboradorNota,competencia:string){
-  const mesAdmissao=String(usuario.dataAdmissao||"2026-03-17").slice(0,7);
-  return !mesAdmissao||competencia>=mesAdmissao;
-}
 
 export function listarNotasServicoPendentes(usuarios:ColaboradorNota[],documentos:DocumentoNota[],competencias:string[]){
   const porAssociacaoCompetencia=new Map(documentos.map(item=>[`${item.associacao}|${item.competencia}`,arquivos(item.notasFiscaisJson)]));

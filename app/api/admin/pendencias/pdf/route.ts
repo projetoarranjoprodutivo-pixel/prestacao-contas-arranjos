@@ -1,3 +1,4 @@
+import { ativoNaCompetencia } from "@/lib/vinculo-colaborador";
 import { getDb } from "@/db";
 import { colaboradores, documentosAssociacao, planosTrabalho, prestacoes } from "@/db/schema";
 import { getAdminUser } from "@/lib/admin";
@@ -22,7 +23,7 @@ export async function GET(request:Request){
   }
   const [usuarios,registros]=await Promise.all([db.select().from(colaboradores),tipo==="plano"?db.select().from(planosTrabalho):db.select().from(prestacoes)]);
   const enviados=new Set(registros.filter(r=>competencias.includes(r.competencia)).map(r=>`${r.authUserId}:${r.competencia}`));
-  const secoes=competencias.flatMap(comp=>{const faltantes=usuarios.filter(u=>!enviados.has(`${u.authUserId}:${comp}`));return [{heading:`COMPETÊNCIA ${comp}`,lines:faltantes.length?faltantes.map(u=>`${u.nomeCompleto} · ${u.cargo} · ${u.associacao||"SEM ASSOCIAÇÃO"} · ${u.email}`):["NENHUMA PENDÊNCIA NESTA COMPETÊNCIA."]}];});
+  const secoes=competencias.flatMap(comp=>{const faltantes=usuarios.filter(u=>ativoNaCompetencia(u,comp)&&!enviados.has(`${u.authUserId}:${comp}`));return [{heading:`COMPETÊNCIA ${comp}`,lines:faltantes.length?faltantes.map(u=>`${u.nomeCompleto} · ${u.cargo} · ${u.associacao||"SEM ASSOCIAÇÃO"} · ${u.email}`):["NENHUMA PENDÊNCIA NESTA COMPETÊNCIA."]}];});
   const nome=tipo==="plano"?"PLANOS DE TRABALHO":"PRESTAÇÕES DE CONTAS";const pdf=await createPdf(`PENDÊNCIAS DE ${nome}`,secoes);
   return new Response(pdf.buffer.slice(pdf.byteOffset,pdf.byteOffset+pdf.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="pendencias-${tipo}.pdf"`}});
 }
