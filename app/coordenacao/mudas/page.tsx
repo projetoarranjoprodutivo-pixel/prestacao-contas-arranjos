@@ -15,22 +15,27 @@ export default async function GestaoMudasPage({ searchParams }: { searchParams: 
   const gestor = await getGestorMudasUser();
   if (!gestor) redirect("/");
   const db = getDb();
-  const [registros, pessoas] = await Promise.all([db.select().from(prestacoes), db.select().from(colaboradores)]);
-  const documentos = filtros.notas === "1" ? await db.select().from(documentosAssociacao) : [];
+  const comparar = new Intl.Collator("pt-BR").compare;
+  const [registros, pessoas] = await Promise.all([db.select({id:prestacoes.id,authUserId:prestacoes.authUserId,associacao:prestacoes.associacao,atividadesJson:prestacoes.atividadesJson}).from(prestacoes), db.select({authUserId:colaboradores.authUserId,nomeCompleto:colaboradores.nomeCompleto}).from(colaboradores)]);
+  const documentos = filtros.notas === "1" ? await db.select({id:documentosAssociacao.id,associacao:documentosAssociacao.associacao,competencia:documentosAssociacao.competencia,notasFiscaisJson:documentosAssociacao.notasFiscaisJson}).from(documentosAssociacao) : [];
   type Nota = { numeroNota?: string; key?: string; nome?: string; descricao?: string; quantidade?: string; valor?: string; dataEmissao?: string };
   const notas = documentos.flatMap(documento => {
     let arquivos: Nota[] = [];
     try { const dados = JSON.parse(documento.notasFiscaisJson || "[]"); if (Array.isArray(dados)) arquivos = dados; } catch {}
     return arquivos.filter(arquivo => /MUDA|SEMENTE|PLANTULA/.test(`${arquivo.nome || ""} ${arquivo.descricao || ""}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase())).map(arquivo => ({ documento, arquivo }));
-  }).sort((a, b) => a.documento.associacao.localeCompare(b.documento.associacao, "pt-BR") || b.documento.competencia.localeCompare(a.documento.competencia));
+  }).sort((a, b) => comparar(a.documento.associacao, b.documento.associacao) || b.documento.competencia.localeCompare(a.documento.competencia));
   const notasFiltradas = notas.filter(({ documento }) => (!filtros.associacao || documento.associacao === filtros.associacao) && (!filtros.competencia || documento.competencia === filtros.competencia));
   const nomes = new Map(pessoas.map(item => [item.authUserId, item.nomeCompleto]));
   const associacaoPorMunicipio = mapaAssociacoesPorMunicipio();
   const entregas = registros.flatMap(registro => {
     let atividades: Array<Record<string, unknown>> = [];
     try { atividades = JSON.parse(registro.atividadesJson || "[]"); } catch {}
-    return atividades.map((atividade, indice) => ({ registro, atividade, indice, associacao: associacaoPorMunicipio.get(chaveMunicipio(atividade.municipio)) || registro.associacao || "ASSOCIAÇÃO NÃO IDENTIFICADA" })).filter(item => ehEntregaMudas(item.atividade));
-  }).sort((a, b) => a.associacao.localeCompare(b.associacao, "pt-BR") || String(a.atividade.municipio || "").localeCompare(String(b.atividade.municipio || ""), "pt-BR") || String(b.atividade.data || "").localeCompare(String(a.atividade.data || "")));
+    if (!Array.isArray(atividades)) return [];
+    return atividades.flatMap((atividade, indice) => {
+      if (!atividade || !ehEntregaMudas(atividade)) return [];
+      return [{ registro, atividade, indice, associacao: associacaoPorMunicipio.get(chaveMunicipio(atividade.municipio)) || registro.associacao || "ASSOCIAÇÃO NÃO IDENTIFICADA" }];
+    });
+  }).sort((a, b) => comparar(a.associacao, b.associacao) || comparar(String(a.atividade.municipio || ""), String(b.atividade.municipio || "")) || String(b.atividade.data || "").localeCompare(String(a.atividade.data || "")));
 
   const totalMudasEntregues = entregas.reduce((total, { atividade }) => total + quantidadeEntregue(atividade), 0);
 
