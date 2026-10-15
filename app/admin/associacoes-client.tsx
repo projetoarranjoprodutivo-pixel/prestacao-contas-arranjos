@@ -33,6 +33,7 @@ const vazio: Formulario = {
 const lerLista = <T,>(json: string, fallback: T[] = []) => { try { const valor = JSON.parse(json); return Array.isArray(valor) ? valor as T[] : fallback; } catch { return fallback; } };
 
 export default function AssociacoesClient({ itens }: { itens: Associacao[] }) {
+  const [formularioAberto, setFormularioAberto] = useState(false);
   const [form, setForm] = useState<Formulario>(vazio);
   const [municipioAtendido, setMunicipioAtendido] = useState("");
   const [msg, setMsg] = useState("");
@@ -43,6 +44,8 @@ export default function AssociacoesClient({ itens }: { itens: Associacao[] }) {
   const campo = "mt-1 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm";
 
   function editar(a: Associacao) {
+    setFormularioAberto(true);
+    setMunicipioAtendido("");
     setForm({
       id: a.id, nome: a.nome, razaoSocial: a.razaoSocial || "", cnpj: a.cnpj || "", cep: a.cep || "",
       endereco: a.endereco || "", bairro: a.bairro || "", numero: a.numero || "", municipio: a.municipio || "",
@@ -114,10 +117,10 @@ export default function AssociacoesClient({ itens }: { itens: Associacao[] }) {
   return <section id="cadastro-associacao" className="scroll-mt-5 rounded-2xl border bg-white p-5 shadow-sm lg:col-span-2">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-lg font-bold">Cadastro de associações</h2><p className="text-sm text-slate-600">Dados da entidade, do presidente e documentos.</p></div>
-      {form.id && <button type="button" onClick={() => { setForm(vazio); setMsg(""); }} className="text-sm font-bold text-slate-600">Cancelar edição</button>}
+      <div className="flex flex-wrap gap-2"><button type="button" aria-expanded={formularioAberto} aria-controls="formulario-associacao" disabled={loading} onClick={() => { setForm(vazio); setMunicipioAtendido(""); setMsg(""); setFormularioAberto(true); }} className="inline-flex h-11 items-center gap-2 rounded-lg bg-emerald-800 px-4 text-sm font-bold text-white disabled:opacity-60"><Plus className="h-4 w-4"/>CADASTRAR NOVA ASSOCIAÇÃO</button>{formularioAberto && <button type="button" disabled={loading} onClick={() => { setFormularioAberto(false); setForm(vazio); setMunicipioAtendido(""); setMsg(""); }} className="rounded-lg border px-4 text-sm font-bold text-slate-600 disabled:opacity-60">{form.id ? "CANCELAR EDIÇÃO" : "CANCELAR CADASTRO"}</button>}</div>
     </div>
 
-    <form onSubmit={salvar} className="mt-5 space-y-6">
+    {formularioAberto && <form id="formulario-associacao" onSubmit={salvar} className="mt-5 space-y-6">
       <fieldset className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <legend className="mb-3 flex items-center gap-2 text-base font-bold text-emerald-900"><MapPin className="h-4 w-4"/>Dados da associação</legend>
         <label className="text-sm font-semibold">Nome abreviado *<input name="nome" required value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className={campo}/></label>
@@ -163,7 +166,7 @@ export default function AssociacoesClient({ itens }: { itens: Associacao[] }) {
       </fieldset>
 
       <div className="flex flex-wrap items-center gap-3"><button disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-lg bg-emerald-700 px-5 font-bold text-white disabled:opacity-60"><Plus className="h-4 w-4"/>{loading ? "Salvando..." : form.id ? "Salvar alterações" : "Cadastrar associação"}</button>{msg && <p className="text-sm text-slate-700">{msg}</p>}</div>
-    </form>
+    </form>}
 
     <div id="relatorios-associacoes" className="scroll-mt-5 mt-7 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-emerald-50 p-4">
       <div><p className="font-bold text-emerald-950">Relatório cadastral em PDF</p><p className="text-sm text-emerald-900">Marque as associações desejadas ou emita todas de uma vez.</p></div>
