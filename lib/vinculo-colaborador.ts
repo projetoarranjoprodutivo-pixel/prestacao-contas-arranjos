@@ -14,3 +14,13 @@ export function dataSaidaValida(saida: string, admissao: string) {
     && new Date(saida).toISOString().slice(0, 10) === saida
     && saida >= admissao;
 }
+
+// O acesso permanece válido no dia da saída e é bloqueado no dia seguinte,
+// considerando a data local do projeto no Brasil.
+export function saidaJaOcorreu(dataSaida: string | null | undefined, agora = new Date()) {
+  if (!dataSaida) return false;
+  const hoje = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(agora);
+  return dataSaida < hoje;
+}
