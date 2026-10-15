@@ -6,10 +6,11 @@ import { CheckCircle2, Loader2, ReceiptText, UploadCloud } from "lucide-react";
 type Nota = { arquivo: File; descricao: string; quantidade: string; valor: string; dataEmissao: string; competencia: string; leitura: "lendo"|"concluida"|"erro"; erro?: string };
 const campo = "mt-1.5 h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base";
 
-export default function NotaFiscalForm({ associacao }: { associacao: string }) {
+export default function NotaFiscalForm({ associacao, associacoes = [associacao] }: { associacao: string; associacoes?: string[] }) {
   const [notas, setNotas] = useState<Nota[]>([]);
   const [mensagem, setMensagem] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [associacaoSelecionada, setAssociacaoSelecionada] = useState(associacao);
 
   function alterar(indice: number, dados: Partial<Nota>) { setNotas(atuais => atuais.map((nota, i) => i === indice ? { ...nota, ...dados } : nota)); }
 
@@ -35,9 +36,9 @@ export default function NotaFiscalForm({ associacao }: { associacao: string }) {
     if (notas.some(nota => nota.leitura === "lendo")) return setMensagem("AGUARDE A LEITURA DAS NOTAS.");
     if (notas.some(nota => !nota.descricao || !nota.valor || !/^20\d{2}-(0[1-9]|1[0-2])$/.test(nota.competencia))) return setMensagem("CONFIRA A DESCRIÇÃO, O VALOR E A COMPETÊNCIA DE TODAS AS NOTAS.");
     setEnviando(true); setMensagem("");
-    const form = new FormData(); form.set("associacao", associacao);
+    const form = new FormData(); form.set("associacao", associacaoSelecionada);
     notas.forEach(nota => form.append("notasFiscais", nota.arquivo));
-    form.set("dadosNotas", JSON.stringify(notas.map(nota => ({ descricao: nota.descricao, quantidade: nota.quantidade, valor: nota.valor, dataEmissao: nota.dataEmissao, competencia: nota.competencia, associacao }))));
+    form.set("dadosNotas", JSON.stringify(notas.map(nota => ({ descricao: nota.descricao, quantidade: nota.quantidade, valor: nota.valor, dataEmissao: nota.dataEmissao, competencia: nota.competencia, associacao: associacaoSelecionada }))));
     const resposta = await fetch("/api/associacao/documentos", { method: "POST", body: form });
     const dados = await resposta.json().catch(() => ({})) as { message?: string };
     setMensagem(dados.message || "NÃO FOI POSSÍVEL ENVIAR."); setEnviando(false);
@@ -46,8 +47,9 @@ export default function NotaFiscalForm({ associacao }: { associacao: string }) {
 
   return <section className="rounded-2xl border bg-white p-5 shadow-sm sm:p-7">
     <p className="text-sm font-black text-violet-700">DOCUMENTO FINANCEIRO</p><h1 className="mt-1 text-3xl font-black">ENVIAR NOTA FISCAL</h1>
-    <p className="mt-2 text-slate-600">A NOTA SERÁ LIDA AUTOMATICAMENTE E FICARÁ DISPONÍVEL PARA <strong>{associacao}</strong> E PARA A ADERES.</p>
+    <p className="mt-2 text-slate-600">A NOTA SERÁ LIDA AUTOMATICAMENTE E FICARÁ DISPONÍVEL PARA A ASSOCIAÇÃO SELECIONADA E PARA A ADERES.</p>
     <form onSubmit={enviar} className="mt-6">
+      {associacoes.length>1&&<label className="mb-5 block text-sm font-black">ASSOCIAÇÃO DA COMPRA<select value={associacaoSelecionada} onChange={e=>setAssociacaoSelecionada(e.target.value)} className={campo}>{associacoes.map(nome=><option key={nome} value={nome}>{nome}</option>)}</select></label>}
       <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-violet-300 bg-violet-50 p-5 text-center"><UploadCloud className="h-8 w-8 text-violet-800"/><span className="mt-2 font-black">SELECIONAR NOTA FISCAL</span><span className="text-xs text-slate-600">PDF, JPG OU PNG — ATÉ 10 MB POR ARQUIVO</span><input className="sr-only" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={e => { selecionar(Array.from(e.target.files || [])); e.target.value = ""; }}/></label>
       <div className="mt-5 space-y-4">{notas.map((nota, indice) => <article key={`${nota.arquivo.name}-${indice}`} className="rounded-xl border bg-slate-50 p-4">
         <div className="flex items-center justify-between gap-3"><span className="truncate font-black">{nota.arquivo.name}</span><button type="button" onClick={() => setNotas(atuais => atuais.filter((_, i) => i !== indice))} className="text-sm font-black text-red-700">REMOVER</button></div>
