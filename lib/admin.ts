@@ -1,7 +1,7 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { colaboradores } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 
 const ADMIN_EMAIL = "rafaeldalla@hotmail.com";
 
@@ -27,7 +27,9 @@ export async function getGestorMudasUser() {
   const user = await getChatGPTUser();
   if (!user) return null;
   if (isAdminEmail(user.email) || user.role === "admin") return { user, coordenador: false as const, cadastro: null };
-  const cadastro = await getDb().query.colaboradores.findFirst({ where: eq(colaboradores.authUserId, user.userId) });
+  const funcao = cargoNormalizado(user.role || "");
+  const cadastro = await getDb().query.colaboradores.findFirst({ where: or(eq(colaboradores.authUserId, user.userId), eq(colaboradores.email, user.email.trim().toLowerCase())) });
+  if (!cadastro && (funcao === "coordenador geral" || funcao === "coordenador")) return { user, coordenador: true as const, cadastro: null };
   if (!cadastro || cargoNormalizado(cadastro.cargo) !== "coordenador geral") return null;
   return { user, coordenador: true as const, cadastro };
 }
