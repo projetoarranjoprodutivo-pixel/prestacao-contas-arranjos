@@ -1,3 +1,4 @@
+import { categoriaDaNota } from "@/lib/classificacao-notas";
 import NotaAcoes from "./nota-acoes";
 import { redirect } from "next/navigation";
 import { Pencil, Plus, ReceiptText, Sprout } from "lucide-react";
@@ -18,11 +19,11 @@ export default async function GestaoMudasPage({ searchParams }: { searchParams: 
   const comparar = new Intl.Collator("pt-BR").compare;
   const [registros, pessoas] = await Promise.all([db.select({id:prestacoes.id,authUserId:prestacoes.authUserId,associacao:prestacoes.associacao,atividadesJson:prestacoes.atividadesJson}).from(prestacoes), db.select({authUserId:colaboradores.authUserId,nomeCompleto:colaboradores.nomeCompleto}).from(colaboradores)]);
   const documentos = filtros.notas === "1" ? await db.select({id:documentosAssociacao.id,associacao:documentosAssociacao.associacao,competencia:documentosAssociacao.competencia,notasFiscaisJson:documentosAssociacao.notasFiscaisJson}).from(documentosAssociacao) : [];
-  type Nota = { numeroNota?: string; key?: string; nome?: string; descricao?: string; quantidade?: string; valor?: string; dataEmissao?: string };
+  type Nota = { categoriaNota?: string; numeroNota?: string; key?: string; nome?: string; descricao?: string; quantidade?: string; valor?: string; dataEmissao?: string };
   const notas = documentos.flatMap(documento => {
     let arquivos: Nota[] = [];
     try { const dados = JSON.parse(documento.notasFiscaisJson || "[]"); if (Array.isArray(dados)) arquivos = dados; } catch {}
-    return arquivos.filter(arquivo => /MUDA|SEMENTE|PLANTULA/.test(`${arquivo.nome || ""} ${arquivo.descricao || ""}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase())).map(arquivo => ({ documento, arquivo }));
+    return arquivos.filter(arquivo => categoriaDaNota(arquivo)==="mudas").map(arquivo => ({ documento, arquivo }));
   }).sort((a, b) => comparar(a.documento.associacao, b.documento.associacao) || b.documento.competencia.localeCompare(a.documento.competencia));
   const notasFiltradas = notas.filter(({ documento }) => (!filtros.associacao || documento.associacao === filtros.associacao) && (!filtros.competencia || documento.competencia === filtros.competencia));
   const nomes = new Map(pessoas.map(item => [item.authUserId, item.nomeCompleto]));

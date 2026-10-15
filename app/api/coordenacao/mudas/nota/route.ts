@@ -1,3 +1,4 @@
+import { categoriaDaNota } from "@/lib/classificacao-notas";
 import { env } from "cloudflare:workers";
 import { getGestorMudasUser } from "@/lib/admin";
 import { getDb } from "@/db";
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
   const autorizado = documentos.some(documento => {
     try {
       const notas = JSON.parse(documento.notasFiscaisJson || "[]");
-      return Array.isArray(notas) && notas.some(nota => nota.key === key && /MUDA|SEMENTE|PLANTULA/.test(`${nota.nome || ""} ${nota.descricao || ""}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()));
+      return Array.isArray(notas) && notas.some(nota => nota.key === key && categoriaDaNota(nota)==="mudas");
     } catch { return false; }
   });
   if (!autorizado) return new Response("ACESSO NEGADO.", { status: 403 });

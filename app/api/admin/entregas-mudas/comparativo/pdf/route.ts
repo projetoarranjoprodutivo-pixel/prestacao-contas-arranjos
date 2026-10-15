@@ -1,3 +1,4 @@
+import { categoriaDaNota } from "@/lib/classificacao-notas";
 import { eq, inArray } from "drizzle-orm";
 import { getAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
@@ -9,7 +10,7 @@ import { createPdf } from "@/lib/pdf";
 
 export const runtime="edge";
 
-type Arquivo={nome?:string;descricao?:string;quantidade?:string};
+type Arquivo={categoriaNota?:string;nome?:string;descricao?:string;quantidade?:string};
 type Atividade={executada?:boolean;municipio?:string;tipoAtividade?:string;tipoMuda?:string;quantidadeMudas?:string;resumo?:string;observacao?:string};
 type Totais={compradas:Map<string,number>;entregues:Map<string,number>;comprasSemQuantidade:Set<string>};
 
@@ -17,7 +18,7 @@ function lista<T>(json:string|null|undefined):T[]{try{const valor=JSON.parse(jso
 function normalizar(valor:unknown){return String(valor??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleUpperCase("pt-BR");}
 function numero(valor:unknown){const texto=String(valor??"").replace(/[^\d,.-]/g,"");if(!texto)return 0;const convertido=texto.includes(",")?texto.replaceAll(".","").replace(",","."):/^\d{1,3}(\.\d{3})+$/.test(texto)?texto.replaceAll(".",""):texto;const resultado=Number(convertido);return Number.isFinite(resultado)?resultado:0;}
 function tipoComprado(arquivo:Arquivo){const texto=normalizar(`${arquivo.descricao||""} ${arquivo.nome||""}`);return [...TIPOS_MUDAS].sort((a,b)=>b.length-a.length).find(tipo=>texto.includes(normalizar(tipo)))||"TIPO NÃO IDENTIFICADO";}
-function ehCompraMudas(arquivo:Arquivo){return /MUDA|SEMENTE|PLANTULA/.test(normalizar(`${arquivo.descricao||""} ${arquivo.nome||""}`));}
+function ehCompraMudas(arquivo:Arquivo){return categoriaDaNota(arquivo)==="mudas";}
 function somar(mapa:Map<string,number>,tipo:string,quantidade:number){mapa.set(tipo,(mapa.get(tipo)||0)+quantidade);}
 function formatar(valor:number){return valor.toLocaleString("pt-BR",{maximumFractionDigits:2});}
 

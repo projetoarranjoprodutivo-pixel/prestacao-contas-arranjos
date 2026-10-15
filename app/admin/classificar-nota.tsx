@@ -1,0 +1,8 @@
+"use client";
+import {useState} from "react";
+import {useRouter} from "next/navigation";
+export default function ClassificarNota({arquivoKey,categoria}:{arquivoKey:string;categoria?:string}){
+ const router=useRouter();const [valor,setValor]=useState(categoria||"automatico"),[ocupado,setOcupado]=useState(false),[mensagem,setMensagem]=useState("");
+ async function salvar(){setOcupado(true);setMensagem("");try{const resposta=await fetch("/api/admin/notas/classificar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:arquivoKey,categoriaNota:valor})});const dados=await resposta.json();if(!resposta.ok)throw Error(dados.message||"FALHA AO SALVAR.");setMensagem("CLASSIFICAÇÃO SALVA.");router.refresh();}catch(erro){setMensagem(erro instanceof Error?erro.message:"FALHA DE CONEXÃO.");}finally{setOcupado(false);}}
+ return <div className="mt-3 border-t pt-3"><label className="block text-xs font-black">IDENTIFICAR TIPO DA NOTA<select value={valor} disabled={ocupado} onChange={e=>{setValor(e.target.value);setMensagem("");}} className="mt-1 h-10 w-full rounded-lg border bg-white px-2"><option value="automatico">IDENTIFICAÇÃO AUTOMÁTICA</option><option value="mudas">NOTA DE COMPRA DE MUDAS</option><option value="servico">NOTA DE SERVIÇO</option><option value="outras">OUTRAS NOTAS</option></select></label><button type="button" disabled={ocupado} onClick={()=>void salvar()} className="mt-2 rounded-lg bg-emerald-800 px-3 py-2 text-xs font-black text-white disabled:opacity-50">{ocupado?"SALVANDO...":"SALVAR IDENTIFICAÇÃO"}</button>{mensagem&&<p role="status" className="mt-2 text-xs font-bold">{mensagem}</p>}</div>;
+}

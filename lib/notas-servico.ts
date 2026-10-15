@@ -1,6 +1,7 @@
+import { categoriaDaNota } from "@/lib/classificacao-notas";
 type ColaboradorNota={id:number;nomeCompleto:string;nomeEmpresarial:string|null;mei:string|null;email:string;cargo:string;associacao:string|null;associacoesJson:string;dataAdmissao?:string|null};
 type DocumentoNota={associacao:string;competencia:string;notasFiscaisJson:string};
-type ArquivoNota={nome?:string;descricao?:string};
+type ArquivoNota={categoriaNota?:string;nome?:string;descricao?:string};
 
 function normalizar(valor?:string|null){return String(valor||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Z0-9]+/gi," ").trim().toUpperCase();}
 
@@ -28,7 +29,7 @@ function pertence(nota:ArquivoNota,usuario:ColaboradorNota,usuariosAssociacao:Co
   return tokensIdentificadores(usuario).some(token=>!outrosTokens.has(token)&&texto.includes(token));
 }
 
-function ehNotaServico(nota:ArquivoNota){const texto=normalizar(`${nota.nome||""} ${nota.descricao||""}`);return /\bNFS\w*\b|NOTA FISCAL DE SERVICO|PRESTACAO DE SERVICO|SERVICOS TECNICOS|CONSULTORIA|160 H/.test(texto);}
+function ehNotaServico(nota:ArquivoNota){return categoriaDaNota(nota)==="servico";}
 
 function ativoNaCompetencia(usuario:ColaboradorNota,competencia:string){
   const mesAdmissao=String(usuario.dataAdmissao||"2026-03-17").slice(0,7);
