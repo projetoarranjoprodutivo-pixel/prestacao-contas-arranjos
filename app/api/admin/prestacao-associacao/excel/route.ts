@@ -1,3 +1,4 @@
+import { categoriaDaNota } from "@/lib/classificacao-notas";
 import {numeroMonetario} from "@/lib/moeda";
 import { and, eq, inArray } from "drizzle-orm";
 import { env } from "cloudflare:workers";
@@ -6,7 +7,7 @@ import { getDb } from "@/db";
 import { associacoes, colaboradores, documentosAssociacao, prestacoes } from "@/db/schema";
 import { excelDate, fillXlsxTemplate, type CellValue } from "@/lib/xlsx-template";
 import agricultoresIniciais from "@/data/agricultores-iniciais.json";
-import { ehEntregaMudas, quantidadeEntregue, tipoMudaEntregue } from "@/lib/entregas-mudas";
+import { ehEntregaMudas, quantidadeEntregue } from "@/lib/entregas-mudas";
 
 export const runtime = "edge";
 
@@ -25,6 +26,7 @@ type Atividade = {
   resumo?: string;
 };
 type Arquivo = {
+  categoriaNota?: string;
   nome?: string;
   descricao?: string;
   quantidade?: string;
@@ -100,7 +102,6 @@ async function gerarAgricultura(
   const atividades = atividadesDosRelatorios(relatorios, usuarios);
   const visitas = atividades.filter(({ atividade }) => tipoNormalizado(atividade) === "visita técnica");
   const eventos = atividades.filter(({ atividade }) => tipoNormalizado(atividade) !== "visita técnica" && !ehEntregaMudas(atividade));
-  const entregas = atividades.filter(({ atividade }) => ehEntregaMudas(atividade));
   const tecnicos = [...new Set(relatorios.map((item) => usuarios.get(item.authUserId)?.nomeCompleto).filter(Boolean))] as string[];
   const dadosAtividades = new Map<string, { municipio: string; beneficios: Set<string>; quantidade: number; observacoes: Set<string> }>();
   for (const { atividade } of atividades) {
@@ -166,20 +167,17 @@ async function gerarAgricultura(
     texto(usuario?.nomeCompleto), atividade.agricultor ? 1 : "", texto(atividade.resumo), texto(relatorio.observacoes),
   ]));
   const aquisicoesCells: Record<string, CellValue> = {};
-  entregas.slice(0, 300).forEach(({ atividade }, index) => colocar(aquisicoesCells, index + 2, ["B", "C", "D", "E", "H", "I", "J", "K"], [
-    excelDate(atividade.data), "Mudas", tipoMudaEntregue(atividade), quantidadeEntregue(atividade) || "", "", "",
-    texto(atividade.agricultor || atividade.beneficiario || atividade.comunidade), texto(atividade.resumo),
-  ]));
+  // Aquisições são comprovadas por notas de compra; entregas e serviços não são compras.
   const notas = documentos.flatMap((documento) =>
     lista<Arquivo>(documento.notasFiscaisJson).map((arquivo) => ({ arquivo, competencia: documento.competencia }))
-  ).filter(({ arquivo }) => arquivo.nome || arquivo.descricao || arquivo.valor || arquivo.dataEmissao);
-  notas.slice(0, Math.max(0, 300 - entregas.length)).forEach(({ arquivo, competencia }, index) => {
-    const row = Math.min(entregas.length, 300) + index + 2;
+  ).filter(({ arquivo }) => categoriaDaNota(arquivo) === "mudas");
+  notas.slice(0, 300).forEach(({ arquivo, competencia }, index) => {
+    const row = index + 2;
     const descricao = texto(arquivo.descricao) || "ITEM NÃO DESCRITO";
     const quantidade = numeroDocumento(arquivo.quantidade);
     const valorTotal = numeroDocumento(arquivo.valor, true);
-    const quantidadePlanilha = quantidade > 0 ? quantidade : 1;
-    const valorUnitario = valorTotal > 0 ? Number((valorTotal / quantidadePlanilha).toFixed(6)) : "";
+    const quantidadePlanilha = quantidade > 0 ? quantidade : "";
+    const valorUnitario = valorTotal > 0 && quantidade > 0 ? Number((valorTotal / quantidade).toFixed(6)) : "";
     colocar(aquisicoesCells, row, ["B", "C", "D", "E", "F", "H", "I", "J", "K"], [
       excelDate(arquivo.dataEmissao),
       categoriaAquisicao(descricao),
