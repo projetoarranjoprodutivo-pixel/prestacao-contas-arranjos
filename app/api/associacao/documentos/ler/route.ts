@@ -1,3 +1,5 @@
+import { extrairTextoNotaPdf } from "@/lib/pdf-texto-nota";
+import { lerNfseNacional } from "@/lib/nfse-nacional";
 import {env} from "cloudflare:workers";
 import {eq} from "drizzle-orm";
 import {getChatGPTUser} from "@/app/chatgpt-auth";
@@ -107,8 +109,8 @@ function dadosDeterministicos(conteudo:string,nome:string,lista:Array<{nome:stri
  const valorUnitarioTexto=conteudo.match(/(?:VALOR\s+UNIT[AÁ]RIO|VALOR\s+DA\s+HORA|VLR\.?\s*UNIT\.?)[^0-9]{0,30}(?:R\$\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+),\d{2})/i)?.[1];
  const valorUnitario=Number(numeroDecimal(valorUnitarioTexto||""));const valorNumerico=Number(valor);
  const quantidadeCalculada=!quantidadeInformada&&valorUnitario>0&&valorNumerico>0&&Number.isInteger(valorNumerico/valorUnitario)?String(valorNumerico/valorUnitario):"";
- const quantidade=quantidadeInformada||quantidadeCalculada;
- const associacao=lista.find(item=>[item.nome,item.razaoSocial,item.cnpj].filter(Boolean).some(valorItem=>fonteNormalizada.includes(normalizar(String(valorItem)))))?.nome||"";
+ const quantidade=quantidadeInformada||(/DANFSE|NFS\s*-?\s*E/i.test(conteudo)?"":quantidadeCalculada);
+ const associacao=lista.find(item=>[item.nome,item.razaoSocial,item.cnpj].filter(Boolean).some(valorItem=>normalizar(fonte).replace(/[^A-Z0-9]/g,"").includes(normalizar(String(valorItem)).replace(/[^A-Z0-9]/g,""))))?.nome||"";
  return {descricao,quantidade,valor,dataEmissao,associacao:String(associacao||""),competencia:competenciaFallback(nome,dataEmissao)};
 }
 
@@ -151,19 +153,27 @@ export async function POST(request:Request){
   if(!["application/pdf","image/jpeg","image/png"].includes(arquivo.type))return Response.json({message:"FORMATO NÃO PERMITIDO."},{status:400});
   const bytes = await arquivo.arrayBuffer();
   const ai=(env as unknown as {AI:AiBinding}).AI;
-  if(!ai)throw new Error("A LEITURA AUTOMÁTICA AINDA NÃO ESTÁ HABILITADA.");
+
   let conteudo="";
-  try { const conversao=await ai.toMarkdown({name:arquivo.name,blob:new Blob([bytes],{type:arquivo.type})},{conversionOptions:{image:{descriptionLanguage:"pt"},pdf:{metadata:false},output:{format:"text"}}});
+  if(arquivo.type==="application/pdf")try{conteudo=await extrairTextoNotaPdf(bytes);}catch{/* Conversão/OCR abaixo. */}
+  if(!conteudo.trim()&&ai)try { const conversao=await ai.toMarkdown({name:arquivo.name,blob:new Blob([bytes],{type:arquivo.type})},{conversionOptions:{image:{descriptionLanguage:"pt"},pdf:{metadata:false},output:{format:"text"}}});
   conteudo=textoResultado(conversao).slice(0,60000); } catch { /* A leitura visual abaixo também atende PDFs sem texto. */ }
   const db=getDb();
   const lista=await db.select({nome:associacoes.nome,razaoSocial:associacoes.razaoSocial,cnpj:associacoes.cnpj}).from(associacoes).where(eq(associacoes.ativo,true));
+  const nacional=lerNfseNacional(conteudo);
+  if(nacional){
+   const base=dadosDeterministicos(conteudo,arquivo.name,lista);
+   return Response.json({...nacional,associacao:base.associacao||associacaoPeloNome(arquivo.name,lista)});
+  }
+  if(!ai)throw new Error("A LEITURA AUTOMÁTICA AINDA NÃO ESTÁ HABILITADA PARA ESTE FORMATO.");
+  const fallback=dadosDeterministicos(conteudo,arquivo.name,lista);
   let resposta:unknown={};
   if(conteudo.trim())try { resposta=await ai.run("@cf/zai-org/glm-4.7-flash",{messages:[
    {role:"system",content:"Extraia dados de uma nota fiscal brasileira. Responda SOMENTE JSON válido, sem markdown. Não invente. Campos: numeroNota (número da NF-e ou NFS-e, como texto, preserve zeros à esquerda; não confundir com série, chave de acesso ou protocolo), descricao (descrição principal dos produtos ou serviços, texto curto), quantidade (soma ou quantidade principal como texto), valor (valor total da nota apenas em número decimal com ponto), dataEmissao (AAAA-MM-DD), associacao (nome exato de uma associação da lista, somente se houver evidência), competencia (AAAA-MM, normalmente o mês da emissão)."},
    {role:"user",content:`NOME DO ARQUIVO: ${arquivo.name}\nASSOCIAÇÕES POSSÍVEIS: ${JSON.stringify(lista)}\nCONTEÚDO EXTRAÍDO:\n${conteudo}`}
   ],max_completion_tokens:1600,temperature:0,response_format:{type:"json_object"}}); } catch { /* Tentar leitura visual. */ }
-  let dados=jsonResposta(resposta);
-  const camposCompletos=()=>!!dados.numeroNota&&!!dados.descricao&&Number(numeroDecimal(String(dados.valor||"")))>0&&!!normalizarDataEmissao(dados.dataEmissao)&&!!dados.quantidade;
+  let dados={...fallback,...jsonResposta(resposta)} as Record<string,unknown>;
+  const camposCompletos=()=>!!dados.numeroNota&&!!dados.descricao&&Number(numeroDecimal(String(dados.valor||"")))>0&&!!normalizarDataEmissao(dados.dataEmissao)&&(/NFS\s*-?\s*E|DANFSE/i.test(conteudo)||!!dados.quantidade);
   if(!camposCompletos()||!/CNPJ|DANFE|NFS.?E|NOTA\s+FISCAL/i.test(conteudo)){
     try {
       const imagens=await imagensParaLeitura(bytes,arquivo.type);
@@ -177,7 +187,6 @@ export async function POST(request:Request){
       }
     }catch(erro){if(!dados.descricao&&!dados.valor)throw new Error(`NÃO FOI POSSÍVEL CONCLUIR A LEITURA VISUAL. ${erro instanceof Error?erro.message:"TENTE NOVAMENTE."}`);}
   }
-  const fallback=dadosDeterministicos(conteudo,arquivo.name,lista);
 
   // O modelo pode devolver a data brasileira (DD/MM/AAAA), que um input
   // type="date" ignora silenciosamente. Sempre convertemos para AAAA-MM-DD.
