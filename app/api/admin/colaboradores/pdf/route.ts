@@ -13,11 +13,12 @@ const dataBr=(valor:string|null)=>valor&&/^\d{4}-\d{2}-\d{2}$/.test(valor)?valor
 export async function GET(request:Request){
   if(!await getAdminUser())return new Response("ACESSO RESTRITO",{status:403});
   const url=new URL(request.url);
+  const simplificado=url.searchParams.get("simplificado")==="1";
   const basico=url.searchParams.get("basico")==="1";
   const id=url.searchParams.get("id");
   if(id&&(!/^\d+$/.test(id)||Number(id)<1))return new Response("CADASTRO INVÁLIDO",{status:400});
   const pesquisa=normalizar(url.searchParams.get("pesquisa"));
-  const registros=(await getDb().select().from(colaboradores)).filter(u=>(!id||u.id===Number(id))&&(!pesquisa||[u.nomeCompleto,u.email,u.cargo,u.associacao,u.associacoesJson,u.municipiosAtendidosJson,u.mei,u.nomeEmpresarial,u.cftaCrea].some(valor=>normalizar(valor).includes(pesquisa)))).sort((a,b)=>a.cargo.localeCompare(b.cargo)||a.nomeCompleto.localeCompare(b.nomeCompleto));
+  const registros=(await getDb().select().from(colaboradores)).filter(u=>(!id||u.id===Number(id))&&(!pesquisa||[u.nomeCompleto,u.email,u.cargo,u.associacao,u.associacoesJson,u.municipiosAtendidosJson,u.mei,u.nomeEmpresarial,u.cftaCrea].some(valor=>normalizar(valor).includes(pesquisa)))).sort((a,b)=>(simplificado?0:a.cargo.localeCompare(b.cargo))||a.nomeCompleto.localeCompare(b.nomeCompleto));
   if(!registros.length)return new Response("NENHUM CADASTRO ENCONTRADO",{status:404});
   const secoes=registros.map((u,i)=>({heading:`${i+1}. ${u.nomeCompleto}`,lines:basico?[
     `E-MAIL: ${u.email} | CELULAR: ${u.celular||"NÃO INFORMADO"}`,
@@ -34,6 +35,7 @@ export async function GET(request:Request){
     `ENDEREÇO: ${[u.endereco,u.numero,u.bairro,u.cidade,u.uf,u.cep].filter(Boolean).join(" · ")||"NÃO INFORMADO"}`,
     `VALIDADE DOS DOCUMENTOS: ${u.documentoValidade||"NÃO INFORMADA"}`
   ]}));
-  const pdf=await createPdf("CADASTRO DE COLABORADORES",secoes);
-  return new Response(pdf.buffer.slice(pdf.byteOffset,pdf.byteOffset+pdf.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`${basico?"inline":"attachment"}; filename=colaboradores.pdf`,"cache-control":"private, no-store"}});
+  const resumo=[{heading:"NOME / ASSOCIAÇÃO",lines:registros.map(u=>`${u.nomeCompleto} | ${lista(u.associacoesJson)==="NÃO INFORMADO"?u.associacao||"NÃO INFORMADA":lista(u.associacoesJson)}`)}];
+  const pdf=await createPdf(simplificado?"CADASTRO SIMPLIFICADO DE COLABORADORES":"CADASTRO DE COLABORADORES",simplificado?resumo:secoes);
+  return new Response(pdf.buffer.slice(pdf.byteOffset,pdf.byteOffset+pdf.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`${basico||simplificado?"inline":"attachment"}; filename=colaboradores.pdf`,"cache-control":"private, no-store"}});
 }
