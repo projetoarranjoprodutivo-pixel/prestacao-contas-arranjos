@@ -223,13 +223,25 @@ async function gerarHoras(
     cells[`B${periodoRow}`] = meses.map(mesReferencia).join("; ");
     cells[`B${previstasRow}`] = meses.length ? 160 * meses.length * idsProfissionais.length : "";
     cells[`B${trabalhadasRow}`] = registros.length ? Number((registros.reduce((total, item) => total + item.totalMinutos, 0) / 60).toFixed(2)) : "";
+    const linhaValor = trabalhadasRow + 1;
+    const horasTrabalhadas = Number(cells[`B${trabalhadasRow}`] || 0);
+    cells[`B${linhaValor}`] = {
+      formula: `IF(OR(B${trabalhadasRow}="",$B$6=""),"",B${trabalhadasRow}*$B$6)`,
+      cached: registros.length ? Number((horasTrabalhadas * 32.5).toFixed(2)) : "",
+    };
     cells[`B${observacoesRow}`] = registros.map((item) => texto(item.observacoes)).filter(Boolean).join("; ");
   });
   // O resumo deve somar as mesmas células dos quatro períodos.
   const totalPrevistas = rows.reduce((total, [, linha]) => total + Number(cells[`B${linha}`] || 0), 0);
   const totalTrabalhadas = rows.reduce((total, [, , linha]) => total + Number(cells[`B${linha}`] || 0), 0);
-  cells.E5 = totalPrevistas;
-  cells.E7 = totalPrevistas ? totalTrabalhadas / totalPrevistas : "";
+  cells.E5 = { formula: "SUM(B12,B20,B28,B36)", cached: totalPrevistas };
+  cells.E6 = { formula: "SUM(B13,B21,B29,B37)", cached: totalTrabalhadas };
+  cells.E7 = { formula: 'IF(E5=0,"",E6/E5)', cached: totalPrevistas ? totalTrabalhadas / totalPrevistas : "" };
+  const totalValores = rows.reduce((total, [, , linha]) => {
+    const valor = cells[`B${linha + 1}`];
+    return total + (valor && typeof valor === "object" ? Number(valor.cached || 0) : 0);
+  }, 0);
+  cells.E8 = { formula: "SUM(B14,B22,B30,B38)", cached: Number(totalValores.toFixed(2)) };
   const template = await carregarTemplate(request, "controle-de-horas-fomento.xlsx");
   return fillXlsxTemplate(template, { "xl/worksheets/sheet1.xml": cells });
 }

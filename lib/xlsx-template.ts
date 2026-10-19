@@ -1,6 +1,6 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
-export type CellValue = string | number | null | undefined;
+export type CellValue = string | number | null | undefined | { formula: string; cached: number | string };
 
 function escapeXml(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
@@ -15,6 +15,11 @@ function cellXml(reference: string, value: CellValue, previous = "") {
   const opening = previous.match(/^<c\b([^>]*)>/)?.[1] || previous.match(/^<c\b([^>]*)\/>/)?.[1] || ` r="${reference}"`;
   const style = opening.match(/\bs="([^"]+)"/)?.[1];
   const styleAttribute = style ? ` s="${style}"` : "";
+  if (value && typeof value === "object") {
+    const formula = escapeXml(value.formula.replace(/^=/, ""));
+    const numeric = typeof value.cached === "number" && Number.isFinite(value.cached);
+    return `<c r="${reference}"${styleAttribute}${numeric ? "" : ' t="str"'}><f>${formula}</f><v>${escapeXml(String(value.cached))}</v></c>`;
+  }
   if (typeof value === "number" && Number.isFinite(value)) return `<c r="${reference}"${styleAttribute}><v>${value}</v></c>`;
   const text = escapeXml(String(value ?? ""));
   return `<c r="${reference}"${styleAttribute} t="inlineStr"><is><t xml:space="preserve">${text}</t></is></c>`;
@@ -130,7 +135,7 @@ export function fillXlsxTemplate(template: Uint8Array, sheets: Record<string, Re
     const original = files[sheetPath];
     if (!original) throw new Error(`Planilha interna não encontrada: ${sheetPath}`);
     let xml = strFromU8(original);
-    xml = expandSharedFormulas(setCells(xml, values));
+    xml = setCells(expandSharedFormulas(xml), values);
     files[sheetPath] = strToU8(xml);
   }
   // The calculation chain becomes stale whenever template inputs change. It is
