@@ -13,7 +13,8 @@ type Arquivo={key:string;nome:string;tipo:string;descricao?:string;quantidade?:s
 const informado=(v:unknown)=>String(v??"").trim()||"NÃO INFORMADO";
 const dataBr=(v:unknown)=>{const s=String(v||"");const p=s.split("-");return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:informado(v)};
 const lista=<T,>(json:string|null|undefined):T[]=>{try{const v=JSON.parse(json||"[]");return Array.isArray(v)?v:[]}catch{return[]}};
-const mesReferencia=(competencia:string)=>new Intl.DateTimeFormat("pt-BR",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(`${competencia}-02T12:00:00Z`));
+const mesesReferencia=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const mesReferencia=(competencia:string)=>`${mesesReferencia[Number(competencia.slice(5,7))-1]} de ${competencia.slice(0,4)}`;
 const numero=(valor:unknown)=>{const texto=String(valor??"").replace(/[^\d,.-]/g,"");if(!texto)return 0;const normalizado=texto.includes(",")?texto.replaceAll(".","").replace(",","."):/^-?\d{1,3}(\.\d{3})+$/.test(texto)?texto.replaceAll(".",""):texto;const resultado=Number(normalizado);return Number.isFinite(resultado)?resultado:0;};
 const quantidadeBr=(valor:unknown)=>{const resultado=numero(valor);return resultado?resultado.toLocaleString("pt-BR",{maximumFractionDigits:2}):"NÃO INFORMADO";};
 const ehCompraMudas=(arquivo:Arquivo)=>/muda|semente|plântula|plantula/i.test(`${arquivo.descricao||""} ${arquivo.nome||""}`);
@@ -27,11 +28,11 @@ export async function GET(request:Request){
   const db=getDb();
   const associacao=await db.query.associacoes.findFirst({where:and(eq(associacoes.nome,nomeAssociacao),eq(associacoes.ativo,true))});
   if(!associacao)return new Response("Associação não encontrada",{status:404});
-  let relatorios:typeof prestacoes.$inferSelect[]=[],usuarios:typeof colaboradores.$inferSelect[]=[],financeiro:typeof documentosAssociacao.$inferSelect[]=[];
+  let relatorios:typeof prestacoes.$inferSelect[]=[],usuarios:Array<Pick<typeof colaboradores.$inferSelect,"authUserId"|"nomeCompleto"|"nomeEmpresarial"|"email"|"cargo">>=[],financeiro:typeof documentosAssociacao.$inferSelect[]=[];
   const colunasPrestacao=getTableColumns(prestacoes);
   try{[relatorios,usuarios,financeiro]=await Promise.all([
     db.select({...colunasPrestacao,atividadesJson:sql<string>`COALESCE((SELECT json_group_array(json_remove(value, '$.assinaturaProdutor', '$.assinaturaTecnico')) FROM json_each(${prestacoes.atividadesJson})), '[]')`}).from(prestacoes).where(and(or(eq(prestacoes.associacao,associacao.nome),eq(prestacoes.authUserId,"admin-importacao-mudas-2026")),inArray(prestacoes.competencia,competencias))),
-    db.select().from(colaboradores),
+    db.select({authUserId:colaboradores.authUserId,nomeCompleto:colaboradores.nomeCompleto,nomeEmpresarial:colaboradores.nomeEmpresarial,email:colaboradores.email,cargo:colaboradores.cargo}).from(colaboradores),
     db.select().from(documentosAssociacao).where(and(eq(documentosAssociacao.associacao,associacao.nome),inArray(documentosAssociacao.competencia,competencias))),
   ]);}catch(error){return new Response(`FALHA AO CONSULTAR OS DADOS: ${error instanceof Error?error.message:String(error)}`,{status:500});}
   const nomes=new Map(usuarios.map(u=>[u.authUserId,u]));
