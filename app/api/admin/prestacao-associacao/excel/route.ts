@@ -215,7 +215,8 @@ function apurarHoras(relatorio: Registro) {
   });
   const informadas = duracoes.filter(valor => valor > 0).length;
   const minutos = informadas ? duracoes.reduce((soma, valor) => soma + valor, 0) : todas.length && !atividades.length ? 0 : Math.max(0, Number(relatorio.totalMinutos) || 0);
-  return { minutos, semDuracao: atividades.length - informadas, totalDeclarado: !informadas && minutos > 0 };
+  const horasPadrao = !informadas && minutos === 0 && (!todas.length || atividades.length > 0);
+  return { minutos: horasPadrao ? 160 * 60 : minutos, horasPadrao, semDuracao: atividades.length - informadas, totalDeclarado: !informadas && minutos > 0 };
 }
 
 async function gerarHoras(
@@ -246,8 +247,9 @@ async function gerarHoras(
       const apuracao = apurarHoras(item);
       const nome = usuarios.get(item.authUserId)?.nomeCompleto || "PROFISSIONAL NÃO IDENTIFICADO";
       return [texto(item.observacoes),
+        apuracao.horasPadrao ? `${nome} (${item.competencia}): APLICADO PADRÃO DE 160 HORAS PREVISTAS, POIS O RELATÓRIO NÃO INFORMA HORAS.` : "",
         apuracao.totalDeclarado ? `${nome} (${item.competencia}): HORAS CONFORME TOTAL DECLARADO NO RELATÓRIO, SEM DURAÇÕES INDIVIDUAIS.` : "",
-        apuracao.semDuracao && !apuracao.totalDeclarado ? `${nome} (${item.competencia}): ${apuracao.semDuracao} ATIVIDADE(S) SEM DURAÇÃO INFORMADA; NÃO ACRESCENTAM HORAS.` : "",
+        apuracao.semDuracao && !apuracao.totalDeclarado && !apuracao.horasPadrao ? `${nome} (${item.competencia}): ${apuracao.semDuracao} ATIVIDADE(S) SEM DURAÇÃO INFORMADA; NÃO ACRESCENTAM HORAS.` : "",
       ].filter(Boolean);
     }).join("; ");
   });
