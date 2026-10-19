@@ -241,11 +241,15 @@ async function gerarHoras(
     cells[`B${periodoRow}`] = meses.map(mesReferencia).join("; ");
     cells[`B${previstasRow}`] = meses.length ? 160 * meses.length * idsProfissionais.length : "";
     cells[`B${trabalhadasRow}`] = registros.length ? Number((registros.reduce((total, item) => total + apurarHoras(item).minutos, 0) / 60).toFixed(2)) : "";
+    const horasApuradas = Number(cells[`B${trabalhadasRow}`] || 0);
+    const horasPrevistas = Number(cells[`B${previstasRow}`] || 0);
+    const ajustePrevistas = horasPrevistas > horasApuradas;
+    if (ajustePrevistas) cells[`B${trabalhadasRow}`] = horasPrevistas;
     const linhaValor = trabalhadasRow + 1;
     const horasTrabalhadas = Number(cells[`B${trabalhadasRow}`] || 0);
     cells[`B${linhaValor}`] = {
       formula: `IF(OR(B${trabalhadasRow}="",$B$6=""),"",ROUND(B${trabalhadasRow}*$B$6,2))`,
-      cached: registros.length ? Math.round(Math.round(horasTrabalhadas * 100) * 3250 / 100) / 100 : "",
+      cached: meses.length ? Math.round(Math.round(horasTrabalhadas * 100) * 3250 / 100) / 100 : "",
     };
     cells[`B${observacoesRow}`] = registros.flatMap((item) => {
       const apuracao = apurarHoras(item);
@@ -256,6 +260,10 @@ async function gerarHoras(
         apuracao.semDuracao && !apuracao.totalDeclarado && !apuracao.horasPadrao ? `${nome} (${item.competencia}): ${apuracao.semDuracao} ATIVIDADE(S) SEM DURAÇÃO INFORMADA; NÃO ACRESCENTAM HORAS.` : "",
       ].filter(Boolean);
     }).join("; ");
+    if (ajustePrevistas) cells[`B${observacoesRow}`] = [
+      cells[`B${observacoesRow}`],
+      `HORAS TRABALHADAS AJUSTADAS AO MÍNIMO DE HORAS PREVISTAS: ${horasApuradas.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2})} H APURADAS; ${horasPrevistas.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2})} H CONSIDERADAS.`,
+    ].filter(Boolean).join("; ");
   });
   // O resumo deve somar as mesmas células dos quatro períodos.
   const totalPrevistas = rows.reduce((total, [, linha]) => total + Number(cells[`B${linha}`] || 0), 0);
