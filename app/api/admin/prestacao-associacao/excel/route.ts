@@ -212,7 +212,8 @@ async function gerarHoras(
   relatorios: Registro[],
   usuarios: Map<string, typeof colaboradores.$inferSelect>,
 ) {
-  const profissionais = [...new Set(relatorios.map((item) => usuarios.get(item.authUserId)?.nomeCompleto).filter(Boolean))] as string[];
+  const idsProfissionais = [...new Set(relatorios.map((item) => item.authUserId))];
+  const profissionais = idsProfissionais.map(id => usuarios.get(id)?.nomeCompleto || "PROFISSIONAL NÃO IDENTIFICADO");
   const cargos = [...new Set(relatorios.map((item) => usuarios.get(item.authUserId)?.cargo).filter(Boolean))] as string[];
   const cells: Record<string, CellValue> = { B4: profissionais.join("; "), B5: cargos.join("; "), B6: 32.5 };
   const rows = [[11, 12, 13, 15], [19, 20, 21, 23], [27, 28, 29, 31], [35, 36, 37, 39]];
@@ -220,10 +221,15 @@ async function gerarHoras(
     const meses = trimestres[quarterIndex]?.filter(competencia=>competencias.includes(competencia))||[];
     const registros = relatorios.filter((relatorio) => meses.includes(relatorio.competencia));
     cells[`B${periodoRow}`] = meses.map(mesReferencia).join("; ");
-    cells[`B${previstasRow}`] = meses.length ? 160 : "";
+    cells[`B${previstasRow}`] = meses.length ? 160 * meses.length * idsProfissionais.length : "";
     cells[`B${trabalhadasRow}`] = registros.length ? Number((registros.reduce((total, item) => total + item.totalMinutos, 0) / 60).toFixed(2)) : "";
     cells[`B${observacoesRow}`] = registros.map((item) => texto(item.observacoes)).filter(Boolean).join("; ");
   });
+  // O resumo deve somar as mesmas células dos quatro períodos.
+  const totalPrevistas = rows.reduce((total, [, linha]) => total + Number(cells[`B${linha}`] || 0), 0);
+  const totalTrabalhadas = rows.reduce((total, [, , linha]) => total + Number(cells[`B${linha}`] || 0), 0);
+  cells.E5 = totalPrevistas;
+  cells.E7 = totalPrevistas ? totalTrabalhadas / totalPrevistas : "";
   const template = await carregarTemplate(request, "controle-de-horas-fomento.xlsx");
   return fillXlsxTemplate(template, { "xl/worksheets/sheet1.xml": cells });
 }
