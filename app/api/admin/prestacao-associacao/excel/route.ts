@@ -226,8 +226,8 @@ async function gerarHoras(
     const linhaValor = trabalhadasRow + 1;
     const horasTrabalhadas = Number(cells[`B${trabalhadasRow}`] || 0);
     cells[`B${linhaValor}`] = {
-      formula: `IF(OR(B${trabalhadasRow}="",$B$6=""),"",B${trabalhadasRow}*$B$6)`,
-      cached: registros.length ? Number((horasTrabalhadas * 32.5).toFixed(2)) : "",
+      formula: `IF(OR(B${trabalhadasRow}="",$B$6=""),"",ROUND(B${trabalhadasRow}*$B$6,2))`,
+      cached: registros.length ? Math.round(Math.round(horasTrabalhadas * 100) * 3250 / 100) / 100 : "",
     };
     cells[`B${observacoesRow}`] = registros.map((item) => texto(item.observacoes)).filter(Boolean).join("; ");
   });
