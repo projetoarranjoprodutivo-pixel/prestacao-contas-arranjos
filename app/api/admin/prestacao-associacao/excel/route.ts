@@ -23,6 +23,7 @@ type Atividade = {
   quantidadeMudas?: string;
   data?: string;
   duracao?: string;
+  unidadeDuracao?: "horas";
   resumo?: string;
 };
 type Arquivo = {
@@ -205,6 +206,18 @@ async function gerarAgricultura(
   });
 }
 
+function apurarHoras(relatorio: Registro) {
+  const todas = lista<Atividade>(relatorio.atividadesJson);
+  const atividades = todas.filter(a => a.executada !== false);
+  const duracoes = atividades.map(a => {
+    const valor = Number(String(a.duracao ?? "").trim().replace(",", "."));
+    return Number.isFinite(valor) && valor > 0 ? valor * (a.unidadeDuracao === "horas" ? 60 : 1) : 0;
+  });
+  const informadas = duracoes.filter(valor => valor > 0).length;
+  const minutos = informadas ? duracoes.reduce((soma, valor) => soma + valor, 0) : todas.length && !atividades.length ? 0 : Math.max(0, Number(relatorio.totalMinutos) || 0);
+  return { minutos, semDuracao: atividades.length - informadas, totalDeclarado: !informadas && minutos > 0 };
+}
+
 async function gerarHoras(
   request: Request,
   competencias: string[],
@@ -222,14 +235,21 @@ async function gerarHoras(
     const registros = relatorios.filter((relatorio) => meses.includes(relatorio.competencia));
     cells[`B${periodoRow}`] = meses.map(mesReferencia).join("; ");
     cells[`B${previstasRow}`] = meses.length ? 160 * meses.length * idsProfissionais.length : "";
-    cells[`B${trabalhadasRow}`] = registros.length ? Number((registros.reduce((total, item) => total + item.totalMinutos, 0) / 60).toFixed(2)) : "";
+    cells[`B${trabalhadasRow}`] = registros.length ? Number((registros.reduce((total, item) => total + apurarHoras(item).minutos, 0) / 60).toFixed(2)) : "";
     const linhaValor = trabalhadasRow + 1;
     const horasTrabalhadas = Number(cells[`B${trabalhadasRow}`] || 0);
     cells[`B${linhaValor}`] = {
       formula: `IF(OR(B${trabalhadasRow}="",$B$6=""),"",ROUND(B${trabalhadasRow}*$B$6,2))`,
       cached: registros.length ? Math.round(Math.round(horasTrabalhadas * 100) * 3250 / 100) / 100 : "",
     };
-    cells[`B${observacoesRow}`] = registros.map((item) => texto(item.observacoes)).filter(Boolean).join("; ");
+    cells[`B${observacoesRow}`] = registros.flatMap((item) => {
+      const apuracao = apurarHoras(item);
+      const nome = usuarios.get(item.authUserId)?.nomeCompleto || "PROFISSIONAL NÃO IDENTIFICADO";
+      return [texto(item.observacoes),
+        apuracao.totalDeclarado ? `${nome} (${item.competencia}): HORAS CONFORME TOTAL DECLARADO NO RELATÓRIO, SEM DURAÇÕES INDIVIDUAIS.` : "",
+        apuracao.semDuracao && !apuracao.totalDeclarado ? `${nome} (${item.competencia}): ${apuracao.semDuracao} ATIVIDADE(S) SEM DURAÇÃO INFORMADA; NÃO ACRESCENTAM HORAS.` : "",
+      ].filter(Boolean);
+    }).join("; ");
   });
   // O resumo deve somar as mesmas células dos quatro períodos.
   const totalPrevistas = rows.reduce((total, [, linha]) => total + Number(cells[`B${linha}`] || 0), 0);
