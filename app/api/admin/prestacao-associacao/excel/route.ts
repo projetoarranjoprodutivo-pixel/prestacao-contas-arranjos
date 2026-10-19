@@ -260,10 +260,6 @@ async function gerarHoras(
         apuracao.semDuracao && !apuracao.totalDeclarado && !apuracao.horasPadrao ? `${nome} (${item.competencia}): ${apuracao.semDuracao} ATIVIDADE(S) SEM DURAÇÃO INFORMADA; NÃO ACRESCENTAM HORAS.` : "",
       ].filter(Boolean);
     }).join("; ");
-    if (ajustePrevistas) cells[`B${observacoesRow}`] = [
-      cells[`B${observacoesRow}`],
-      `HORAS TRABALHADAS AJUSTADAS AO MÍNIMO DE HORAS PREVISTAS: ${horasApuradas.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2})} H APURADAS; ${horasPrevistas.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2})} H CONSIDERADAS.`,
-    ].filter(Boolean).join("; ");
   });
   // O resumo deve somar as mesmas células dos quatro períodos.
   const totalPrevistas = rows.reduce((total, [, linha]) => total + Number(cells[`B${linha}`] || 0), 0);
