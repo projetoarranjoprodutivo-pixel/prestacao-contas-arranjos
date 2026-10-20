@@ -3,7 +3,7 @@ import {and,eq} from "drizzle-orm";
 import {getAdminUser} from "@/lib/admin";
 import {getDb} from "@/db";
 import {colaboradores,prestacoes,planosTrabalho} from "@/db/schema";
-import {identificarColaborador,listaJson,contarLinhasTabela,type AtividadeImportada} from "@/lib/importacao-relatorios";
+import {identificarColaborador,listaJson,contarLinhasTabela,tipoAtividadeImportada,descricaoDetalhadaOriginal,type AtividadeImportada} from "@/lib/importacao-relatorios";
 export const runtime="edge";
 type Ai={toMarkdown:(file:{name:string;blob:Blob},options?:unknown)=>Promise<{data?:string;error?:string}|Array<{data?:string;error?:string}>>;run:(model:string,input:unknown)=>Promise<unknown>};
 export async function GET(request:Request){
@@ -39,6 +39,10 @@ export async function POST(request:Request){
   const item=Object.fromEntries(campos.map(c=>[c,String(a[c]??"")])) as Record<typeof campos[number],string>;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(item.data)||Number.isNaN(Date.parse(item.data))||new Date(item.data).toISOString().slice(0,10)!==item.data){item.data="";avisos.push(`Atividade ${index+1}: confira e preencha a data não identificada.`);}
   if(item.duracao&&(!Number.isFinite(Number(item.duracao))||Number(item.duracao)<0||Number(item.duracao)>1440)){item.duracao="";avisos.push(`Atividade ${index+1}: duração não identificada com segurança.`);}
+  item.resumo=item.resumo||item.observacao||String(a.descricao||"")||item.tipoAtividade;
+  item.tipoAtividade=tipoAtividadeImportada(item.tipoAtividade,item.resumo);
+  if(item.tipoAtividade!=="Visita Técnica")item.agricultor="";
+  else if(/ACAMPAMENTO|ASSOCIACAO|SECRETARIA|PREFEITURA|TREINAMENTO|REUNIAO|VISITAMATAFRIA/.test(item.agricultor.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"")))item.agricultor="";
   return {...item,inicio:item.hora,executada:a.executada!==false,assinaturaProdutor:"",assinaturaTecnico:""};
  });
  const linhasTabela=contarLinhasTabela(conteudo);
@@ -46,6 +50,6 @@ export async function POST(request:Request){
  if(linhasTabela>atividades.length)avisos.push(`Confira a tabela original: ${linhasTabela} linhas com data e horário e ${atividades.length} atividades identificadas. Linhas sem atividade executada podem explicar a diferença.`);
  const pessoas=await getDb().select({id:colaboradores.id,nomeCompleto:colaboradores.nomeCompleto,email:colaboradores.email,associacao:colaboradores.associacao,associacoesJson:colaboradores.associacoesJson}).from(colaboradores);
  const nome=String(dados.nomeCompleto||""),email=String(dados.email||"");
- return Response.json({colaboradorId:identificarColaborador(nome,email,pessoas),nomeCompleto:nome,email,competencia:String(dados.competencia||""),associacao:String(dados.associacao||""),descricao:String(dados.descricao||""),atividades,avisos});
+ return Response.json({colaboradorId:identificarColaborador(nome,email,pessoas),nomeCompleto:nome,email,competencia:String(dados.competencia||""),associacao:String(dados.associacao||""),descricao:descricaoDetalhadaOriginal(conteudo)||String(dados.descricao||""),atividades,avisos:avisos.filter(aviso=>!(/DIVERG[EÊ]NCIA.*DATA|FORA.*M[EÊ]S/i.test(aviso)&&atividades.every(a=>a.data.startsWith(String(dados.competencia||"")))))});
  }catch(error){console.error("leitura_relatorio_pdf",error);return Response.json({message:error instanceof SyntaxError?"A LEITURA RETORNOU DADOS INCOMPLETOS. TENTE NOVAMENTE.":error instanceof Error?(error.name==="ZodError"?"ALGUMAS DATAS OU DURAÇÕES NÃO PUDERAM SER LIDAS COM SEGURANÇA. CONFIRA O PDF E TENTE NOVAMENTE.":error.message):"NÃO FOI POSSÍVEL LER O RELATÓRIO."},{status:422});}
 }

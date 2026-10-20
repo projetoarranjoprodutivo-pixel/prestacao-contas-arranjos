@@ -25,3 +25,25 @@ export function contarLinhasTabela(texto:string){
  const tabela=texto.slice(inicio,fim);
  return [...tabela.matchAll(/\b(?:0?[1-9]|[12]\d|3[01])\s*\/\s*(?:0?[1-9]|1[0-2])(?:\s*\/\s*(?:20)?\d{2})?\s+(?:[01]?\d|2[0-3]):[0-5]\d\b/g)].length;
 }
+
+export function tipoAtividadeImportada(tipo:string,resumo:string){
+ const classificar=(texto:string)=>{
+  if(/PREPAR|ORGANIZA|MOBILIZA/.test(texto))return "Mobilização";
+  if(/ENTREGA/.test(texto)&&/MUDA|CAFE|CACAU/.test(texto))return "Entrega de Mudas";
+  if(/VISITA|ORIENTACAOTECNICA/.test(texto))return "Visita Técnica";
+  if(/DIAS?DECAMPO/.test(texto))return "Dia de Campo";
+  if(/SEMINARIO/.test(texto))return "Seminário";
+  if(/TREINAMENTO|CAPACITACAO/.test(texto))return "Treinamento";
+  if(/REUNIAO|BATEPAPO/.test(texto))return "Reunião";
+  if(/EVENTO|CONCURSO|POLODO/.test(texto))return "Evento";
+  if(/INTERNA|INTERNO|ESTUDO|RELATORIO/.test(texto))return "Atividades internas";
+  return "";
+ };
+ return classificar(chaveTexto(tipo))||classificar(chaveTexto(resumo))||"Atividades internas";
+}
+
+export function descricaoDetalhadaOriginal(texto:string){
+ const inicio=texto.search(/5\s*\.\s*2\s*\.\s*DESCRI[CÇ][AÃ]O\s+DETALHADA/i);if(inicio<0)return "";
+ const trecho=texto.slice(inicio),fim=trecho.search(/\b6\s*\.\s*ANEXOS|\b(?:5|6)\s*\.\s*[13]\s*\.\s*REGISTROS\s+FOTOGR/i);
+ return (fim<0?trecho:trecho.slice(0,fim)).replace(/\[PÁGINA\s+\d+\]/gi,"").trim();
+}
