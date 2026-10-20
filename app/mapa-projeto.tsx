@@ -12,11 +12,12 @@ export default function MapaProjeto(){
  const [dados,setDados]=useState(iniciais),[selecionado,setSelecionado]=useState(""),[hover,setHover]=useState(""),[busca,setBusca]=useState(""),[estado,setEstado]=useState<"carregando"|"ok"|"erro">("carregando");
  useEffect(()=>{
   const controller=new AbortController();let consultando=false;
-  const atualizar=async()=>{if(consultando||document.hidden)return;consultando=true;try{const resposta=await fetch('/api/mapa-municipios',{signal:controller.signal,cache:'no-store'});if(!resposta.ok)throw new Error();const dados=await resposta.json() as {municipios:MunicipioMapa[];totalTecnicos:number};if(!controller.signal.aborted){setDados(dados.municipios);setTotalTecnicos(dados.totalTecnicos);setEstado('ok');}}catch(error){if(!controller.signal.aborted)setEstado('erro');}finally{consultando=false;}};
-  void atualizar();const intervalo=window.setInterval(()=>void atualizar(),15000);
-  const aoVoltar=()=>{if(!document.hidden)void atualizar();};
-  window.addEventListener('focus',aoVoltar);document.addEventListener('visibilitychange',aoVoltar);
-  return()=>{controller.abort();window.clearInterval(intervalo);window.removeEventListener('focus',aoVoltar);document.removeEventListener('visibilitychange',aoVoltar);};
+  const atualizar=async()=>{if(consultando)return;consultando=true;try{const resposta=await fetch('/api/mapa-municipios',{signal:controller.signal,cache:'no-store'});if(!resposta.ok)throw new Error();const dados=await resposta.json() as {municipios:MunicipioMapa[];totalTecnicos:number};if(!controller.signal.aborted){setDados(dados.municipios);setTotalTecnicos(dados.totalTecnicos);setEstado('ok');}}catch(error){if(!controller.signal.aborted)setEstado('erro');}finally{consultando=false;}};
+  void atualizar();
+  // O navegador pode restaurar a página pelo histórico sem remontar o React.
+  const aoRestaurar=(evento:PageTransitionEvent)=>{if(evento.persisted)void atualizar();};
+  window.addEventListener('pageshow',aoRestaurar);
+  return()=>{controller.abort();window.removeEventListener('pageshow',aoRestaurar);};
  },[]);
 
  const porNome=useMemo(()=>new Map(dados.map(m=>[chaveMunicipio(m.nome),m])),[dados]);
@@ -36,7 +37,7 @@ export default function MapaProjeto(){
       {malha.map(m=>{const chave=chaveMunicipio(m.nome),ativo=porNome.has(chave),foco=alvo===chave;return <path key={m.id} d={m.path} role="button" tabIndex={0} aria-label={`${m.nome}${ativo?", atendido pelo projeto":", fora da cobertura cadastrada"}`} aria-pressed={selecionado===chave} fill={foco?"#e6b44a":ativo?"#217a59":"#d0dcd7"} stroke={foco?"#794f08":"#fff"} strokeWidth={foco?2:1} className="cursor-pointer outline-none transition-colors focus:fill-amber-400" onMouseEnter={()=>setHover(chave)} onFocus={()=>setHover(chave)} onBlur={()=>setHover("")} onClick={()=>selecionar(m.nome)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selecionar(m.nome)}}}><title>{m.nome}{ativo?" · Projeto Arranjos Produtivos":""}</title></path>})}
      </svg>
      <div className="flex flex-wrap justify-center gap-4 text-xs text-slate-600"><span><i className="mr-2 inline-block h-3 w-3 rounded-sm bg-[#217a59]"/>Atendido</span><span><i className="mr-2 inline-block h-3 w-3 rounded-sm bg-[#e6b44a]"/>Selecionado</span><span><i className="mr-2 inline-block h-3 w-3 rounded-sm bg-[#d0dcd7]"/>Fora da cobertura cadastrada</span></div>
-     <p className="mt-3 text-center text-[11px] text-slate-500">Limites municipais: IBGE · Indicadores: registros do portal · atualização automática a cada 15 s</p>
+     <p className="mt-3 text-center text-[11px] text-slate-500">Limites municipais: IBGE · Indicadores: registros do portal · dados atualizados ao abrir esta página</p>
     </div>
     <div className="p-4 lg:min-h-0 lg:overflow-y-auto">
      <label className="block text-xs font-bold uppercase tracking-wide text-slate-500" htmlFor="busca-municipio">Encontre seu município</label><div className="relative mt-2"><Search className="absolute left-3 top-3 h-5 w-5 text-emerald-700"/><input id="busca-municipio" value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Digite o nome do município" className="h-11 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm focus:border-emerald-600"/></div>
