@@ -12,6 +12,6 @@ export async function GET(){
  // As entregas oficiais usam registros administrativos; evita somar novamente as referências dos técnicos.
  const oficiais=new Set(registros.filter(r=>r.usuario==="admin-importacao-mudas-2026").map(r=>`${r.municipio}|${r.competencia}`));
  const atividades=registros.filter(r=>!(/entrega de mudas/i.test(r.tipo)&&r.usuario!=="admin-importacao-mudas-2026"&&oficiais.has(`${r.municipio}|${r.competencia}`))).map(r=>({...r,executada:r.executada!==0,quantidade:typeof r.quantidade==="number"?r.quantidade:Number(String(r.quantidade).replace(/\./g,"").replace(",","."))||0}));
- return Response.json({municipios:consolidarMapa(grupos,pessoas,atividades),atualizadoEm:new Date().toISOString()},{headers:{"Cache-Control":"public, max-age=300"}});
+ return Response.json({municipios:consolidarMapa(grupos,pessoas,atividades),atualizadoEm:new Date().toISOString()},{headers:{"Cache-Control":"no-store, max-age=0"}});
  }catch(error){console.error('mapa_municipios',error);return Response.json({message:"Não foi possível consultar os indicadores agora."},{status:503});}
 }
