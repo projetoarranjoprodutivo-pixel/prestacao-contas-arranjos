@@ -4,7 +4,7 @@ import {ehEntregaMudas,quantidadeEntregue,tipoMudaEntregue} from "@/lib/entregas
 import {sql,eq} from "drizzle-orm";
 import {getDb} from "@/db";
 import {associacoes,colaboradores} from "@/db/schema";
-import {consolidarMapa} from "@/lib/mapa-municipios";
+import {consolidarMapa,tecnicoCampoAtivo} from "@/lib/mapa-municipios";
 export const runtime="edge";
 export async function GET(){
  try{const db=getDb();const [grupos,pessoas,registros,cadastros,entregas]=await Promise.all([
@@ -22,6 +22,6 @@ export async function GET(){
  const atividades=entregas.map(r=>{const atividade={tipoAtividade:r.tipo,tipoMuda:r.tipoMuda,quantidadeMudas:r.quantidade,resumo:r.resumo};return {...r,usuario:"admin-importacao-mudas-2026",produtor:"",tipo:"Entrega de mudas",executada:r.executada!==0&&ehEntregaMudas(atividade),quantidade:quantidadeEntregue(atividade),tipoMuda:tipoMudaEntregue(atividade)};});
  const municipios=consolidarMapa(grupos,pessoas,atividades,[...agricultoresBase.map(c=>({nome:c.n,municipio:c.m})),...cadastros]);
  for(const r of registros){const m=municipios.find(m=>chaveMunicipio(m.nome)===chaveMunicipio(r.municipio));if(m){m.atendimentos+=Number(r.atendimentos)||0;m.produtores+=Number(r.produtores)||0;m.eventos+=Number(r.eventos)||0;if(r.competencia>m.ultimaCompetencia)m.ultimaCompetencia=r.competencia;}}
- return Response.json({municipios,atualizadoEm:new Date().toISOString()},{headers:{"Cache-Control":"no-store, max-age=0"}});
+ return Response.json({municipios,totalTecnicos:new Set(pessoas.filter(tecnicoCampoAtivo).map(p=>p.authUserId)).size,atualizadoEm:new Date().toISOString()},{headers:{"Cache-Control":"no-store, max-age=0"}});
  }catch(error){console.error('mapa_municipios',error);return Response.json({message:"Não foi possível consultar os indicadores agora."},{status:503});}
 }
