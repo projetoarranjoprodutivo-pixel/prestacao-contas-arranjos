@@ -13,11 +13,13 @@ export async function GET(request:Request){
     db.query.prestacoes.findFirst({where:and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))}),
     db.query.planosTrabalho.findFirst({where:and(eq(planosTrabalho.authUserId,user.userId),eq(planosTrabalho.competencia,competencia))}),
   ]);
-  const converter=(a:Record<string,string>)=>({executada:true,municipio:a.municipio||"",comunidade:a.comunidade||"",propriedade:a.propriedade||"",agricultor:a.agricultor||"",telefone:a.telefone||"",tipoAtividade:a.tipoAtividade||"Visita Técnica",tipoMuda:a.tipoMuda||"",quantidadeMudas:a.quantidadeMudas||"",data:a.data||"",inicio:a.hora||"",duracao:"",unidadeDuracao:"horas" as const,resumo:a.observacao||"",assinaturaProdutor:"",assinaturaTecnico:""});
+  const converter=(a:Record<string,string>)=>({executada:true,municipio:a.municipio||"",comunidade:a.comunidade||"",propriedade:a.propriedade||"",agricultor:a.agricultor||"",telefone:a.telefone||"",tipoAtividade:a.tipoAtividade||"Visita Técnica",tipoMuda:a.tipoMuda||"",quantidadeMudas:a.quantidadeMudas||"",data:a.data||"",inicio:a.hora||"",duracao:a.duracaoEstimada||"",unidadeDuracao:"horas" as const,resumo:a.observacao||"",assinaturaProdutor:"",assinaturaTecnico:""});
   if(existente){
     const atividades=JSON.parse(existente.atividadesJson) as Atividade[];
     const agenda=plano?JSON.parse(plano.agendaJson) as Array<Record<string,string>>:[];
     const chave=(a:{data?:string;inicio?:string;tipoAtividade?:string;municipio?:string;agricultor?:string})=>[a.data,a.inicio,a.tipoAtividade,a.municipio,a.agricultor].join("|");
+    const previstas=new Map(agenda.map(converter).map(a=>[chave(a),a]));
+    for(const a of atividades){const prevista=previstas.get(chave(a));if(!a.duracao?.trim() && prevista?.duracao){a.duracao=prevista.duracao;a.unidadeDuracao="horas";}}
     const existentes=new Set(atividades.map(chave));
     const novas=agenda.map(converter).filter(a=>!existentes.has(chave(a)));
     return Response.json({origem:"prestacao",municipio:existente.municipio,atividades:[...atividades,...novas],atividadesNovas:novas.length,observacoes:existente.observacoes||"",anexos:JSON.parse(existente.anexosJson||"[]")});

@@ -276,6 +276,10 @@ export default function PrestacaoForm({
             Adicionar atividade
           </button>
         </div>
+        <p role="status" className="sticky top-0 z-10 mt-3 rounded-xl bg-emerald-100 p-4 font-bold text-emerald-950">
+          Total de horas informadas: {atividades.reduce((total,a)=>total+(Number(String(a.duracao||"0").replace(",","."))||0),0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} h
+          <span className="ml-4">Horas executadas: {atividades.filter(a=>a.executada).reduce((total,a)=>total+(Number(String(a.duracao||"0").replace(",","."))||0),0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} h</span>
+        </p>
         <div className="mt-3 space-y-4">
           {atividades.map((a, i) => (
             <section
