@@ -2,7 +2,7 @@ import { ativoNaCompetencia } from "@/lib/vinculo-colaborador";
 import { categoriaDaNota } from "@/lib/classificacao-notas";
 type ColaboradorNota={id:number;nomeCompleto:string;nomeEmpresarial:string|null;mei:string|null;email:string;cargo:string;associacao:string|null;associacoesJson:string;dataSaida?:string|null;dataAdmissao?:string|null};
 type DocumentoNota={associacao:string;competencia:string;notasFiscaisJson:string};
-type ArquivoNota={categoriaNota?:string;nome?:string;descricao?:string};
+type ArquivoNota={categoriaNota?:string;nome?:string;descricao?:string;key?:string;fornecedor?:string;prestador?:string;cnpjPrestador?:string};
 
 function normalizar(valor?:string|null){return String(valor||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Z0-9]+/gi," ").trim().toUpperCase();}
 
@@ -19,7 +19,7 @@ function tokensIdentificadores(usuario:ColaboradorNota){
 }
 
 function pertence(nota:ArquivoNota,usuario:ColaboradorNota,usuariosAssociacao:ColaboradorNota[]){
-  const texto=normalizar(`${nota.nome||""} ${nota.descricao||""}`);if(!texto)return false;
+  const texto=normalizar(`${nota.nome||""} ${nota.descricao||""} ${nota.key?.split("/").pop()||""} ${nota.fornecedor||""} ${nota.prestador||""} ${nota.cnpjPrestador||""}`);if(!texto)return false;
   const candidatos=[usuario.nomeCompleto,usuario.nomeEmpresarial,usuario.email.split("@")[0]].map(normalizar).filter(Boolean);
   if(candidatos.some(candidato=>{
     if(candidato.length>=5&&texto.includes(candidato))return true;
@@ -33,14 +33,15 @@ function pertence(nota:ArquivoNota,usuario:ColaboradorNota,usuariosAssociacao:Co
 function ehNotaServico(nota:ArquivoNota){return categoriaDaNota(nota)==="servico";}
 
 export function listarNotasServicoPendentes(usuarios:ColaboradorNota[],documentos:DocumentoNota[],competencias:string[]){
-  const porAssociacaoCompetencia=new Map(documentos.map(item=>[`${item.associacao}|${item.competencia}`,arquivos(item.notasFiscaisJson)]));
+  const porAssociacaoCompetencia=new Map<string,ArquivoNota[]>();
+  for(const item of documentos){const chave=`${normalizar(item.associacao).replace(/ /g,"")}|${item.competencia}`;porAssociacaoCompetencia.set(chave,[...(porAssociacaoCompetencia.get(chave)||[]),...arquivos(item.notasFiscaisJson)]); }
   const associacoes=[...new Set(usuarios.flatMap(associacoesDoColaborador))];const pendentes=[];
   for(const associacao of associacoes){
     const vinculados=usuarios.filter(usuario=>associacoesDoColaborador(usuario).includes(associacao));
     for(const competencia of competencias){
       const ativos=vinculados.filter(usuario=>ativoNaCompetencia(usuario,competencia));
       if(!ativos.length)continue;
-      const notas=(porAssociacaoCompetencia.get(`${associacao}|${competencia}`)||[]).filter(ehNotaServico);
+      const notas=(porAssociacaoCompetencia.get(`${normalizar(associacao).replace(/ /g,"")}|${competencia}`)||[]).filter(ehNotaServico);
       const identificados=ativos.filter(usuario=>notas.some(nota=>pertence(nota,usuario,ativos)));
       const semIdentificacao=ativos.filter(usuario=>!identificados.includes(usuario));
       const notasIdentificadas=notas.filter(nota=>ativos.some(usuario=>pertence(nota,usuario,ativos))).length;
