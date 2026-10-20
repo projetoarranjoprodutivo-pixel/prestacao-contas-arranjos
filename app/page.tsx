@@ -1,4 +1,4 @@
-import MapaProjeto from "./mapa-projeto";
+import MapaProjeto from "./mapa-carregamento";
 import { ArrowRight, Building2, ClipboardCheck, Landmark, LockKeyhole, ShieldCheck, UserPlus } from "lucide-react";
 import { chatGPTSignInPath, getChatGPTUser } from "./chatgpt-auth";
 
