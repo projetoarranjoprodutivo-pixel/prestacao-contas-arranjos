@@ -6,9 +6,26 @@ type ArquivoNota={categoriaNota?:string;nome?:string;descricao?:string;key?:stri
 
 function normalizar(valor?:string|null){return String(valor||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Z0-9]+/gi," ").trim().toUpperCase();}
 
+// Siglas históricas representam a mesma associação, sem alterar os cadastros.
+function chaveAssociacao(valor:string){const chave=normalizar(valor).replace(/ /g,"");return chave==="APROVIPA"?"APPROVIPA":chave;}
+
+export function competenciaDaNota(nota:ArquivoNota,competenciaEnvio:string){
+ const meses=["JANEIRO","FEVEREIRO","MARCO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+ // O nome costuma informar o mês do serviço; a emissão pode ser no mês seguinte.
+ const nome=normalizar(nota.nome);
+ const anoNome=nome.match(/\b(20\d{2})\b/)?.[1];
+ const mesNome=meses.findIndex(m=>new RegExp(`\\b${m}\\b`).test(nome));
+ if(mesNome>=0)return `${anoNome||competenciaEnvio.slice(0,4)}-${String(mesNome+1).padStart(2,"0")}`;
+ const descricao=normalizar(nota.descricao);
+ const referencia=descricao.match(/\bCOMPETENCIA\s+(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\s+(?:DE\s+)?(20\d{2})\b/);
+ if(referencia)return `${referencia[2]}-${String(meses.indexOf(referencia[1])+1).padStart(2,"0")}`;
+ const numerica=descricao.match(/\bCOMPETENCIA\s+(20\d{2})\s+(0[1-9]|1[0-2])\b/);
+ return numerica?`${numerica[1]}-${numerica[2]}`:competenciaEnvio;
+}
+
 function associacoesDoColaborador(usuario:ColaboradorNota){
   let lista:string[]=[];try{const dados=JSON.parse(usuario.associacoesJson||"[]");if(Array.isArray(dados))lista=dados.filter((item):item is string=>typeof item==="string"&&!!item.trim());}catch{}
-  if(!lista.length&&usuario.associacao)lista=[usuario.associacao];return [...new Set(lista)];
+  if(!lista.length&&usuario.associacao)lista=[usuario.associacao];return [...new Map(lista.map(nome=>[chaveAssociacao(nome),nome])).values()];
 }
 
 function arquivos(valor:string){try{const dados=JSON.parse(valor);return Array.isArray(dados)?dados.filter((item):item is ArquivoNota=>!!item&&typeof item==="object"):[];}catch{return [];}}
@@ -34,14 +51,14 @@ function ehNotaServico(nota:ArquivoNota){return categoriaDaNota(nota)==="servico
 
 export function listarNotasServicoPendentes(usuarios:ColaboradorNota[],documentos:DocumentoNota[],competencias:string[]){
   const porAssociacaoCompetencia=new Map<string,ArquivoNota[]>();
-  for(const item of documentos){const chave=`${normalizar(item.associacao).replace(/ /g,"")}|${item.competencia}`;porAssociacaoCompetencia.set(chave,[...(porAssociacaoCompetencia.get(chave)||[]),...arquivos(item.notasFiscaisJson)]); }
-  const associacoes=[...new Set(usuarios.flatMap(associacoesDoColaborador))];const pendentes=[];
+  for(const item of documentos)for(const nota of arquivos(item.notasFiscaisJson)){const chave=`${chaveAssociacao(item.associacao)}|${competenciaDaNota(nota,item.competencia)}`;porAssociacaoCompetencia.set(chave,[...(porAssociacaoCompetencia.get(chave)||[]),nota]);}
+  const associacoes=[...new Map(usuarios.flatMap(associacoesDoColaborador).map(nome=>[chaveAssociacao(nome),nome])).values()];const pendentes=[];
   for(const associacao of associacoes){
-    const vinculados=usuarios.filter(usuario=>associacoesDoColaborador(usuario).includes(associacao));
+    const vinculados=usuarios.filter(usuario=>associacoesDoColaborador(usuario).some(nome=>chaveAssociacao(nome)===chaveAssociacao(associacao)));
     for(const competencia of competencias){
       const ativos=vinculados.filter(usuario=>ativoNaCompetencia(usuario,competencia));
       if(!ativos.length)continue;
-      const notas=(porAssociacaoCompetencia.get(`${normalizar(associacao).replace(/ /g,"")}|${competencia}`)||[]).filter(ehNotaServico);
+      const notas=(porAssociacaoCompetencia.get(`${chaveAssociacao(associacao)}|${competencia}`)||[]).filter(ehNotaServico);
       const identificados=ativos.filter(usuario=>notas.some(nota=>notaPertenceAoColaborador(nota,usuario,ativos)));
       const semIdentificacao=ativos.filter(usuario=>!identificados.includes(usuario));
       const notasIdentificadas=notas.filter(nota=>ativos.some(usuario=>notaPertenceAoColaborador(nota,usuario,ativos))).length;

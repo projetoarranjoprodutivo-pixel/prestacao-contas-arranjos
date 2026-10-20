@@ -88,7 +88,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
     usaPrestacoes?db.select({id:prestacoes.id,authUserId:prestacoes.authUserId,competencia:prestacoes.competencia,associacao:prestacoes.associacao,status:prestacoes.status,atualizadoEm:prestacoes.atualizadoEm}).from(prestacoes).where(inArray(prestacoes.competencia,competenciasSelecionadas)):Promise.resolve([]),
     db.select().from(associacoes),
     aba==="acessos"?db.select().from(usuariosAcesso):Promise.resolve([]),
-    usaDocumentos?db.select().from(documentosAssociacao).where(inArray(documentosAssociacao.competencia,competenciasSelecionadas)):Promise.resolve([]),
+    usaDocumentos?db.select().from(documentosAssociacao).where(aba==="pendencias"?undefined:inArray(documentosAssociacao.competencia,competenciasSelecionadas)):Promise.resolve([]),
     usaCompetencias?db.select({competencia:planosTrabalho.competencia}).from(planosTrabalho).groupBy(planosTrabalho.competencia):Promise.resolve([]),
     usaCompetencias?db.select({competencia:prestacoes.competencia}).from(prestacoes).groupBy(prestacoes.competencia):Promise.resolve([]),
     usaCompetencias?db.select({competencia:documentosAssociacao.competencia}).from(documentosAssociacao).groupBy(documentosAssociacao.competencia):Promise.resolve([]),
@@ -118,7 +118,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const admitidoNaCompetencia=(usuario:typeof usuarios[number],competenciaPendente:string)=>ativoNaCompetencia(usuario,competenciaPendente);
   const pendentesPlano=competenciasSelecionadas.flatMap(competenciaPendente=>usuarios.filter(u=>admitidoNaCompetencia(u,competenciaPendente)&&!comPlano.has(`${u.authUserId}|${competenciaPendente}`)).map(u=>({...u,competencia:competenciaPendente})));
   const pendentesPrestacao=competenciasSelecionadas.flatMap(competenciaPendente=>usuarios.filter(u=>admitidoNaCompetencia(u,competenciaPendente)&&!comPrestacao.has(`${u.authUserId}|${competenciaPendente}`)).map(u=>({...u,competencia:competenciaPendente})));
-  const notasServicoPendentes=aba==="pendencias"?listarNotasServicoPendentes(usuarios,documentosDasAssociacoes.filter(item=>competenciasSelecionadas.includes(item.competencia)),competenciasSelecionadas):[];
+  const notasServicoPendentes=aba==="pendencias"?listarNotasServicoPendentes(usuarios,documentosDasAssociacoes,competenciasSelecionadas):[];
   const hoje=new Date().toISOString().slice(0,10);const vencidos=usuarios.filter(u=>ativoNaCompetencia(u,hoje.slice(0,7))&&u.documentoValidade<hoje);
   const cargos=[...usuarios.reduce((acc,u)=>{const cargoOriginal=(u.cargo||"CARGO NÃO INFORMADO").trim().replace(/\s+/g," ").normalize("NFC");const chave=cargoOriginal.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleUpperCase("pt-BR");const cargo=chave==="TECNICO DE CAMPO"?"TÉCNICO DE CAMPO":cargoOriginal.toLocaleUpperCase("pt-BR");const atual=acc.get(chave);if(atual)atual[1]+=1;else acc.set(chave,[cargo,1]);return acc;},new Map<string,[string,number]>()).values()].sort((a,b)=>a[0].localeCompare(b[0],"pt-BR"));
   const entregasParaEditar:Array<{prestacaoId:number;atividadeIndex:number;competencia:string;colaborador:string;municipio:string;data:string;tipo:string;quantidade:number}>=[];
