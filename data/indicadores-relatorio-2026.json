@@ -1,0 +1,251 @@
+{
+  "fonte": "RELATÓRIO GERAL 2026 — Prestação de Contas Parcial — Exercício 2026",
+  "periodo": "2026 (relatório parcial; sem data de corte informada)",
+  "municipios": [
+    {
+      "nome": "Águia Branca",
+      "cadastrados": 93,
+      "atendidos": 65
+    },
+    {
+      "nome": "Alegre",
+      "cadastrados": 260,
+      "atendidos": 80,
+      "mudas2026": 33000,
+      "mudas2024a2026": 240000
+    },
+    {
+      "nome": "Alfredo Chaves",
+      "cadastrados": 60,
+      "atendidos": 16,
+      "mudas2026": 38000,
+      "mudas2024a2026": 38000
+    },
+    {
+      "nome": "Alto Rio Novo",
+      "cadastrados": 77,
+      "atendidos": 35,
+      "mudas2026": 8500,
+      "mudas2024a2026": 8760
+    },
+    {
+      "nome": "Anchieta",
+      "cadastrados": 102,
+      "atendidos": 80
+    },
+    {
+      "nome": "Atílio Vivácqua",
+      "cadastrados": 42,
+      "atendidos": 42,
+      "mudas2026": 36000,
+      "mudas2024a2026": 36000
+    },
+    {
+      "nome": "Boa Esperança",
+      "cadastrados": 340,
+      "atendidos": 315,
+      "mudas2026": 12000,
+      "mudas2024a2026": 12000
+    },
+    {
+      "nome": "Brejetuba",
+      "cadastrados": 62,
+      "atendidos": 62
+    },
+    {
+      "nome": "Colatina",
+      "cadastrados": 22,
+      "atendidos": 22,
+      "mudas2026": 5500,
+      "mudas2024a2026": 5500
+    },
+    {
+      "nome": "Conceição da Barra",
+      "cadastrados": 881,
+      "atendidos": 345,
+      "mudas2026": 38000,
+      "mudas2024a2026": 38000
+    },
+    {
+      "nome": "Conceição do Castelo",
+      "cadastrados": 67,
+      "atendidos": 40,
+      "mudas2026": 5000,
+      "mudas2024a2026": 5000
+    },
+    {
+      "nome": "Divino de São Lourenço",
+      "cadastrados": 75,
+      "atendidos": 75
+    },
+    {
+      "nome": "Ecoporanga",
+      "cadastrados": 70,
+      "atendidos": 70,
+      "mudas2026": 6000,
+      "mudas2024a2026": 6000
+    },
+    {
+      "nome": "Guaçuí",
+      "cadastrados": 85,
+      "atendidos": 66,
+      "mudas2026": 41000,
+      "mudas2024a2026": 104000
+    },
+    {
+      "nome": "Guarapari",
+      "cadastrados": 24,
+      "atendidos": 24
+    },
+    {
+      "nome": "Ibatiba",
+      "cadastrados": 27,
+      "atendidos": 26
+    },
+    {
+      "nome": "Ibiraçu",
+      "cadastrados": 90,
+      "atendidos": 89,
+      "mudas2026": 6000,
+      "mudas2024a2026": 6365
+    },
+    {
+      "nome": "Ibitirama",
+      "cadastrados": 88,
+      "atendidos": 88
+    },
+    {
+      "nome": "Iconha",
+      "cadastrados": 63,
+      "atendidos": 59
+    },
+    {
+      "nome": "Itapemirim",
+      "cadastrados": 96,
+      "atendidos": 81,
+      "mudas2026": 2000,
+      "mudas2024a2026": 19320
+    },
+    {
+      "nome": "Iúna",
+      "cadastrados": 41,
+      "atendidos": 41
+    },
+    {
+      "nome": "Jaguaré",
+      "cadastrados": 314,
+      "atendidos": 201,
+      "mudas2026": 22000,
+      "mudas2024a2026": 95400
+    },
+    {
+      "nome": "Jerônimo Monteiro",
+      "cadastrados": 136,
+      "atendidos": 106,
+      "mudas2026": 33000,
+      "mudas2024a2026": 213700
+    },
+    {
+      "nome": "João Neiva",
+      "cadastrados": 66,
+      "atendidos": 66,
+      "mudas2026": 5500,
+      "mudas2024a2026": 40500
+    },
+    {
+      "nome": "Mantenópolis",
+      "cadastrados": 50,
+      "atendidos": 49
+    },
+    {
+      "nome": "Marilândia",
+      "cadastrados": 71,
+      "atendidos": 58,
+      "mudas2026": 5500,
+      "mudas2024a2026": 5500
+    },
+    {
+      "nome": "Montanha",
+      "cadastrados": 73,
+      "atendidos": 69,
+      "mudas2026": 38000,
+      "mudas2024a2026": 38000
+    },
+    {
+      "nome": "Muniz Freire",
+      "cadastrados": 190,
+      "atendidos": 130,
+      "mudas2026": 33000,
+      "mudas2024a2026": 264630
+    },
+    {
+      "nome": "Nova Venécia",
+      "cadastrados": 119,
+      "atendidos": 106,
+      "mudas2026": 38000,
+      "mudas2024a2026": 56244
+    },
+    {
+      "nome": "Pancas",
+      "cadastrados": 50,
+      "atendidos": 54
+    },
+    {
+      "nome": "Pedro Canário",
+      "cadastrados": 354,
+      "atendidos": 169,
+      "mudas2026": 40500,
+      "mudas2024a2026": 40500
+    },
+    {
+      "nome": "Piúma",
+      "cadastrados": 37,
+      "atendidos": 26,
+      "mudas2026": 35000,
+      "mudas2024a2026": 35000
+    },
+    {
+      "nome": "Rio Novo do Sul",
+      "cadastrados": 55,
+      "atendidos": 55,
+      "mudas2026": 35000,
+      "mudas2024a2026": 35000
+    },
+    {
+      "nome": "São Domingos do Norte",
+      "cadastrados": 90,
+      "atendidos": 90,
+      "mudas2026": 10500,
+      "mudas2024a2026": 10500
+    },
+    {
+      "nome": "Vila Pavão",
+      "cadastrados": 66,
+      "atendidos": 62,
+      "mudas2026": 7000,
+      "mudas2024a2026": 11400
+    },
+    {
+      "nome": "Vila Valério",
+      "cadastrados": 35,
+      "atendidos": 22,
+      "mudas2026": 5000,
+      "mudas2024a2026": 5000
+    }
+  ],
+  "investimentosAssociacoes": {
+    "ARQSCD": 947972,
+    "APRVG": 926772,
+    "APEAGRI": 873172,
+    "CAF COLATINA": 845172,
+    "APRUVAB": 825536,
+    "AAFARSCRUZ": 802772,
+    "MUNIZ CAF": 747572,
+    "AAFATRIM": 730772,
+    "APROVIPA": 595172,
+    "AAFAIAR": 520372,
+    "AAFAMA": 488372,
+    "APROFASAUNA": 370372,
+    "NEEMIAS": 325972
+  }
+}

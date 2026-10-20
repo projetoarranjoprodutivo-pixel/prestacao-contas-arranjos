@@ -1,3 +1,4 @@
+import MapaProjeto from "./mapa-projeto";
 import { ArrowRight, Building2, ClipboardCheck, Landmark, LockKeyhole, ShieldCheck, UserPlus } from "lucide-react";
 import { chatGPTSignInPath, getChatGPTUser } from "./chatgpt-auth";
 
@@ -20,5 +21,6 @@ export default async function Home() {
       <article className="group rounded-2xl border border-violet-200 bg-white p-6 shadow-[0_12px_40px_rgba(18,59,42,.08)] sm:p-8"><span className="grid h-12 w-12 place-items-center rounded-xl bg-violet-100 text-violet-800"><Building2 className="h-6 w-6"/></span><p className="mt-6 text-sm font-bold uppercase tracking-[.14em] text-violet-700">Associações</p><h2 className="mt-2 text-2xl font-bold">Documentos financeiros</h2><p className="mt-3 min-h-12 leading-6 text-slate-600">Envie extratos bancários e notas fiscais por competência.</p><a href={portalAssociacao} target="_top" className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-800 px-5 font-bold text-white transition hover:bg-violet-900">Acesso da associação <ArrowRight className="h-4 w-4"/></a></article>
       <article className="group rounded-2xl border border-teal-200 bg-white p-6 shadow-[0_12px_40px_rgba(18,59,42,.08)] sm:p-8"><span className="grid h-12 w-12 place-items-center rounded-xl bg-teal-100 text-teal-800"><Landmark className="h-6 w-6"/></span><p className="mt-6 text-sm font-bold uppercase tracking-[.14em] text-teal-700">ADERES</p><h2 className="mt-2 text-2xl font-bold">Análise e prestação</h2><p className="mt-3 min-h-12 leading-6 text-slate-600">Consulte documentos e gere as prestações oficiais das associações.</p><a href={portalAderes} target="_top" className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal-800 px-5 font-bold text-white transition hover:bg-teal-900">Acesso ADERES <ArrowRight className="h-4 w-4"/></a></article>
     </div><div className="mt-6 flex items-start justify-center gap-2 text-center text-sm text-slate-500"><LockKeyhole className="mt-0.5 h-4 w-4 shrink-0"/><p>O e-mail é utilizado como identificação do usuário. Seus dados e documentos ficam protegidos.</p></div></section>
+    <MapaProjeto/>
   </main>;
 }
