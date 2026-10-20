@@ -237,7 +237,7 @@ async function gerarHoras(
   const idsProfissionais = [...new Set(relatorios.map((item) => item.authUserId))];
   const profissionais = idsProfissionais.map(id => usuarios.get(id)?.nomeCompleto || "PROFISSIONAL NÃO IDENTIFICADO");
   const cargos = [...new Set(relatorios.map((item) => usuarios.get(item.authUserId)?.cargo).filter(Boolean))] as string[];
-  const cells: Record<string, CellValue> = { B4: profissionais.join("; "), B5: profissionais.map((nome,i)=>`${nome}: ${usuarios.get(idsProfissionais[i])?.cargo||""}`).join("; "), B6: "VARIÁVEL — VER DETALHAMENTO" };
+  const cells: Record<string, CellValue> = { B4: profissionais.join("; "), B5: profissionais.map((nome,i)=>`${nome}: ${usuarios.get(idsProfissionais[i])?.cargo||""}`).join("; "), B6: "" };
   const detalhes: CellValue[][] = [["PROFISSIONAL","CARGO / FUNÇÃO","COMPETÊNCIA","TRIMESTRE","NOTA FISCAL","TOTAL DAS NOTAS (R$)","VALOR DA HORA (R$)","HORAS TRABALHADAS","VALOR CORRESPONDENTE (R$)","SITUAÇÃO DA NOTA"]];
   const valoresTrimestres = [0,0,0,0];
   for(const [quarterIndex,meses] of trimestres.entries()) for(const mes of meses) for(const id of idsProfissionais){
@@ -252,6 +252,12 @@ async function gerarHoras(
     const linha=detalhes.length+1;
     detalhes.push([usuario.nomeCompleto,usuario.cargo,mes,`${quarterIndex+1}º TRIMESTRE`,notas.map(n=>n.numeroNota||n.nome).join("; "),totalNota||"",totalNota?{formula:`F${linha}/160`,cached:valorHora}:"",horas,totalNota?{formula:`ROUND(G${linha}*H${linha},2)`,cached:valor}:"",totalNota?"NOTA IDENTIFICADA":"SEM NOTA DE SERVIÇO IDENTIFICADA — VALOR NÃO CALCULADO"]);
   }
+  const valoresHora = idsProfissionais.map(id => {
+    const nome = usuarios.get(id)?.nomeCompleto || "PROFISSIONAL NÃO IDENTIFICADO";
+    const valores = [...new Set(detalhes.slice(1).filter(linha => linha[0] === nome).map(linha => linha[6]).filter((valor): valor is {formula:string;cached:number|string} => !!valor && typeof valor === "object").map(valor => Number(valor.cached)))];
+    return `${nome}: ${valores.length ? valores.map(valor => valor.toLocaleString("pt-BR", {style:"currency",currency:"BRL"})).join(" / ") : "SEM NOTA IDENTIFICADA"}`;
+  });
+  cells.B6 = valoresHora.join("; ");
   const rows = [[11, 12, 13, 15], [19, 20, 21, 23], [27, 28, 29, 31], [35, 36, 37, 39]];
   rows.forEach(([periodoRow, previstasRow, trabalhadasRow, observacoesRow], quarterIndex) => {
     const meses = trimestres[quarterIndex]?.filter(competencia=>competencias.includes(competencia))||[];
