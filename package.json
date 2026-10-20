@@ -7,8 +7,8 @@
   },
   "scripts": {
     "install:ci": "bash scripts/install-pnpm.sh",
-    "dev": "node scripts/run-framework.mjs dev",
-    "build": "vinext build",
+    "dev": "node scripts/prepare-pdfjs.mjs && node scripts/run-framework.mjs dev",
+    "build": "node scripts/prepare-pdfjs.mjs && vinext build",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
@@ -30,6 +30,7 @@
     "next": "16.3.4",
     "next-themes": "^0.4.6",
     "pdf-lib": "1.17.1",
+    "pdfjs-dist": "6.4.299",
     "radix-ui": "^1.6.7",
     "react": "19.2.6",
     "react-day-picker": "^10.0.1",

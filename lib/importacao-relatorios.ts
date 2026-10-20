@@ -18,3 +18,10 @@ export function unirAtividades<T extends {data?:string;hora?:string;inicio?:stri
 }
 export function totalMinutosImportados(atividades:Array<{duracao?:string;executada?:boolean}>){const feitas=atividades.filter(a=>a.executada!==false);const soma=feitas.reduce((t,a)=>t+(Number(a.duracao)||0),0);return soma|| (feitas.length?9600:0);}
 export const confirmarImportacaoSchema=z.object({colaboradorId:z.number().int().positive(),competencia:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),associacao:z.string().min(1).max(200),descricao:z.string().max(60000),atividades:z.array(atividadeImportadaSchema).min(1).max(500),modo:z.enum(["complementar","substituir"]),versaoPrestacao:z.string().nullable(),versaoPlano:z.string().nullable()});
+
+export function contarLinhasTabela(texto:string){
+ const inicio=texto.search(/5\s*\.\s*1\s*\./),fim=texto.search(/5\s*\.\s*2\s*\./);
+ if(inicio<0||fim<=inicio)return 0;
+ const tabela=texto.slice(inicio,fim);
+ return [...tabela.matchAll(/\b(?:0?[1-9]|[12]\d|3[01])\s*\/\s*(?:0?[1-9]|1[0-2])(?:\s*\/\s*(?:20)?\d{2})?\s+(?:[01]?\d|2[0-3]):[0-5]\d\b/g)].length;
+}

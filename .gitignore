@@ -44,3 +44,6 @@ next-env.d.ts
 /.codex/
 /outputs/
 /work/
+
+# PDF.js browser assets are copied from the pinned dependency during build.
+/public/pdfjs/
