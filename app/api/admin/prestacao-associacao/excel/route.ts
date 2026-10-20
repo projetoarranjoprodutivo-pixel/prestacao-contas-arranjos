@@ -246,11 +246,15 @@ async function gerarHoras(
     const horas=Math.max(160,registros.reduce((soma,r)=>soma+apurarHoras(r).minutos/60,0));
     const candidatos=documentos.filter(d=>d.competencia===mes).flatMap(d=>lista<Arquivo>(d.notasFiscaisJson)).filter(n=>categoriaDaNota(n)==="servico"&&notaPertenceAoColaborador(n,usuario,[...usuarios.values()]));
     const notas=[...new Map(candidatos.map(n=>[n.numeroNota?`NF:${n.numeroNota}`:texto(n.nome).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s*\(\d+\)/g,"").toUpperCase(),n])).values()];
-    const totalNota=notas.reduce((soma,n)=>soma+numeroDocumento(n.valor,true),0);
+    // O valor da hora vem de uma nota mensal, nunca da soma de reenvios.
+    const notaReferencia = notas.filter(n=>numeroDocumento(n.valor,true)>0).sort((a,b)=>
+      texto(b.dataEmissao).localeCompare(texto(a.dataEmissao)) || Number(b.numeroNota||0)-Number(a.numeroNota||0)
+    )[0];
+    const totalNota=notaReferencia?numeroDocumento(notaReferencia.valor,true):0;
     const valorHora=totalNota>0?totalNota/160:0;
     const valor=Number((horas*valorHora).toFixed(2)); valoresTrimestres[quarterIndex]+=valor;
     const linha=detalhes.length+1;
-    detalhes.push([usuario.nomeCompleto,usuario.cargo,mes,`${quarterIndex+1}º TRIMESTRE`,notas.map(n=>n.numeroNota||n.nome).join("; "),totalNota||"",totalNota?{formula:`F${linha}/160`,cached:valorHora}:"",horas,totalNota?{formula:`ROUND(G${linha}*H${linha},2)`,cached:valor}:"",totalNota?"NOTA IDENTIFICADA":"SEM NOTA DE SERVIÇO IDENTIFICADA — VALOR NÃO CALCULADO"]);
+    detalhes.push([usuario.nomeCompleto,usuario.cargo,mes,`${quarterIndex+1}º TRIMESTRE`,notaReferencia?.numeroNota||notaReferencia?.nome||"",totalNota||"",totalNota?{formula:`F${linha}/160`,cached:valorHora}:"",horas,totalNota?{formula:`ROUND(G${linha}*H${linha},2)`,cached:valor}:"",totalNota?"NOTA IDENTIFICADA":"SEM NOTA DE SERVIÇO IDENTIFICADA — VALOR NÃO CALCULADO"]);
   }
   const valoresHora = idsProfissionais.map(id => {
     const nome = usuarios.get(id)?.nomeCompleto || "PROFISSIONAL NÃO IDENTIFICADO";
