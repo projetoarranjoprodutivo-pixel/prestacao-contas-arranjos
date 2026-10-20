@@ -1,3 +1,4 @@
+import {notaPertenceAoColaborador} from "@/lib/notas-servico";
 import { categoriaDaNota } from "@/lib/classificacao-notas";
 import {numeroMonetario} from "@/lib/moeda";
 import { and, eq, inArray } from "drizzle-orm";
@@ -5,7 +6,7 @@ import { env } from "cloudflare:workers";
 import { getAderesOrAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { associacoes, colaboradores, documentosAssociacao, prestacoes } from "@/db/schema";
-import { excelDate, fillXlsxTemplate, type CellValue } from "@/lib/xlsx-template";
+import { excelDate, fillXlsxTemplate, addXlsxDetailSheet, type CellValue } from "@/lib/xlsx-template";
 import agricultoresIniciais from "@/data/agricultores-iniciais.json";
 import { ehEntregaMudas, quantidadeEntregue } from "@/lib/entregas-mudas";
 
@@ -27,6 +28,8 @@ type Atividade = {
   resumo?: string;
 };
 type Arquivo = {
+  key?: string;
+  numeroNota?: string;
   categoriaNota?: string;
   nome?: string;
   descricao?: string;
@@ -229,28 +232,40 @@ async function gerarHoras(
   trimestres: string[][],
   relatorios: Registro[],
   usuarios: Map<string, typeof colaboradores.$inferSelect>,
+  documentos: Array<typeof documentosAssociacao.$inferSelect>,
 ) {
   const idsProfissionais = [...new Set(relatorios.map((item) => item.authUserId))];
   const profissionais = idsProfissionais.map(id => usuarios.get(id)?.nomeCompleto || "PROFISSIONAL NÃO IDENTIFICADO");
   const cargos = [...new Set(relatorios.map((item) => usuarios.get(item.authUserId)?.cargo).filter(Boolean))] as string[];
-  const cells: Record<string, CellValue> = { B4: profissionais.join("; "), B5: cargos.join("; "), B6: 32.5 };
+  const cells: Record<string, CellValue> = { B4: profissionais.join("; "), B5: profissionais.map((nome,i)=>`${nome}: ${usuarios.get(idsProfissionais[i])?.cargo||""}`).join("; "), B6: "VARIÁVEL — VER DETALHAMENTO" };
+  const detalhes: CellValue[][] = [["PROFISSIONAL","CARGO / FUNÇÃO","COMPETÊNCIA","TRIMESTRE","NOTA FISCAL","TOTAL DAS NOTAS (R$)","VALOR DA HORA (R$)","HORAS TRABALHADAS","VALOR CORRESPONDENTE (R$)","SITUAÇÃO DA NOTA"]];
+  const valoresTrimestres = [0,0,0,0];
+  for(const [quarterIndex,meses] of trimestres.entries()) for(const mes of meses) for(const id of idsProfissionais){
+    const usuario=usuarios.get(id); if(!usuario)continue;
+    const registros=relatorios.filter(r=>r.authUserId===id&&r.competencia===mes);
+    const horas=Math.max(160,registros.reduce((soma,r)=>soma+apurarHoras(r).minutos/60,0));
+    const candidatos=documentos.filter(d=>d.competencia===mes).flatMap(d=>lista<Arquivo>(d.notasFiscaisJson)).filter(n=>categoriaDaNota(n)==="servico"&&notaPertenceAoColaborador(n,usuario,[...usuarios.values()]));
+    const notas=[...new Map(candidatos.map(n=>[n.numeroNota?`NF:${n.numeroNota}`:texto(n.nome).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s*\(\d+\)/g,"").toUpperCase(),n])).values()];
+    const totalNota=notas.reduce((soma,n)=>soma+numeroDocumento(n.valor,true),0);
+    const valorHora=totalNota>0?totalNota/160:0;
+    const valor=Number((horas*valorHora).toFixed(2)); valoresTrimestres[quarterIndex]+=valor;
+    const linha=detalhes.length+1;
+    detalhes.push([usuario.nomeCompleto,usuario.cargo,mes,`${quarterIndex+1}º TRIMESTRE`,notas.map(n=>n.numeroNota||n.nome).join("; "),totalNota||"",totalNota?{formula:`F${linha}/160`,cached:valorHora}:"",horas,totalNota?{formula:`ROUND(G${linha}*H${linha},2)`,cached:valor}:"",totalNota?"NOTA IDENTIFICADA":"SEM NOTA DE SERVIÇO IDENTIFICADA — VALOR NÃO CALCULADO"]);
+  }
   const rows = [[11, 12, 13, 15], [19, 20, 21, 23], [27, 28, 29, 31], [35, 36, 37, 39]];
   rows.forEach(([periodoRow, previstasRow, trabalhadasRow, observacoesRow], quarterIndex) => {
     const meses = trimestres[quarterIndex]?.filter(competencia=>competencias.includes(competencia))||[];
     const registros = relatorios.filter((relatorio) => meses.includes(relatorio.competencia));
     cells[`B${periodoRow}`] = meses.map(mesReferencia).join("; ");
     cells[`B${previstasRow}`] = meses.length ? 160 * meses.length * idsProfissionais.length : "";
-    cells[`B${trabalhadasRow}`] = registros.length ? Number((registros.reduce((total, item) => total + apurarHoras(item).minutos, 0) / 60).toFixed(2)) : "";
+    cells[`B${trabalhadasRow}`] = meses.length ? Number(detalhes.slice(1).filter(linha=>linha[3]===`${quarterIndex+1}º TRIMESTRE`).reduce((total,linha)=>total+Number(linha[7]||0),0).toFixed(2)) : "";
     const horasApuradas = Number(cells[`B${trabalhadasRow}`] || 0);
     const horasPrevistas = Number(cells[`B${previstasRow}`] || 0);
     const ajustePrevistas = horasPrevistas > horasApuradas;
     if (ajustePrevistas) cells[`B${trabalhadasRow}`] = horasPrevistas;
     const linhaValor = trabalhadasRow + 1;
     const horasTrabalhadas = Number(cells[`B${trabalhadasRow}`] || 0);
-    cells[`B${linhaValor}`] = {
-      formula: `IF(OR(B${trabalhadasRow}="",$B$6=""),"",ROUND(B${trabalhadasRow}*$B$6,2))`,
-      cached: meses.length ? Math.round(Math.round(horasTrabalhadas * 100) * 3250 / 100) / 100 : "",
-    };
+    cells[`B${linhaValor}`] = {formula: `SUMIF('Detalhamento'!D2:D${detalhes.length},"${quarterIndex+1}º TRIMESTRE",'Detalhamento'!I2:I${detalhes.length})`, cached: Number(valoresTrimestres[quarterIndex].toFixed(2))};
     cells[`B${observacoesRow}`] = registros.flatMap((item) => {
       const apuracao = apurarHoras(item);
       const nome = usuarios.get(item.authUserId)?.nomeCompleto || "PROFISSIONAL NÃO IDENTIFICADO";
@@ -273,7 +288,8 @@ async function gerarHoras(
   }, 0);
   cells.E8 = { formula: "SUM(B14,B22,B30,B38)", cached: Number(totalValores.toFixed(2)) };
   const template = await carregarTemplate(request, "controle-de-horas-fomento.xlsx");
-  return fillXlsxTemplate(template, { "xl/worksheets/sheet1.xml": cells });
+  detalhes.push(["TOTAL","","","","", "","",{formula:`SUM(H2:H${detalhes.length})`,cached:totalTrabalhadas},{formula:`SUM(I2:I${detalhes.length})`,cached:Number(totalValores.toFixed(2))},""]);
+  return addXlsxDetailSheet(fillXlsxTemplate(template, { "xl/worksheets/sheet1.xml": cells }), "Detalhamento", detalhes);
 }
 
 async function gerarExcel(request: Request) {
@@ -300,7 +316,7 @@ async function gerarExcel(request: Request) {
   const usuarios = new Map(cadastros.map((item) => [item.authUserId, item]));
   const arquivo = modelo === "agricultura"
     ? await gerarAgricultura(request, associacao, competencias, relatorios, usuarios, documentos)
-    : await gerarHoras(request, competencias, trimestres, relatorios, usuarios);
+    : await gerarHoras(request, competencias, trimestres, relatorios, usuarios, documentos);
   const sufixo = modelo === "agricultura" ? "controle-agricultura-familiar" : "controle-de-horas";
   const associacaoArquivo = associacao.nome.replace(/[^a-zA-Z0-9_-]/g, "-");
   return new Response(arquivo.buffer.slice(arquivo.byteOffset, arquivo.byteOffset + arquivo.byteLength), {

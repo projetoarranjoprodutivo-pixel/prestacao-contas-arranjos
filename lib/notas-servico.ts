@@ -18,7 +18,7 @@ function tokensIdentificadores(usuario:ColaboradorNota){
   return [...new Set([usuario.nomeCompleto,usuario.nomeEmpresarial,usuario.email.split("@")[0]].flatMap(valor=>normalizar(valor).split(" ")).filter(parte=>parte.length>=4&&!ignorados.has(parte)&&!/^\d+$/.test(parte)))];
 }
 
-function pertence(nota:ArquivoNota,usuario:ColaboradorNota,usuariosAssociacao:ColaboradorNota[]){
+export function notaPertenceAoColaborador(nota:ArquivoNota,usuario:ColaboradorNota,usuariosAssociacao:ColaboradorNota[]){
   const texto=normalizar(`${nota.nome||""} ${nota.descricao||""} ${nota.key?.split("/").pop()||""} ${nota.fornecedor||""} ${nota.prestador||""} ${nota.cnpjPrestador||""}`);if(!texto)return false;
   const candidatos=[usuario.nomeCompleto,usuario.nomeEmpresarial,usuario.email.split("@")[0]].map(normalizar).filter(Boolean);
   if(candidatos.some(candidato=>{
@@ -42,9 +42,9 @@ export function listarNotasServicoPendentes(usuarios:ColaboradorNota[],documento
       const ativos=vinculados.filter(usuario=>ativoNaCompetencia(usuario,competencia));
       if(!ativos.length)continue;
       const notas=(porAssociacaoCompetencia.get(`${normalizar(associacao).replace(/ /g,"")}|${competencia}`)||[]).filter(ehNotaServico);
-      const identificados=ativos.filter(usuario=>notas.some(nota=>pertence(nota,usuario,ativos)));
+      const identificados=ativos.filter(usuario=>notas.some(nota=>notaPertenceAoColaborador(nota,usuario,ativos)));
       const semIdentificacao=ativos.filter(usuario=>!identificados.includes(usuario));
-      const notasIdentificadas=notas.filter(nota=>ativos.some(usuario=>pertence(nota,usuario,ativos))).length;
+      const notasIdentificadas=notas.filter(nota=>ativos.some(usuario=>notaPertenceAoColaborador(nota,usuario,ativos))).length;
       const notasGenericasDisponiveis=Math.max(0,notas.length-notasIdentificadas);
       if(notasGenericasDisponiveis>=semIdentificacao.length)continue;
       for(const usuario of semIdentificacao){pendentes.push({id:usuario.id,nomeCompleto:usuario.nomeCompleto,cargo:usuario.cargo,email:usuario.email,associacao,competencia});}

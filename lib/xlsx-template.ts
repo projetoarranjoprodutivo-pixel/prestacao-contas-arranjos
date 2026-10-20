@@ -165,3 +165,22 @@ export function excelDate(value: unknown) {
   const parts = String(value || "").split("-");
   return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : String(value || "");
 }
+
+// Acrescenta um detalhamento sem alterar a apresentação do modelo oficial.
+export function addXlsxDetailSheet(bytes: Uint8Array, name: string, rows: CellValue[][]) {
+  const files = unzipSync(bytes);
+  const workbook = strFromU8(files['xl/workbook.xml']);
+  const rels = strFromU8(files['xl/_rels/workbook.xml.rels']);
+  const ids = [...workbook.matchAll(/sheetId="(\d+)"/g)].map(x => Number(x[1]));
+  const id = Math.max(0, ...ids) + 1;
+  const rid = `rIdDetalhamento${id}`;
+  const path = `xl/worksheets/sheet${id}.xml`;
+  files['xl/workbook.xml'] = strToU8(workbook.replace('</sheets>', `<sheet name="${escapeXml(name)}" sheetId="${id}" r:id="${rid}"/></sheets>`));
+  files['xl/_rels/workbook.xml.rels'] = strToU8(rels.replace('</Relationships>', `<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${id}.xml"/></Relationships>`));
+  files['[Content_Types].xml'] = strToU8(strFromU8(files['[Content_Types].xml']).replace('</Types>', `<Override PartName="/${path}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`));
+  const columns = ['A','B','C','D','E','F','G','H','I','J'];
+  const data = rows.map((row,i)=>`<row r="${i+1}" ht="30" customHeight="1">${row.map((value,j)=>cellXml(`${columns[j]}${i+1}`,value,`<c s="${i===0?1:j===5||j===6||j===8?7:1}">`)).join('')}</row>`).join('');
+  const widths = [34,27,18,24,18,18,18,18,22,45];
+  files[path] = strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${widths.map((width,i)=>`<col min="${i+1}" max="${i+1}" width="${width}" customWidth="1"/>`).join('')}</cols><sheetData>${data}</sheetData><autoFilter ref="A1:J${rows.length-1}"/><pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/></worksheet>`);
+  return zipSync(files, {level:6});
+}
