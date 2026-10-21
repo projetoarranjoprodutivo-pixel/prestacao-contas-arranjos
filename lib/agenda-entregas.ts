@@ -1,6 +1,6 @@
 import iniciais from "@/data/agenda-entregas-inicial.json";
 import {z} from "zod";
-export const agendaSchema=z.object({municipio:z.string().trim().min(1).max(120),horario:z.string().regex(/^$|^([01]\d|2[0-3]):[0-5]\d$/,'Horário inválido.').default(''),endereco:z.string().trim().max(300).default(''),previsao:z.string().trim().max(250),culturas:z.string().trim().max(250),quantidade:z.string().trim().max(200),status:z.enum(['sem-data','programada','confirmada','concluida','cancelada']),observacoes:z.string().trim().max(3000)});
+export const agendaSchema=z.object({authUserIdEntrega:z.string().trim().max(200).default(''),dataEntrega:z.string().trim().max(10).default(''),municipio:z.string().trim().min(1).max(120),horario:z.string().regex(/^$|^([01]\d|2[0-3]):[0-5]\d$/,'Horário inválido.').default(''),endereco:z.string().trim().max(300).default(''),previsao:z.string().trim().max(250),culturas:z.string().trim().max(250),quantidade:z.string().trim().max(200),status:z.enum(['sem-data','programada','confirmada','concluida','cancelada']),observacoes:z.string().trim().max(3000)});
 export type AgendaEntrega=z.infer<typeof agendaSchema>&{id:string;origem:string;versao:string;excluida?:boolean};
 export const agendaInicial=iniciais as AgendaEntrega[];
 export function mesclarAgenda(alteracoes:AgendaEntrega[],incluirExcluidas=false){const mapa=new Map(agendaInicial.map(i=>[i.id,i]));for(const item of alteracoes)mapa.set(item.id,item);return [...mapa.values()].filter(i=>incluirExcluidas||!i.excluida).sort((a,b)=>a.municipio.localeCompare(b.municipio,'pt-BR'));}
