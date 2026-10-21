@@ -3,7 +3,7 @@ import {totalMudasAgenda,type AgendaEntrega} from './agenda-entregas';
 const xml=(s:unknown)=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'');
 const cab=['Município','Data(s) prevista(s)','Culturas / itens','Quantidade prevista','Situação','Observações'];
 const nomes:Record<string,string>={'sem-data':'SEM DATA',programada:'PROGRAMADA',confirmada:'CONFIRMADA',concluida:'CONCLUÍDA',cancelada:'CANCELADA'};
-export const linhasAgenda=(itens:AgendaEntrega[])=>itens.map(i=>[i.municipio,i.previsao||'A DEFINIR',i.culturas||'A DEFINIR',i.quantidade||'A DEFINIR',nomes[i.status],i.observacoes||'']);
+export const linhasAgenda=(itens:AgendaEntrega[])=>itens.map(i=>[i.municipio,[i.previsao||'A DEFINIR',i.horario?`ÀS ${i.horario}`:'',i.endereco?`LOCAL: ${i.endereco}`:''].filter(Boolean).join(' · '),i.culturas||'A DEFINIR',i.quantidade||'A DEFINIR',nomes[i.status],i.observacoes||'']);
 export const notaAgenda='Programação de entregas · Arranjos Produtivos';
 function pacote(files:Record<string,string>){return zipSync(Object.fromEntries(Object.entries(files).map(([k,v])=>[k,strToU8(v)])),{level:6});}
 export function agendaDocx(itens:AgendaEntrega[],filtro:string){
