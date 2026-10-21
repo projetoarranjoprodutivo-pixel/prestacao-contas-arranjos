@@ -16,7 +16,8 @@
         "indicador": "selecao",
         "quantidade": 160,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -25,7 +26,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -34,7 +36,8 @@
         "indicador": "mudas",
         "periodicidade": "vigencia",
         "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
-        "quantidade": 9371
+        "quantidade": 9371,
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "sistema",
@@ -43,7 +46,8 @@
         "indicador": "sistema",
         "quantidade": 1,
         "periodicidade": "trimestral",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Monitoramento digital e relatório trimestral"
       },
       {
         "id": "resultados",
@@ -51,7 +55,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -72,7 +77,8 @@
         "indicador": "selecao",
         "quantidade": 150,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -81,7 +87,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -90,7 +97,8 @@
         "indicador": "mudas",
         "periodicidade": "vigencia",
         "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
-        "quantidade": 9371
+        "quantidade": 9371,
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "capacitacao",
@@ -99,7 +107,8 @@
         "indicador": "capacitacao",
         "quantidade": 1,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF.",
+        "titulo": "Capacitações e dias de campo"
       },
       {
         "id": "consultoria",
@@ -108,7 +117,8 @@
         "indicador": "consultoria",
         "quantidade": 160,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Consultoria institucional"
       },
       {
         "id": "resultados",
@@ -116,7 +126,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -137,7 +148,8 @@
         "indicador": "selecao",
         "quantidade": 120,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -146,7 +158,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -154,7 +167,8 @@
         "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
         "indicador": "mudas",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "sistema",
@@ -163,7 +177,8 @@
         "indicador": "sistema",
         "quantidade": 1,
         "periodicidade": "trimestral",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Monitoramento digital e relatório trimestral"
       },
       {
         "id": "resultados",
@@ -171,7 +186,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -192,7 +208,8 @@
         "indicador": "selecao",
         "quantidade": 80,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -201,7 +218,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -209,7 +227,8 @@
         "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
         "indicador": "mudas",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "capacitacao",
@@ -218,7 +237,8 @@
         "indicador": "capacitacao",
         "quantidade": 1,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF.",
+        "titulo": "Capacitações e dias de campo"
       },
       {
         "id": "sistema",
@@ -227,7 +247,8 @@
         "indicador": "sistema",
         "quantidade": 1,
         "periodicidade": "trimestral",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Monitoramento digital e relatório trimestral"
       },
       {
         "id": "apoio",
@@ -235,7 +256,8 @@
         "meta": "Documentar diagnósticos, orientações e resultados do apoio institucional previsto nos objetivos específicos.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, páginas 23 e 24 do PDF."
+        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, páginas 23 e 24 do PDF.",
+        "titulo": "Apoio a associações e agroindústrias"
       },
       {
         "id": "resultados",
@@ -243,7 +265,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -264,7 +287,8 @@
         "indicador": "selecao",
         "quantidade": 160,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -273,7 +297,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -281,7 +306,8 @@
         "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
         "indicador": "mudas",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "resultados",
@@ -289,7 +315,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -310,7 +337,8 @@
         "indicador": "selecao",
         "quantidade": 40,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -319,7 +347,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -327,7 +356,8 @@
         "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
         "indicador": "mudas",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "consultoria",
@@ -336,7 +366,8 @@
         "indicador": "consultoria",
         "quantidade": 160,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Consultoria institucional"
       },
       {
         "id": "apoio",
@@ -344,7 +375,8 @@
         "meta": "Documentar diagnósticos, orientações e resultados do apoio institucional previsto nos objetivos específicos.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, páginas 23 e 24 do PDF."
+        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, páginas 23 e 24 do PDF.",
+        "titulo": "Apoio a associações e agroindústrias"
       },
       {
         "id": "capacitacao",
@@ -352,7 +384,8 @@
         "meta": "Realizar e documentar as capacitações previstas nos objetivos específicos; quantidade mínima não explicitada no detalhamento metodológico.",
         "indicador": "capacitacao",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, página 24 do PDF."
+        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, página 24 do PDF.",
+        "titulo": "Capacitações e dias de campo"
       },
       {
         "id": "resultados",
@@ -360,7 +393,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -381,7 +415,8 @@
         "indicador": "selecao",
         "quantidade": 80,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -390,7 +425,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -398,7 +434,8 @@
         "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
         "indicador": "mudas",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "sistema",
@@ -407,7 +444,8 @@
         "indicador": "sistema",
         "quantidade": 1,
         "periodicidade": "trimestral",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Monitoramento digital e relatório trimestral"
       },
       {
         "id": "resultados",
@@ -415,7 +453,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -436,7 +475,8 @@
         "indicador": "selecao",
         "quantidade": 80,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -445,7 +485,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -453,7 +494,8 @@
         "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
         "indicador": "mudas",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "resultados",
@@ -461,7 +503,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -482,7 +525,8 @@
         "indicador": "selecao",
         "quantidade": 80,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -491,7 +535,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -499,7 +544,8 @@
         "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
         "indicador": "mudas",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "consultoria",
@@ -508,7 +554,8 @@
         "indicador": "consultoria",
         "quantidade": 160,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Consultoria institucional"
       },
       {
         "id": "apoio",
@@ -516,7 +563,8 @@
         "meta": "Documentar diagnósticos, orientações e resultados do apoio institucional previsto nos objetivos específicos.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, páginas 23 e 24 do PDF."
+        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, páginas 23 e 24 do PDF.",
+        "titulo": "Apoio a associações e agroindústrias"
       },
       {
         "id": "resultados",
@@ -524,7 +572,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -545,7 +594,8 @@
         "indicador": "selecao",
         "quantidade": 160,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -554,7 +604,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -562,7 +613,8 @@
         "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
         "indicador": "mudas",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "capacitacao",
@@ -571,7 +623,8 @@
         "indicador": "capacitacao",
         "quantidade": 1,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF.",
+        "titulo": "Capacitações e dias de campo"
       },
       {
         "id": "sistema",
@@ -580,7 +633,8 @@
         "indicador": "sistema",
         "quantidade": 1,
         "periodicidade": "trimestral",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Monitoramento digital e relatório trimestral"
       },
       {
         "id": "resultados",
@@ -588,7 +642,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -609,7 +664,8 @@
         "indicador": "selecao",
         "quantidade": 120,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -618,7 +674,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -626,7 +683,8 @@
         "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
         "indicador": "mudas",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "capacitacao",
@@ -635,7 +693,8 @@
         "indicador": "capacitacao",
         "quantidade": 1,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF.",
+        "titulo": "Capacitações e dias de campo"
       },
       {
         "id": "sistema",
@@ -644,7 +703,8 @@
         "indicador": "sistema",
         "quantidade": 1,
         "periodicidade": "trimestral",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Monitoramento digital e relatório trimestral"
       },
       {
         "id": "resultados",
@@ -652,7 +712,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -673,7 +734,8 @@
         "indicador": "selecao",
         "quantidade": 120,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -682,7 +744,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -690,7 +753,8 @@
         "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
         "indicador": "mudas",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "capacitacao",
@@ -699,7 +763,8 @@
         "indicador": "capacitacao",
         "quantidade": 1,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF.",
+        "titulo": "Capacitações e dias de campo"
       },
       {
         "id": "resultados",
@@ -707,7 +772,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   },
@@ -728,7 +794,8 @@
         "indicador": "selecao",
         "quantidade": 120,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF.",
+        "titulo": "Identificação e seleção de propriedades"
       },
       {
         "id": "assistencia",
@@ -737,7 +804,8 @@
         "indicador": "assistencia",
         "quantidade": 30,
         "periodicidade": "mensal",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF.",
+        "titulo": "Assistência técnica continuada"
       },
       {
         "id": "mudas",
@@ -745,7 +813,8 @@
         "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
         "indicador": "mudas",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Fornecimento e implantação de insumos e mudas"
       },
       {
         "id": "capacitacao",
@@ -754,7 +823,8 @@
         "indicador": "capacitacao",
         "quantidade": 1,
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF.",
+        "titulo": "Capacitações e dias de campo"
       },
       {
         "id": "sistema",
@@ -763,7 +833,8 @@
         "indicador": "sistema",
         "quantidade": 1,
         "periodicidade": "trimestral",
-        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "titulo": "Monitoramento digital e relatório trimestral"
       },
       {
         "id": "resultados",
@@ -771,7 +842,8 @@
         "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
         "indicador": "qualitativo",
         "periodicidade": "vigencia",
-        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados.",
+        "titulo": "Resultados produtivos e sociais"
       }
     ]
   }

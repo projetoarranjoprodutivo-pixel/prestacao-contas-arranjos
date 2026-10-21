@@ -1,5 +1,5 @@
 import bases from "@/data/metas-fomento-2026.json";
-export type MetaFomento={id:string;objetivo:string;meta:string;indicador:string;quantidade?:number;periodicidade:string;fonte:string};
+export type MetaFomento={id:string;titulo:string;objetivo:string;meta:string;indicador:string;quantidade?:number;periodicidade:string;fonte:string};
 export type BaseFomento={cnpj:string;associacao:string;numero:string;sha256:string;inicio:string;termino:string;objetivoGeral:string;alerta:string;metas:MetaFomento[]};
 export type ParecerMeta={situacao:"automatico"|"realizada"|"parcial"|"nao-realizada";evidencia:string;justificativa:string};
 export type ConferenciaFomento={sha256:string;competencias:string[];pareceres:Record<string,ParecerMeta>;atualizadoEm:string;responsavel:string};
