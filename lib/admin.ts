@@ -33,3 +33,11 @@ export async function getGestorMudasUser() {
   if (!cadastro || cargoNormalizado(cadastro.cargo) !== "coordenador geral") return null;
   return { user, coordenador: true as const, cadastro };
 }
+
+// Acesso à agenda: administração e o colaborador Douglas Gasparetto.
+export async function getAgendaEntregasUser(){
+ const user=await getChatGPTUser();if(!user)return null;
+ if(isAdminEmail(user.email)||user.role==='admin')return user;
+ const cadastro=await getDb().query.colaboradores.findFirst({where:eq(colaboradores.authUserId,user.userId)});
+ return cadastro&&cadastro.id===40?user:null;
+}
