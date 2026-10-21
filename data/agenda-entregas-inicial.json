@@ -2,7 +2,7 @@
   {
     "id": "word-20261021-01",
     "municipio": "IBITIRAMA",
-    "previsao": "07 de dezembro",
+    "previsao": "07 de dezembro de 2026",
     "culturas": "Café arábica",
     "quantidade": "27 mil",
     "status": "programada",
@@ -13,7 +13,7 @@
   {
     "id": "word-20261021-02",
     "municipio": "IUNA",
-    "previsao": "04 de dezembro",
+    "previsao": "04 de dezembro de 2026",
     "culturas": "Café arábica",
     "quantidade": "27 mil",
     "status": "programada",
@@ -24,7 +24,7 @@
   {
     "id": "word-20261021-03",
     "municipio": "IBATIBA",
-    "previsao": "02 de dezembro",
+    "previsao": "02 de dezembro de 2026",
     "culturas": "Café arábica",
     "quantidade": "27 mil",
     "status": "programada",
@@ -35,7 +35,7 @@
   {
     "id": "word-20261021-04",
     "municipio": "GUAÇUI",
-    "previsao": "25 de novembro",
+    "previsao": "25 de novembro de 2026",
     "culturas": "Café arábica",
     "quantidade": "38 mil",
     "status": "programada",
@@ -46,7 +46,7 @@
   {
     "id": "word-20261021-05",
     "municipio": "ALEGRE",
-    "previsao": "26 de novembro",
+    "previsao": "26 de novembro de 2026",
     "culturas": "Café conilon",
     "quantidade": "23,7 mil",
     "status": "programada",
@@ -57,7 +57,7 @@
   {
     "id": "word-20261021-06",
     "municipio": "JERONIMO MONTEIRO",
-    "previsao": "07 de novembro",
+    "previsao": "07 de novembro de 2026",
     "culturas": "Café conilon",
     "quantidade": "21 mil",
     "status": "programada",
@@ -68,7 +68,7 @@
   {
     "id": "word-20261021-07",
     "municipio": "MUNIZ FREIRE",
-    "previsao": "15 de novembro; 10 de dezembro",
+    "previsao": "15 de novembro de 2026; 10 de dezembro de 2026",
     "culturas": "Café conilon /arábica",
     "quantidade": "33 mil",
     "status": "programada",
@@ -79,7 +79,7 @@
   {
     "id": "word-20261021-08",
     "municipio": "BREJETUBA",
-    "previsao": "15 de fevereiro",
+    "previsao": "15 de fevereiro de 2027",
     "culturas": "Abacate /citros",
     "quantidade": "2 mil/2.500",
     "status": "programada",
@@ -90,7 +90,7 @@
   {
     "id": "word-20261021-09",
     "municipio": "CONCEIÇÃO DO CASTELO",
-    "previsao": "26 de novembro; 10 de fevereiro",
+    "previsao": "26 de novembro de 2026; 10 de fevereiro de 2027",
     "culturas": "Cacau/citros/abacate",
     "quantidade": "8.050",
     "status": "programada",
@@ -101,7 +101,7 @@
   {
     "id": "word-20261021-10",
     "municipio": "ATILIO VIVACQUA",
-    "previsao": "10 de fevereiro",
+    "previsao": "10 de fevereiro de 2027",
     "culturas": "Banana T.",
     "quantidade": "4 MIL",
     "status": "programada",
@@ -134,7 +134,7 @@
   {
     "id": "word-20261021-13",
     "municipio": "ITAPEMIRIM",
-    "previsao": "03 de novembro",
+    "previsao": "03 de novembro de 2026",
     "culturas": "Café conilon",
     "quantidade": "6 mil",
     "status": "programada",
@@ -145,7 +145,7 @@
   {
     "id": "word-20261021-14",
     "municipio": "ICONHA",
-    "previsao": "26 de novembro",
+    "previsao": "26 de novembro de 2026",
     "culturas": "Café conilon",
     "quantidade": "3.400 mil",
     "status": "programada",
@@ -167,7 +167,7 @@
   {
     "id": "word-20261021-16",
     "municipio": "ANCHIETA",
-    "previsao": "10 de fevereiro",
+    "previsao": "10 de fevereiro de 2027",
     "culturas": "Cacau",
     "quantidade": "5 mil",
     "status": "programada",
@@ -178,7 +178,7 @@
   {
     "id": "word-20261021-17",
     "municipio": "PIUMA",
-    "previsao": "26 de novembro",
+    "previsao": "26 de novembro de 2026",
     "culturas": "",
     "quantidade": "9.300 mil",
     "status": "programada",
@@ -189,7 +189,7 @@
   {
     "id": "word-20261021-18",
     "municipio": "IBIRAÇU",
-    "previsao": "10 de dezembro",
+    "previsao": "10 de dezembro de 2026",
     "culturas": "Palmito p.",
     "quantidade": "6 mil",
     "status": "programada",
@@ -211,7 +211,7 @@
   {
     "id": "word-20261021-20",
     "municipio": "PANCAS",
-    "previsao": "15 de dezembro",
+    "previsao": "15 de dezembro de 2026",
     "culturas": "Citros",
     "quantidade": "4 mil",
     "status": "programada",
@@ -222,7 +222,7 @@
   {
     "id": "word-20261021-21",
     "municipio": "SÃO DOMINGO DO NORTE",
-    "previsao": "20 de dezembro",
+    "previsao": "20 de dezembro de 2026",
     "culturas": "Citros /cacau",
     "quantidade": "1 mil/ 2mil",
     "status": "programada",
@@ -233,7 +233,7 @@
   {
     "id": "word-20261021-22",
     "municipio": "VILA VALERIO",
-    "previsao": "22 de fevereiro",
+    "previsao": "22 de fevereiro de 2027",
     "culturas": "Abacate",
     "quantidade": "1 mil",
     "status": "programada",
@@ -244,7 +244,7 @@
   {
     "id": "word-20261021-23",
     "municipio": "JAGUARE",
-    "previsao": "14 de dezembro",
+    "previsao": "14 de dezembro de 2026",
     "culturas": "Banana T.",
     "quantidade": "8 mil",
     "status": "programada",
@@ -255,7 +255,7 @@
   {
     "id": "word-20261021-24",
     "municipio": "MANTENOPOLIS",
-    "previsao": "09 de dezembro",
+    "previsao": "09 de dezembro de 2026",
     "culturas": "Banana T.",
     "quantidade": "9 mil",
     "status": "programada",
@@ -288,7 +288,7 @@
   {
     "id": "word-20261021-27",
     "municipio": "COLATINA",
-    "previsao": "20 de fevereiro",
+    "previsao": "20 de fevereiro de 2027",
     "culturas": "Abacate/citros",
     "quantidade": "1 mil/ 1mil",
     "status": "programada",
@@ -299,7 +299,7 @@
   {
     "id": "word-20261021-28",
     "municipio": "CONCEIÇÃO DA BARRA",
-    "previsao": "18 de dezembro; 18 de fevereiro",
+    "previsao": "18 de dezembro de 2026; 18 de fevereiro de 2027",
     "culturas": "Pimenta",
     "quantidade": "23 mil",
     "status": "programada",
@@ -310,7 +310,7 @@
   {
     "id": "word-20261021-29",
     "municipio": "PEDRO CANARIO",
-    "previsao": "15 de dezembro; 15 de fevereiro",
+    "previsao": "15 de dezembro de 2026; 15 de fevereiro de 2027",
     "culturas": "Pimenta",
     "quantidade": "12.500",
     "status": "programada",
@@ -321,7 +321,7 @@
   {
     "id": "word-20261021-30",
     "municipio": "ECOPORANGA",
-    "previsao": "15 de dezembro",
+    "previsao": "15 de dezembro de 2026",
     "culturas": "Citros",
     "quantidade": "2.500",
     "status": "programada",
@@ -332,7 +332,7 @@
   {
     "id": "word-20261021-31",
     "municipio": "MONTANHA",
-    "previsao": "10 de dezembro",
+    "previsao": "10 de dezembro de 2026",
     "culturas": "Pimenta",
     "quantidade": "7 mil",
     "status": "programada",
@@ -343,7 +343,7 @@
   {
     "id": "word-20261021-32",
     "municipio": "ALTO RIO NOVO",
-    "previsao": "15 de dezembro",
+    "previsao": "15 de dezembro de 2026",
     "culturas": "Citros",
     "quantidade": "3 mil",
     "status": "programada",
@@ -354,7 +354,7 @@
   {
     "id": "word-20261021-33",
     "municipio": "DIVINO SÃO LOURENÇO",
-    "previsao": "25 de novembro",
+    "previsao": "25 de novembro de 2026",
     "culturas": "Café arábica",
     "quantidade": "38 mil",
     "status": "programada",
@@ -365,7 +365,7 @@
   {
     "id": "word-20261021-34",
     "municipio": "AGUIA BRANCA",
-    "previsao": "26 de novembro",
+    "previsao": "26 de novembro de 2026",
     "culturas": "Apicultura",
     "quantidade": "9 kits c/20cx",
     "status": "programada",
@@ -376,7 +376,7 @@
   {
     "id": "word-20261021-35",
     "municipio": "VILA PAVÃO",
-    "previsao": "10 de dezembro",
+    "previsao": "10 de dezembro de 2026",
     "culturas": "Cacau",
     "quantidade": "2 mil",
     "status": "programada",
@@ -387,7 +387,7 @@
   {
     "id": "word-20261021-36",
     "municipio": "MARILANDIA",
-    "previsao": "15 de dezembro",
+    "previsao": "15 de dezembro de 2026",
     "culturas": "Cacau",
     "quantidade": "2 mil",
     "status": "programada",
@@ -398,7 +398,7 @@
   {
     "id": "word-20261021-37",
     "municipio": "Boa Esperança",
-    "previsao": "27 de novembro",
+    "previsao": "27 de novembro de 2026",
     "culturas": "Pimenta",
     "quantidade": "18 MIL",
     "status": "programada",

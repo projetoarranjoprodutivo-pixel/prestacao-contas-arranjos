@@ -4,7 +4,7 @@ const xml=(s:unknown)=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 const cab=['Município','Data(s) prevista(s)','Culturas / itens','Quantidade prevista','Situação','Observações'];
 const nomes:Record<string,string>={'sem-data':'SEM DATA',programada:'PROGRAMADA',confirmada:'CONFIRMADA',concluida:'CONCLUÍDA',cancelada:'CANCELADA'};
 export const linhasAgenda=(itens:AgendaEntrega[])=>itens.map(i=>[i.municipio,i.previsao||'A DEFINIR',i.culturas||'A DEFINIR',i.quantidade||'A DEFINIR',nomes[i.status],i.observacoes||'']);
-export const notaAgenda='Agenda de programação. Datas sem ano e quantidades do Word foram preservadas. Base original: Mudas a serem entregues.docx, total declarado de 378 mil mudas (não é soma conferida). Kits não são contabilizados como mudas. Não comprova entrega realizada.';
+export const notaAgenda='Agenda de programação. Programação: novembro e dezembro de 2026; fevereiro de 2027. Quantidades do Word foram preservadas. Base original: Mudas a serem entregues.docx, total declarado de 378 mil mudas (não é soma conferida). Kits não são contabilizados como mudas. Não comprova entrega realizada.';
 function pacote(files:Record<string,string>){return zipSync(Object.fromEntries(Object.entries(files).map(([k,v])=>[k,strToU8(v)])),{level:6});}
 export function agendaDocx(itens:AgendaEntrega[],filtro:string){
  const p=(t:string)=>`<w:p><w:pPr><w:spacing w:after="80"/></w:pPr><w:r><w:rPr><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${xml(t)}</w:t></w:r></w:p>`;
