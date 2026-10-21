@@ -18,3 +18,8 @@ export function ordenarAgenda(itens:AgendaEntrega[],campo:string,decrescente=fal
  const comparar=new Intl.Collator('pt-BR',{numeric:true,sensitivity:'base'}).compare;
  return [...itens].sort((a,b)=>{let ordem=0;if(campo==='previsao'){const x=chaveDataAgenda(a.previsao),y=chaveDataAgenda(b.previsao);if(x===null||y===null){if(x===null&&y!==null)return 1;if(y===null&&x!==null)return -1;}else ordem=x-y;}else ordem=comparar(String(a[campo as keyof AgendaEntrega]||''),String(b[campo as keyof AgendaEntrega]||''));return (decrescente?-ordem:ordem)||comparar(a.municipio,b.municipio);});
 }
+export function quantidadeAgenda(texto:string){
+ if(/kit|caixa|\bcx\b/i.test(texto))return 0;
+ return texto.split(/[\/;+]/).reduce((total,parte)=>{const s=parte.trim().toLowerCase().replace(/\s*(mudas?|unidades?)\s*/g,'').trim();const m=s.match(/^([\d.,]+)\s*(mil)?$/);if(!m)return total;let n:number;if(m[2]&&/^\d{1,3}\.\d{3}$/.test(m[1]))n=Number(m[1])*1000;else n=Number(m[1].replace(/\./g,'').replace(',','.'))*(m[2]?1000:1);return total+(Number.isFinite(n)?n:0);},0);
+}
+export function totalMudasAgenda(itens:AgendaEntrega[]){return itens.filter(i=>!i.excluida&&i.status!=='cancelada').reduce((s,i)=>s+quantidadeAgenda(i.quantidade),0);}
