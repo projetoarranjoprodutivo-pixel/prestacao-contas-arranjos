@@ -9,6 +9,7 @@ function lista(json:string|null):Documento[]{try{const dados=JSON.parse(json||"[
 export async function POST(request:Request){
  if(!await getAdminUser())return Response.json({message:"Acesso restrito."},{status:403});
  try{
+  if(!env.BUCKET)throw new Error("Armazenamento indisponível.");
   const form=await request.formData();const id=Number(form.get("id"));
   const a=await getDb().query.associacoes.findFirst({where:eq(associacoes.id,id)});
   if(!a)return Response.json({message:"Associação não encontrada."},{status:404});
@@ -27,6 +28,7 @@ export async function POST(request:Request){
 }
 export async function GET(request:Request){
  if(!await getAdminUser())return new Response("Acesso restrito.",{status:403});
+ if(!env.BUCKET)return new Response("Armazenamento indisponível.",{status:503});
  const url=new URL(request.url);const id=Number(url.searchParams.get("id"));const key=url.searchParams.get("key");
  const a=await getDb().query.associacoes.findFirst({where:eq(associacoes.id,id)});
  const doc=lista(a?.documentosJson||null).find(d=>d.key===key&&d.categoria==="termo-fomento");

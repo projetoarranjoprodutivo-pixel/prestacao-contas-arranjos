@@ -1,0 +1,778 @@
+[
+  {
+    "cnpj": "02098233000102",
+    "associacao": "APEAGRI",
+    "numero": "001/2026",
+    "sha256": "ed02fc14a6cc61736c7a55ec2db68c3ca15c7e15c03b530236c6128d5b2307cd",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "Divergência no plano: resultados esperados indicam 160 propriedades; detalhamento metodológico indica 150 (50 por município), embora a abrangência liste quatro municípios. Confirmar a meta aplicável com a associação/ADERES; o sistema não conclui seu cumprimento automaticamente.",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "160 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 160,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Adquirir 9.371 mudas; distribuir mudas/bens produtivos conforme diagnóstico.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "quantidade": 9371
+      },
+      {
+        "id": "sistema",
+        "objetivo": "Manter sistema digital de monitoramento produtivo e elaborar manual digital simplificado.",
+        "meta": "Emitir 1 relatório trimestral de acompanhamento dos municípios.",
+        "indicador": "sistema",
+        "quantidade": 1,
+        "periodicidade": "trimestral",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "10409648000170",
+    "associacao": "AAFARSCRUZ",
+    "numero": "002/2026",
+    "sha256": "cf2418d4bb5e3aaa37b90827b8307f434a562924264c98972b4d449204aad480",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "150 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 150,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Adquirir 9.371 mudas; distribuir mudas/bens produtivos conforme diagnóstico.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF.",
+        "quantidade": 9371
+      },
+      {
+        "id": "capacitacao",
+        "objetivo": "Promover capacitações práticas por meio de dias de campo, seminários e treinamentos técnicos.",
+        "meta": "Realizar no mínimo 1 evento.",
+        "indicador": "capacitacao",
+        "quantidade": 1,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+      },
+      {
+        "id": "consultoria",
+        "objetivo": "Apoiar a regularização e/ou estruturação de associações e agroindústrias.",
+        "meta": "160 horas mensais de consultoria por consultor.",
+        "indicador": "consultoria",
+        "quantidade": 160,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "22135888000102",
+    "associacao": "APPROVIPA",
+    "numero": "003/2026",
+    "sha256": "286de25271f2c219eb897e42bb5ca8f5da377f1f40f161b097ebfd7f326de7e1",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "120 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 120,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "sistema",
+        "objetivo": "Manter sistema digital de monitoramento produtivo e elaborar manual digital simplificado.",
+        "meta": "Emitir 1 relatório trimestral de acompanhamento dos municípios.",
+        "indicador": "sistema",
+        "quantidade": 1,
+        "periodicidade": "trimestral",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "63493717000132",
+    "associacao": "AAFAIAR",
+    "numero": "004/2026",
+    "sha256": "4b28c6c34bcd727ed4f8fae8da4370e8564db5b81ede5caa401f74ffccf54707",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "80 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 80,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "capacitacao",
+        "objetivo": "Promover capacitações práticas por meio de dias de campo, seminários e treinamentos técnicos.",
+        "meta": "Realizar no mínimo 1 evento.",
+        "indicador": "capacitacao",
+        "quantidade": 1,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+      },
+      {
+        "id": "sistema",
+        "objetivo": "Manter sistema digital de monitoramento produtivo e elaborar manual digital simplificado.",
+        "meta": "Emitir 1 relatório trimestral de acompanhamento dos municípios.",
+        "indicador": "sistema",
+        "quantidade": 1,
+        "periodicidade": "trimestral",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "apoio",
+        "objetivo": "Apoiar a regularização e/ou estruturação de associações e agroindústrias, ampliando o acesso a mercados e políticas públicas.",
+        "meta": "Documentar diagnósticos, orientações e resultados do apoio institucional previsto nos objetivos específicos.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, páginas 23 e 24 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "07575940000158",
+    "associacao": "MUNIZCAF",
+    "numero": "005/2026",
+    "sha256": "80198d4dec632b174fa07de5481eb850f82aea0b478edf89b8d74f32eb2f6df5",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "160 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 160,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "36113888000116",
+    "associacao": "NEEMIAS",
+    "numero": "006/2026",
+    "sha256": "646adf83128c22da741d1ef185cf823f1c81d958baa11527f7e96f2b0e5cad76",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "40 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 40,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "consultoria",
+        "objetivo": "Apoiar a regularização e/ou estruturação de agroindústrias.",
+        "meta": "160 horas mensais de consultoria por consultor.",
+        "indicador": "consultoria",
+        "quantidade": 160,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "apoio",
+        "objetivo": "Apoiar a regularização e/ou estruturação de associações e agroindústrias, ampliando o acesso a mercados e políticas públicas.",
+        "meta": "Documentar diagnósticos, orientações e resultados do apoio institucional previsto nos objetivos específicos.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, páginas 23 e 24 do PDF."
+      },
+      {
+        "id": "capacitacao",
+        "objetivo": "Promover capacitações práticas por meio de dias de campo, seminários e treinamentos técnicos.",
+        "meta": "Realizar e documentar as capacitações previstas nos objetivos específicos; quantidade mínima não explicitada no detalhamento metodológico.",
+        "indicador": "capacitacao",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, página 24 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "46276433000175",
+    "associacao": "APROFASAUNA",
+    "numero": "007/2026",
+    "sha256": "2c0ebf1d97aa9a82b0af758eb087009a6fea838c3b3701dbbdc54d635d3ca070",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "80 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 80,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "sistema",
+        "objetivo": "Manter sistema digital de monitoramento produtivo e elaborar manual digital simplificado.",
+        "meta": "Emitir 1 relatório trimestral de acompanhamento dos municípios.",
+        "indicador": "sistema",
+        "quantidade": 1,
+        "periodicidade": "trimestral",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "11402079000101",
+    "associacao": "AAFATRIM",
+    "numero": "008/2026",
+    "sha256": "3b90dc9537d7affdefb0efcc5706d74ba340ecbf98ce3839ba49f85df6f4204a",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "80 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 80,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "36349405000187",
+    "associacao": "AAFAMA",
+    "numero": "010/2026",
+    "sha256": "2d48b6abf310fa5ba33fc554d11a821978a3fc07b5d5fd86afe37ee761387fab",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "80 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 80,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "consultoria",
+        "objetivo": "Apoiar a regularização e/ou estruturação de associações.",
+        "meta": "160 horas mensais de consultoria por consultor.",
+        "indicador": "consultoria",
+        "quantidade": 160,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "apoio",
+        "objetivo": "Apoiar a regularização e/ou estruturação de associações e agroindústrias, ampliando o acesso a mercados e políticas públicas.",
+        "meta": "Documentar diagnósticos, orientações e resultados do apoio institucional previsto nos objetivos específicos.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção V - Objetivos específicos, páginas 23 e 24 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "05642134000120",
+    "associacao": "CAF COLATINA",
+    "numero": "011/2026",
+    "sha256": "702b01de6246bfb405868ebdabec589da17a8e5aa53faa455e56f2058a694f7e",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "Divergência no plano: resultados esperados indicam 160 propriedades; detalhamento metodológico indica 200 (50 por município). Confirmar a meta aplicável com a associação/ADERES; o sistema não conclui seu cumprimento automaticamente.",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "160 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 160,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "capacitacao",
+        "objetivo": "Promover capacitações práticas por meio de dias de campo, seminários e treinamentos técnicos.",
+        "meta": "Realizar no mínimo 1 evento.",
+        "indicador": "capacitacao",
+        "quantidade": 1,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+      },
+      {
+        "id": "sistema",
+        "objetivo": "Manter sistema digital de monitoramento produtivo e elaborar manual digital simplificado.",
+        "meta": "Emitir 1 relatório trimestral de acompanhamento dos municípios.",
+        "indicador": "sistema",
+        "quantidade": 1,
+        "periodicidade": "trimestral",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "18689365000130",
+    "associacao": "ARQSCD",
+    "numero": "012/2026",
+    "sha256": "4f114ef3dd87622f1ad69ae37d5d897ac968ce033ad5d3bbe539c02aa1065de0",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "120 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 120,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "capacitacao",
+        "objetivo": "Promover capacitações práticas por meio de dias de campo, seminários e treinamentos técnicos.",
+        "meta": "Realizar no mínimo 1 evento.",
+        "indicador": "capacitacao",
+        "quantidade": 1,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+      },
+      {
+        "id": "sistema",
+        "objetivo": "Manter sistema digital de monitoramento produtivo e elaborar manual digital simplificado.",
+        "meta": "Emitir 1 relatório trimestral de acompanhamento dos municípios.",
+        "indicador": "sistema",
+        "quantidade": 1,
+        "periodicidade": "trimestral",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "06082386000104",
+    "associacao": "APRUVAB",
+    "numero": "013/2026",
+    "sha256": "959ce85e84b851f45c98b87e0da3faf4bc55d24b69ad22b5204855f9fdd4273c",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "120 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 120,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "capacitacao",
+        "objetivo": "Promover capacitações práticas por meio de dias de campo, seminários e treinamentos técnicos.",
+        "meta": "Realizar no mínimo 1 evento.",
+        "indicador": "capacitacao",
+        "quantidade": 1,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  },
+  {
+    "cnpj": "45907057000107",
+    "associacao": "APRVG",
+    "numero": "015/2026",
+    "sha256": "b942501bfea69cf4d7cad1068a9e76fefa1ec20f58bd9a697c7382e6ab744ecb",
+    "inicio": "2026-03",
+    "termino": "2027-03",
+    "objetivoGeral": "Fortalecer os Arranjos Produtivos da Agricultura Familiar na área de abrangência da associação, por meio de assistência técnica continuada, capacitação produtiva e incentivo à diversificação de culturas, visando à redução do êxodo rural e a condições econômicas mais atrativas e rentáveis para o agricultor.",
+    "alerta": "",
+    "metas": [
+      {
+        "id": "selecao",
+        "objetivo": "Identificar e selecionar propriedades rurais e famílias agricultoras aptas a participar do projeto.",
+        "meta": "120 propriedades rurais no período de execução.",
+        "indicador": "selecao",
+        "quantidade": 120,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seções V e X, páginas 23 a 26 do PDF."
+      },
+      {
+        "id": "assistencia",
+        "objetivo": "Prestar assistência técnica continuada, com acompanhamento e registro sistemático das atividades produtivas.",
+        "meta": "Atender no mínimo 30 propriedades por mês, por técnico.",
+        "indicador": "assistencia",
+        "quantidade": 30,
+        "periodicidade": "mensal",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 25 do PDF."
+      },
+      {
+        "id": "mudas",
+        "objetivo": "Fornecer insumos produtivos e orientar e acompanhar sua implantação nas propriedades beneficiadas.",
+        "meta": "Cumprir o Plano de Plantio de Mudas (PPM), inclusive especificações técnicas, quantitativos por produtor e prazos.",
+        "indicador": "mudas",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "capacitacao",
+        "objetivo": "Promover capacitações práticas por meio de dias de campo, seminários e treinamentos técnicos.",
+        "meta": "Realizar no mínimo 1 evento.",
+        "indicador": "capacitacao",
+        "quantidade": 1,
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, página 26 do PDF."
+      },
+      {
+        "id": "sistema",
+        "objetivo": "Manter sistema digital de monitoramento produtivo e elaborar manual digital simplificado.",
+        "meta": "Emitir 1 relatório trimestral de acompanhamento dos municípios.",
+        "indicador": "sistema",
+        "quantidade": 1,
+        "periodicidade": "trimestral",
+        "fonte": "Plano de Trabalho, detalhamento metodológico, páginas 25 e 26 do PDF."
+      },
+      {
+        "id": "resultados",
+        "objetivo": "Melhorar as práticas produtivas e o manejo agrícola e ampliar a capacidade produtiva, a renda e a permanência das famílias no meio rural.",
+        "meta": "Comprovar os resultados qualitativos esperados com registros de acompanhamento.",
+        "indicador": "qualitativo",
+        "periodicidade": "vigencia",
+        "fonte": "Plano de Trabalho, seção X - Resultados esperados."
+      }
+    ]
+  }
+]

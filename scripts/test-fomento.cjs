@@ -1,0 +1,13 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert'),ts=require('typescript');
+const src=fs.readFileSync('lib/fomento-aderes.ts','utf8');const code=ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
+const context={exports:{},require:(p)=>{if(p==='@/data/metas-fomento-2026.json')return JSON.parse(fs.readFileSync('data/metas-fomento-2026.json'));return require(p);}};vm.runInNewContext(code,context);const f=context.exports;
+const bases=JSON.parse(fs.readFileSync('data/metas-fomento-2026.json'));assert.equal(bases.length,13);
+for(const b of bases){assert(f.baseFomento(b.cnpj,JSON.stringify([{categoria:'termo-fomento',sha256:b.sha256}])));assert.equal(f.baseFomento(b.cnpj,JSON.stringify([{categoria:'termo-fomento',sha256:'outro'}])),null);assert.equal(new Set(b.metas.map(m=>m.id)).size,b.metas.length);}
+const b=bases.find(b=>b.associacao==='AAFAIAR');const reg=(over={})=>({a:{tipoAtividade:'Visita Técnica',municipio:'Alto Rio Novo',propriedade:'Sítio A',comunidade:'Centro',...over},r:{authUserId:'u',competencia:'2026-04'},u:{nomeCompleto:'Técnico',cargo:'Técnico de campo'}});
+let itens=f.avaliarFomento(b,['2026-04'],[reg(),reg(),reg({propriedade:''}),reg({propriedade:'Sítio B',executada:false})],0,0,null);
+assert(itens.find(x=>x.meta.id==='assistencia').resultado.includes('1/30'));assert(itens.find(x=>x.meta.id==='assistencia').resultado.includes('faltam 29'));assert(!itens.some(x=>x.situacao.startsWith('REALIZADA')));
+const conferencia={sha256:b.sha256,competencias:['2026-04'],pareceres:{assistencia:{situacao:'nao-realizada',evidencia:'',justificativa:'Motivo real fornecido pelo responsável'}}};
+itens=f.avaliarFomento(b,['2026-04'],[],0,0,conferencia);assert(itens.find(x=>x.meta.id==='assistencia').situacao.startsWith('NÃO REALIZADA'));assert.equal(itens.find(x=>x.meta.id==='assistencia').justificativa,conferencia.pareceres.assistencia.justificativa);
+itens=f.avaliarFomento(b,['2026-05'],[],0,0,conferencia);assert.equal(itens.find(x=>x.meta.id==='assistencia').justificativa,'');
+const n=bases.find(b=>b.associacao==='NEEMIAS');const consult={...reg({duracao:''}),u:{nomeCompleto:'Consultor',cargo:'Consultor Agroindústria'}};itens=f.avaliarFomento(n,['2026-04'],[consult],0,0,null);assert(itens.find(x=>x.meta.id==='consultoria').resultado.includes('1 atividades'));assert(!itens.find(x=>x.meta.id==='consultoria').resultado.includes('160 horas de duração'));
+console.log('OK: 13 vínculos, isolamento por termo/período, propriedades distintas, cancelamentos, justificativas e horas sem preenchimento.');

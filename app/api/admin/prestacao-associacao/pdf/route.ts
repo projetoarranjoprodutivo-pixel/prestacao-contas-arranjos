@@ -1,3 +1,5 @@
+import {env} from "cloudflare:workers";
+import {baseFomento,chaveConferencia,avaliarFomento,type ConferenciaFomento} from "@/lib/fomento-aderes";
 import {numeroMonetario} from "@/lib/moeda";
 import { and, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import { getAderesOrAdminUser } from "@/lib/admin";
@@ -89,12 +91,26 @@ export async function GET(request:Request){
     {heading:"RESUMO GERAL DA EXECUÇÃO DO FOMENTO",lines:[`AGRICULTORES CADASTRADOS: ${agricultores.length}`,`VISITAS TÉCNICAS REGISTRADAS: ${visitas.length}`,`EVENTOS / AÇÕES REGISTRADOS: ${eventos.length}`,`TOTAL DE MUDAS ENTREGUES: ${totalMudasEntregues.toLocaleString("pt-BR")}`,`TOTAL DE MUDAS COMPRADAS IDENTIFICADAS: ${totalMudasCompradas?totalMudasCompradas.toLocaleString("pt-BR"):"NÃO IDENTIFICADO"}`,`TOTAL PAGO AOS COLABORADORES: ${totalPagamentosColaboradores.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`,`FICHAS DE VISITA: ${fichasVisita.length}`,`FOTOS SELECIONADAS: ${fotos.length}`,`EXTRATOS BANCÁRIOS: ${extratos.length}`,`NOTAS FISCAIS: ${notas.length}`,`ANEXOS TÉCNICOS: ${anexos.length}`]},
     {heading:"RELAÇÃO DE ARQUIVOS ENVIADOS",lines:arquivos.length?arquivos.map((a,i)=>`${i+1}. ${a.grupo}: ${a.nome} | ARQUIVO REGISTRADO NO SISTEMA`):["NENHUM ARQUIVO ENVIADO NAS COMPETÊNCIAS SELECIONADAS."]},
   ];
+  const base=baseFomento(associacao.cnpj,associacao.documentosJson);
+  if(base){
+    const json=env.BUCKET?await env.BUCKET.get(chaveConferencia(associacao.id,base.sha256,competencias),"text"):null;
+    const conferencia:ConferenciaFomento|null=json?JSON.parse(json):null;
+    const avaliacao=avaliarFomento(base,competencias,atividades,totalMudasCompradas,totalMudasEntregues,conferencia);
+    const comparativo:PdfSection[]=[{heading:"OBJETO E BASE DO TERMO DE FOMENTO",lines:[`TERMO DE FOMENTO Nº ${base.numero} | ASSOCIAÇÃO: ${associacao.nome}`,`FONTE: TERMO ORIGINAL CADASTRADO E PLANO DE TRABALHO ANEXO I. VINCULAÇÃO CONFERIDA PELO CNPJ E ARQUIVO ORIGINAL.`,`OBJETIVO GERAL: ${base.objetivoGeral}`,`PERÍODO PREVISTO NO PLANO: ${base.inicio} A ${base.termino}. PERÍODO ANALISADO: ${competencias.join("; ")}.`,`METAS DA VIGÊNCIA NÃO SÃO RATEADAS AUTOMATICAMENTE POR MÊS. ESTE RELATÓRIO AVALIA OS REGISTROS DO PERÍODO SELECIONADO; AUSÊNCIA DE COMPROVAÇÃO NÃO SIGNIFICA, POR SI SÓ, NÃO EXECUÇÃO OU DESCUMPRIMENTO FINAL.`,...(base.alerta?[base.alerta]:[])]}];
+    for(const item of avaliacao)comparativo.push({heading:`META / OBJETIVO: ${item.meta.id}`,lines:[`OBJETIVO: ${item.meta.objetivo}`,`META PACTUADA: ${item.meta.meta} | PERIODICIDADE: ${item.meta.periodicidade}`,`REFERÊNCIA: ${item.meta.fonte}`,`RESULTADO IDENTIFICADO NO SISTEMA: ${item.resultado}`,`SITUAÇÃO: ${item.situacao}`,`EVIDÊNCIAS INFORMADAS PELO RESPONSÁVEL: ${item.evidencia||"NÃO INFORMADAS. CONFERIR OS REGISTROS E DOCUMENTOS DESTE RELATÓRIO."}`,`JUSTIFICATIVA PARA NÃO REALIZAÇÃO OU EXECUÇÃO PARCIAL: ${item.justificativa||"NÃO INFORMADA PELO RESPONSÁVEL. SE O OBJETIVO OU META NÃO FOI EFETIVADO, REGISTRAR O MOTIVO NA CONFERÊNCIA DO FOMENTO."}`]});
+    if(conferencia)comparativo.push({heading:"REGISTRO DA CONFERÊNCIA",lines:[`RESPONSÁVEL: ${conferencia.responsavel} | SALVO EM: ${conferencia.atualizadoEm}`,"SITUAÇÕES DECLARADAS E JUSTIFICATIVAS SÃO INFORMAÇÕES DO RESPONSÁVEL; NÃO SUBSTITUEM A VALIDAÇÃO DOS DOCUMENTOS COMPROBATÓRIOS."]});
+    sections.splice(2,0,...comparativo);
+  }else sections.splice(2,0,{heading:"OBJETIVOS E METAS DO TERMO DE FOMENTO",lines:["TERMO AUSENTE OU AINDA SEM OBJETIVOS E METAS CONFERIDOS PARA O ARQUIVO CADASTRADO. NÃO É POSSÍVEL ATESTAR CUMPRIMENTO. REGULARIZAR A BASE DO TERMO DESTA ASSOCIAÇÃO.","JUSTIFICATIVA: NÃO INFORMADA PELO RESPONSÁVEL."]});
+  const naoExecutadas=relatorios.flatMap(r=>lista<Atividade & {observacao?:string}>(r.atividadesJson).filter(a=>a.executada===false).map(a=>`COMPETÊNCIA: ${r.competencia} | ATIVIDADE NÃO EXECUTADA: ${informado(a.tipoAtividade)} | DESCRIÇÃO: ${informado(a.resumo)} | OBSERVAÇÃO REGISTRADA: ${informado(a.observacao)}`));
+  if(naoExecutadas.length)sections.push({heading:"ATIVIDADES INFORMADAS COMO NÃO EXECUTADAS",lines:naoExecutadas});
+  const observacoes=relatorios.filter(r=>r.observacoes?.trim()).map(r=>`COMPETÊNCIA ${r.competencia} | ${informado(nomes.get(r.authUserId)?.nomeCompleto)}: ${r.observacoes}`);
+  if(observacoes.length)sections.push({heading:"OBSERVAÇÕES ORIGINAIS DOS RESPONSÁVEIS",lines:observacoes});
   const titulo=`RELATÓRIO GERAL DE PRESTAÇÃO DE CONTAS À ADERES - ${associacao.nome} - ${referencias}`;
   const arquivosIncorporar=[...new Map(arquivos.filter(arquivo=>arquivo.key&&/application\/pdf|image\/jpeg|image\/png/i.test(arquivo.tipo)).map(arquivo=>[arquivo.key,arquivo])).values()];
   if(url.searchParams.get("formato")==="json")return Response.json({titulo,sections,arquivos:arquivosIncorporar});
   // O PDF principal não abre nem descompacta os binários enviados. Fotos, fichas,
   // notas e extratos permanecem relacionados por nome e contabilizados no corpo.
   // Isso mantém a geração dentro dos limites do plano gratuito do Cloudflare.
-  const resultado=await createPdf(titulo,sections);
-  return new Response(resultado.buffer.slice(resultado.byteOffset,resultado.byteOffset+resultado.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="prestacao-aderes-${associacao.nome.replace(/[^a-zA-Z0-9_-]/g,"-")}-${identificadorCompetencias}.pdf"`}});
+  const resultado=await createPdf(titulo,sections.map(secao=>({...secao,lines:secao.lines.flatMap(linha=>{const partes:string[]=[];let atual="";for(const palavra of linha.split(/\s+/)){if(atual.length+palavra.length>600){partes.push(atual);atual="";}atual+=(atual?" ":"")+palavra;}if(atual)partes.push(atual);return partes;})})));
+  return new Response(new Uint8Array(resultado),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="prestacao-aderes-${associacao.nome.replace(/[^a-zA-Z0-9_-]/g,"-")}-${identificadorCompetencias}.pdf"`}});
 }
