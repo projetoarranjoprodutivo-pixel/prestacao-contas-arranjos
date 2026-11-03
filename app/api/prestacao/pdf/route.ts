@@ -5,7 +5,7 @@ import { associacoes, colaboradores, prestacoes } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { createPdf } from "@/lib/pdf";
 import { isAdminEmail } from "@/lib/admin";
-import { ADERES_LOGO_BASE64, PARCEIROS_LOGO_BASE64, PROJETO_LOGO_BASE64, RODAPE_LOGO_BASE64 } from "@/lib/pdf-assets";
+import { PROJETO_LOGO_BASE64 } from "@/lib/pdf-assets";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 
 export const runtime = "edge";
@@ -27,8 +27,8 @@ function duracaoHoras(atividade:Atividade){const valor=Number(atividade.duracao|
 
 async function adicionarCapa(pdf:PDFDocument,registro:typeof prestacoes.$inferSelect,colaborador:typeof colaboradores.$inferSelect|null,associacao:typeof associacoes.$inferSelect|null){
   const pagina=pdf.addPage([W,H]);const regular=await pdf.embedFont(StandardFonts.Helvetica);const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
-  const [aderes,parceiros,projeto,rodape]=await Promise.all([pdf.embedJpg(bytesBase64(ADERES_LOGO_BASE64)),pdf.embedJpg(bytesBase64(PARCEIROS_LOGO_BASE64)),pdf.embedJpg(bytesBase64(PROJETO_LOGO_BASE64)),pdf.embedJpg(bytesBase64(RODAPE_LOGO_BASE64))]);
-  pagina.drawImage(aderes,{x:42,y:752,width:122,height:61});pagina.drawImage(parceiros,{x:445,y:752,width:108,height:66});pagina.drawImage(projeto,{x:145,y:618,width:306,height:99});
+  const projeto=await pdf.embedJpg(bytesBase64(PROJETO_LOGO_BASE64));
+  pagina.drawImage(projeto,{x:145,y:690,width:306,height:99});
   pagina.drawRectangle({x:70,y:522,width:455,height:86,color:rgb(0.85,0.88,0.89)});
   centralizar(pagina,"REALIZAÇÃO DE ASSISTÊNCIA TÉCNICA PARA",575,bold,10,400);centralizar(pagina,"AGRICULTORES E EMPREENDEDORES FAMILIARES",540,bold,10,400);
   pagina.drawRectangle({x:78,y:350,width:440,height:135,color:rgb(0.92,0.92,0.92)});
@@ -39,7 +39,6 @@ async function adicionarCapa(pdf:PDFDocument,registro:typeof prestacoes.$inferSe
   const dados=[`EXECUTORA: ${executor}`,`MEI/CNPJ: ${colaborador?.mei||"NÃO INFORMADO"}`,`ENDEREÇO: ${endereco||"NÃO INFORMADO"}`,`CONTATO: ${colaborador?.celular||"NÃO INFORMADO"}`,`E-MAIL: ${colaborador?.email||"NÃO INFORMADO"}`];
   let y=460;for(const dado of dados){for(const linha of dividir(dado,regular,8.5,205)){pagina.drawText(linha,{x:305,y,size:8.5,font:regular,color:PRETO});y-=11;}y-=5;}
   y=285;y=centralizar(pagina,"RELATÓRIO DAS ATIVIDADES",y,bold,15);y=centralizar(pagina,"RELACIONADAS AO PROJETO ARRANJOS PRODUTIVOS",y-11,bold,13);y=centralizar(pagina,"NO ESTADO DO ESPÍRITO SANTO",y-7,bold,13);centralizar(pagina,mesCompetencia(registro.competencia),y-16,bold,14);
-  pagina.drawImage(rodape,{x:92,y:24,width:411,height:41});
 }
 
 async function copiarRelatorio(destino:PDFDocument,titulo:string,sections:Array<{heading?:string;lines:string[]}>){const origem=await PDFDocument.load(await createPdf(titulo,sections));const paginas=await destino.copyPages(origem,origem.getPageIndices());paginas.forEach(p=>destino.addPage(p));}
@@ -62,11 +61,11 @@ async function adicionarAtividadeComAssinaturas(pdf:PDFDocument,atividade:Ativid
 
 async function adicionarTabelaAssociacoes(pdf:PDFDocument){
   const dados:Array<[string,string[]]>=[["MUNIZ CAF",["MUNIZ FREIRE","IÚNA","IBITIRAMA","DIVINO DE SÃO LOURENÇO"]],["AAFARSCRUZ",["GUAÇUÍ","ALEGRE","JERÔNIMO MONTEIRO"]],["APRVG",["BREJETUBA","CONCEIÇÃO DO CASTELO","IBATIBA"]],["APEAGRI",["ITAPEMIRIM","PIÚMA","RIO NOVO DO SUL","ICONHA"]],["APRUVAB",["ANCHIETA","GUARAPARI","ALFREDO CHAVES"]],["NEEMIAS",["ATÍLIO VIVÁCQUA"]],["AAFATRIM",["PEDRO CANÁRIO","MONTANHA"]],["ARQSCD",["CONCEIÇÃO DA BARRA","BOA ESPERANÇA","JAGUARÉ"]],["CAF COLATINA",["VILA VALÉRIO","SÃO DOMINGOS DO NORTE","COLATINA","MARILÂNDIA"]],["APPROVIPA",["VILA PAVÃO","ECOPORANGA","NOVA VENÉCIA"]],["AAFAMA",["PANCAS","ÁGUIA BRANCA"]],["AAFAIAR",["ALTO RIO NOVO","MANTENÓPOLIS"]],["APROFASAUNA",["IBIRAÇU","JOÃO NEIVA"]]];
-  const pagina=pdf.addPage([W,H]);const regular=await pdf.embedFont(StandardFonts.Helvetica);const bold=await pdf.embedFont(StandardFonts.HelveticaBold);const [aderes,parceiros,rodape]=await Promise.all([pdf.embedJpg(bytesBase64(ADERES_LOGO_BASE64)),pdf.embedJpg(bytesBase64(PARCEIROS_LOGO_BASE64)),pdf.embedJpg(bytesBase64(RODAPE_LOGO_BASE64))]);
-  pagina.drawImage(aderes,{x:42,y:765,width:80,height:40});pagina.drawImage(parceiros,{x:478,y:763,width:72,height:44});pagina.drawText("TABELA 1 - MUNICÍPIOS PARTICIPANTES DO PROJETO ARRANJOS PRODUTIVOS",{x:94,y:735,size:8.5,font:bold,color:VERDE});
+  const pagina=pdf.addPage([W,H]);const regular=await pdf.embedFont(StandardFonts.Helvetica);const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
+  centralizar(pagina,"TABELA 1 - MUNICÍPIOS PARTICIPANTES DO PROJETO ARRANJOS PRODUTIVOS",780,bold,9,W-M*2);
   const x=108,w1=142,w2=238,row=15;let y=710;pagina.drawRectangle({x,y:y-row,width:w1+w2,height:row,color:rgb(0.86,0.87,0.87),borderColor:PRETO,borderWidth:0.8});pagina.drawText("ASSOCIAÇÃO",{x:x+39,y:y-11,size:8,font:bold});pagina.drawText("MUNICÍPIOS",{x:x+w1+80,y:y-11,size:8,font:bold});y-=row;
   for(const [nome,municipios] of dados){const altura=row*municipios.length;pagina.drawRectangle({x,y:y-altura,width:w1,height:altura,color:rgb(0.95,0.95,0.95),borderColor:PRETO,borderWidth:0.6});pagina.drawText(nome,{x:x+8,y:y-altura/2-3,size:7.5,font:bold,color:PRETO});municipios.forEach((municipio,i)=>{pagina.drawRectangle({x:x+w1,y:y-row*(i+1),width:w2,height:row,color:i%2?rgb(0.97,0.97,0.97):rgb(0.91,0.91,0.91),borderColor:PRETO,borderWidth:0.5});pagina.drawText(municipio,{x:x+w1+6,y:y-row*i-11,size:7.4,font:regular,color:PRETO});});y-=altura;}
-  pagina.drawText("PÚBLICO-ALVO",{x:M,y:120,size:9,font:bold,color:VERDE});for(const [i,linha] of dividir("Agricultores e/ou empreendedores familiares rurais participantes do Projeto, registrados na ficha cadastral dos municípios acima citados.",regular,8.4,W-M*2).entries())pagina.drawText(linha,{x:M,y:103-i*11,size:8.4,font:regular,color:PRETO});pagina.drawImage(rodape,{x:92,y:23,width:411,height:41});
+  pagina.drawText("PÚBLICO-ALVO",{x:M,y:120,size:9,font:bold,color:VERDE});for(const [i,linha] of dividir("Agricultores e/ou empreendedores familiares rurais participantes do Projeto, registrados na ficha cadastral dos municípios acima citados.",regular,8.4,W-M*2).entries())pagina.drawText(linha,{x:M,y:103-i*11,size:8.4,font:regular,color:PRETO});
 }
 
 export async function GET(request:Request){
