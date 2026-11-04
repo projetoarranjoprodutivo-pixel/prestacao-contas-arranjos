@@ -56,22 +56,6 @@ export default function ImportadorRelatorios() {
     setMensagem(`IMPORTAÇÃO DO PACOTE CONCLUÍDA.\n${resultados.join("\n")}`);
   }
 
-  async function importarPacoteSelecionado(arquivo?: File) {
-    if (!arquivo) return;
-    setEnviando(true);
-    setMensagem(`PREPARANDO ${arquivo.name}...`);
-    try {
-      const form = new FormData();
-      form.set("pacote", arquivo);
-      const resposta = await fetch("/api/admin/importar-relatorios-pacote", { method: "POST", body: form });
-      const corpo = await resposta.json().catch(() => ({})) as { message?: string; resultados?: string[] };
-      if (!resposta.ok) throw new Error(corpo.message || "NÃO FOI POSSÍVEL IMPORTAR O PACOTE.");
-      setMensagem(`${corpo.message || "IMPORTAÇÃO CONCLUÍDA."}\n${(corpo.resultados || []).join("\n")}`);
-    }
-    catch (erro) { setMensagem(erro instanceof Error ? erro.message : "NÃO FOI POSSÍVEL IMPORTAR O PACOTE."); }
-    finally { setEnviando(false); }
-  }
-
   async function enviar(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setEnviando(true);
@@ -92,9 +76,9 @@ export default function ImportadorRelatorios() {
     <form onSubmit={enviar} className="mt-6 space-y-5">
       <section className="rounded-2xl border-2 border-emerald-700 bg-emerald-50 p-5">
         <h2 className="text-lg font-black text-emerald-950">IMPORTAR PACOTE COMPLETO</h2>
-        <p className="mt-1 text-sm font-semibold text-emerald-900">ENVIE UM ÚNICO ZIP COM TODOS OS ARQUIVOS JSON E PDF. O SISTEMA FARÁ AS IMPORTAÇÕES EM SEQUÊNCIA.</p>
+        <p className="mt-1 text-sm font-semibold text-emerald-900">SELECIONE UM ÚNICO ZIP COM TODOS OS ARQUIVOS JSON E PDF E CLIQUE EM IMPORTAR RELATÓRIOS. O NAVEGADOR ENVIARÁ UM RELATÓRIO POR VEZ PARA EVITAR O LIMITE DO CLOUDFLARE.</p>
         <label className="mt-4 block text-sm font-black">ARQUIVO ZIP
-          <input className="mt-2 block w-full rounded-xl border border-emerald-300 bg-white p-3" type="file" name="pacoteZip" accept="application/zip,.zip" disabled={enviando} onChange={(event)=>{const arquivo=event.target.files?.[0];setPacoteZip(arquivo||null);void importarPacoteSelecionado(arquivo)}} />
+          <input className="mt-2 block w-full rounded-xl border border-emerald-300 bg-white p-3" type="file" name="pacoteZip" accept="application/zip,.zip" disabled={enviando} onChange={(event)=>{const arquivo=event.target.files?.[0];setPacoteZip(arquivo||null);setMensagem(arquivo?`${arquivo.name} SELECIONADO. CLIQUE EM IMPORTAR RELATÓRIOS.`:"")}} />
         </label>
       </section>
       <div className="flex items-center gap-3 text-xs font-black text-slate-500"><span className="h-px flex-1 bg-slate-300"/><span>OU IMPORTE UM RELATÓRIO INDIVIDUAL</span><span className="h-px flex-1 bg-slate-300"/></div>
