@@ -56,6 +56,15 @@ export default function ImportadorRelatorios() {
     setMensagem(`IMPORTAÇÃO DO PACOTE CONCLUÍDA.\n${resultados.join("\n")}`);
   }
 
+  async function importarPacoteSelecionado(arquivo?: File) {
+    if (!arquivo) return;
+    setEnviando(true);
+    setMensagem(`PREPARANDO ${arquivo.name}...`);
+    try { await enviarZip(arquivo); }
+    catch (erro) { setMensagem(erro instanceof Error ? erro.message : "NÃO FOI POSSÍVEL IMPORTAR O PACOTE."); }
+    finally { setEnviando(false); }
+  }
+
   async function enviar(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setEnviando(true);
@@ -78,7 +87,7 @@ export default function ImportadorRelatorios() {
         <h2 className="text-lg font-black text-emerald-950">IMPORTAR PACOTE COMPLETO</h2>
         <p className="mt-1 text-sm font-semibold text-emerald-900">ENVIE UM ÚNICO ZIP COM TODOS OS ARQUIVOS JSON E PDF. O SISTEMA FARÁ AS IMPORTAÇÕES EM SEQUÊNCIA.</p>
         <label className="mt-4 block text-sm font-black">ARQUIVO ZIP
-          <input className="mt-2 block w-full rounded-xl border border-emerald-300 bg-white p-3" type="file" name="pacoteZip" accept="application/zip,.zip" onChange={async(event)=>{const arquivo=event.target.files?.[0];setPacoteZip(arquivo?new File([await arquivo.arrayBuffer()],arquivo.name,{type:arquivo.type}):null)}} />
+          <input className="mt-2 block w-full rounded-xl border border-emerald-300 bg-white p-3" type="file" name="pacoteZip" accept="application/zip,.zip" disabled={enviando} onChange={(event)=>{const arquivo=event.target.files?.[0];setPacoteZip(arquivo||null);void importarPacoteSelecionado(arquivo)}} />
         </label>
       </section>
       <div className="flex items-center gap-3 text-xs font-black text-slate-500"><span className="h-px flex-1 bg-slate-300"/><span>OU IMPORTE UM RELATÓRIO INDIVIDUAL</span><span className="h-px flex-1 bg-slate-300"/></div>
