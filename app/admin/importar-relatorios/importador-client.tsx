@@ -7,6 +7,10 @@ type Dados = { relatorios?: Array<{ competencia?: string; arquivo?: string }> };
 type Resultado = { message?: string; tecnico?: string; competencias?: string[]; atividades?: number };
 
 function nomeBase(caminho: string) { return caminho.split("/").pop() || caminho; }
+function arquivoSelecionado(valor: FormDataEntryValue | null): valor is File {
+  return !!valor && typeof valor === "object" && "size" in valor && Number(valor.size) > 0
+    && "name" in valor && typeof valor.name === "string";
+}
 
 async function enviarImportacao(texto: string, arquivos: Map<string, File>) {
   const dados = JSON.parse(texto) as Dados;
@@ -61,12 +65,12 @@ export default function ImportadorRelatorios() {
     try {
       const form = new FormData(event.currentTarget);
       const zip = form.get("pacoteZip");
-      if (zip instanceof File && zip.size) { await enviarZip(zip); return; }
+      if (arquivoSelecionado(zip)) { await enviarZip(zip); return; }
       const json = form.get("dadosArquivo");
       const pdfs = form.getAll("pdfs");
-      if (!(json instanceof File) || !json.size) throw new Error("SELECIONE O ARQUIVO JSON.");
+      if (!arquivoSelecionado(json)) throw new Error("SELECIONE O ARQUIVO JSON.");
       const texto = await json.text();
-      const porNome = new Map(pdfs.filter((item): item is File => item instanceof File && item.size > 0).map((item) => [item.name, item]));
+      const porNome = new Map(pdfs.filter(arquivoSelecionado).map((item) => [item.name, item]));
       const corpo = await enviarImportacao(texto, porNome);
       setMensagem(`${corpo.message} ${corpo.tecnico} · ${corpo.competencias?.join(", ")} · ${corpo.atividades} ATIVIDADES.`);
     } catch (erro) {
