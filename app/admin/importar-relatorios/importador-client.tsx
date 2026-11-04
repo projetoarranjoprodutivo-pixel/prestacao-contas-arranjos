@@ -60,7 +60,14 @@ export default function ImportadorRelatorios() {
     if (!arquivo) return;
     setEnviando(true);
     setMensagem(`PREPARANDO ${arquivo.name}...`);
-    try { await enviarZip(arquivo); }
+    try {
+      const form = new FormData();
+      form.set("pacote", arquivo);
+      const resposta = await fetch("/api/admin/importar-relatorios-pacote", { method: "POST", body: form });
+      const corpo = await resposta.json().catch(() => ({})) as { message?: string; resultados?: string[] };
+      if (!resposta.ok) throw new Error(corpo.message || "NÃO FOI POSSÍVEL IMPORTAR O PACOTE.");
+      setMensagem(`${corpo.message || "IMPORTAÇÃO CONCLUÍDA."}\n${(corpo.resultados || []).join("\n")}`);
+    }
     catch (erro) { setMensagem(erro instanceof Error ? erro.message : "NÃO FOI POSSÍVEL IMPORTAR O PACOTE."); }
     finally { setEnviando(false); }
   }
