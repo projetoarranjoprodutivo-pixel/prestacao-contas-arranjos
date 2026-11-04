@@ -40,12 +40,13 @@ export async function GET(request:Request){
   ]);}catch(error){return new Response(`FALHA AO CONSULTAR OS DADOS: ${error instanceof Error?error.message:String(error)}`,{status:500});}
   const nomes=new Map(usuarios.map(u=>[u.authUserId,u]));
   const associacaoPorMunicipio=mapaAssociacoesPorMunicipio([{nome:associacao.nome,municipiosJson:associacao.municipiosJson}]);
+  const quantidadeAtividadesPorRelatorio=new Map(relatorios.map(r=>[r.id,lista<Atividade>(r.atividadesJson).filter(a=>a.executada!==false).length]));
   const atividades=relatorios.flatMap(r=>lista<Atividade>(r.atividadesJson).filter(a=>a.executada!==false&&(r.authUserId!=="admin-importacao-mudas-2026"||associacaoPorMunicipio.get(chaveMunicipio(a.municipio))===associacao.nome)).map(a=>({a,r,u:nomes.get(r.authUserId)})));
   const visitas=atividades.filter(x=>informado(x.a.tipoAtividade).toLocaleLowerCase("pt-BR")==="visita técnica");
   const eventos=atividades.filter(x=>informado(x.a.tipoAtividade).toLocaleLowerCase("pt-BR")!=="visita técnica"&&!ehEntregaMudas(x.a));
   const entregas=atividades.filter(x=>x.r.authUserId==="admin-importacao-mudas-2026"&&ehEntregaMudas(x.a));
   const agricultoresMap=new Map<string,{nome:string;municipio:string;beneficios:string[];minutos:number;observacoes:string[]}>();
-  for(const {a} of atividades){const nome=informado(a.agricultor||a.beneficiario);if(nome==="NÃO INFORMADO")continue;const atual=agricultoresMap.get(nome)||{nome,municipio:informado(a.municipio),beneficios:[],minutos:0,observacoes:[]};if(a.tipoAtividade)atual.beneficios.push(informado(a.tipoAtividade));if(ehEntregaMudas(a))atual.beneficios.push(`MUDAS DE ${tipoMudaEntregue(a)}`);atual.minutos+=Math.max(0,numero(a.duracao));if(a.resumo)atual.observacoes.push(a.resumo);agricultoresMap.set(nome,atual);}
+  for(const {a,r} of atividades){const nome=informado(a.agricultor||a.beneficiario);if(nome==="NÃO INFORMADO")continue;const atual=agricultoresMap.get(nome)||{nome,municipio:informado(a.municipio),beneficios:[],minutos:0,observacoes:[]};if(a.tipoAtividade)atual.beneficios.push(informado(a.tipoAtividade));if(ehEntregaMudas(a))atual.beneficios.push(`MUDAS DE ${tipoMudaEntregue(a)}`);const duracaoInformada=Math.max(0,numero(a.duracao));const quantidadeAtividades=quantidadeAtividadesPorRelatorio.get(r.id)||1;const duracaoCalculada=r.totalMinutos>0?r.totalMinutos/quantidadeAtividades:0;atual.minutos+=duracaoInformada||duracaoCalculada;if(a.resumo)atual.observacoes.push(a.resumo);agricultoresMap.set(nome,atual);}
   const agricultores=[...agricultoresMap.values()];
   const extratos=financeiro.flatMap(item=>lista<Arquivo>(item.extratosJson)),notas=financeiro.flatMap(item=>lista<Arquivo>(item.notasFiscaisJson)),anexos=relatorios.flatMap(r=>lista<Arquivo>(r.anexosJson));
   const comprasMudas=notas.filter(ehCompraMudas);
