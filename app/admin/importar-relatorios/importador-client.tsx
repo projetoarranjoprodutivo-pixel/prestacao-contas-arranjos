@@ -78,15 +78,15 @@ export default function ImportadorRelatorios() {
         <h2 className="text-lg font-black text-emerald-950">IMPORTAR PACOTE COMPLETO</h2>
         <p className="mt-1 text-sm font-semibold text-emerald-900">ENVIE UM ÚNICO ZIP COM TODOS OS ARQUIVOS JSON E PDF. O SISTEMA FARÁ AS IMPORTAÇÕES EM SEQUÊNCIA.</p>
         <label className="mt-4 block text-sm font-black">ARQUIVO ZIP
-          <input className="mt-2 block w-full rounded-xl border border-emerald-300 bg-white p-3" type="file" name="pacoteZip" accept="application/zip,.zip" onChange={(event)=>setPacoteZip(event.target.files?.[0]||null)} />
+          <input className="mt-2 block w-full rounded-xl border border-emerald-300 bg-white p-3" type="file" name="pacoteZip" accept="application/zip,.zip" onChange={async(event)=>{const arquivo=event.target.files?.[0];setPacoteZip(arquivo?new File([await arquivo.arrayBuffer()],arquivo.name,{type:arquivo.type}):null)}} />
         </label>
       </section>
       <div className="flex items-center gap-3 text-xs font-black text-slate-500"><span className="h-px flex-1 bg-slate-300"/><span>OU IMPORTE UM RELATÓRIO INDIVIDUAL</span><span className="h-px flex-1 bg-slate-300"/></div>
       <label className="block text-sm font-black">ARQUIVO JSON
-        <input className="mt-2 block w-full rounded-xl border border-slate-300 p-3" type="file" name="dadosArquivo" accept="application/json,.json" onChange={(event)=>setDadosArquivo(event.target.files?.[0]||null)} />
+        <input className="mt-2 block w-full rounded-xl border border-slate-300 p-3" type="file" name="dadosArquivo" accept="application/json,.json" onChange={async(event)=>{const arquivo=event.target.files?.[0];setDadosArquivo(arquivo?new File([await arquivo.arrayBuffer()],arquivo.name,{type:arquivo.type}):null)}} />
       </label>
       <label className="block text-sm font-black">PDFS DE FOTOS E LISTAS
-        <input className="mt-2 block w-full rounded-xl border border-slate-300 p-3" type="file" name="pdfs" accept="application/pdf,.pdf" multiple onChange={(event)=>setPdfsArquivos(Array.from(event.target.files||[]))} />
+        <input className="mt-2 block w-full rounded-xl border border-slate-300 p-3" type="file" name="pdfs" accept="application/pdf,.pdf" multiple onChange={async(event)=>{const arquivos=Array.from(event.target.files||[]);setPdfsArquivos(await Promise.all(arquivos.map(async arquivo=>new File([await arquivo.arrayBuffer()],arquivo.name,{type:arquivo.type}))))}} />
       </label>
       <button disabled={enviando} className="h-12 rounded-xl bg-emerald-700 px-6 font-black text-white disabled:opacity-50">{enviando ? "IMPORTANDO..." : "IMPORTAR RELATÓRIOS"}</button>
       {mensagem && <p className="whitespace-pre-line rounded-xl bg-slate-100 p-4 text-sm font-bold" role="status">{mensagem}</p>}
