@@ -67,5 +67,5 @@ export function listarNotasServicoPendentes(usuarios:ColaboradorNota[],documento
       for(const usuario of semIdentificacao){pendentes.push({id:usuario.id,nomeCompleto:usuario.nomeCompleto,cargo:usuario.cargo,email:usuario.email,associacao,competencia});}
     }
   }
-  return pendentes;
+  return [...new Map(pendentes.map(item=>[`${chaveAssociacao(item.associacao)}|${item.id}|${item.competencia}`,item])).values()];
 }
