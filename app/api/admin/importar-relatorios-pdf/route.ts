@@ -33,13 +33,17 @@ export async function POST(request:Request){
  const raw=resposta.response??resposta.choices?.[0]?.message?.content??"";const dados=typeof raw==="string"?JSON.parse(raw.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"")):raw;
  if(!Array.isArray(dados.atividades)||!dados.atividades.length||dados.atividades.length>500)throw new Error("NÃO FORAM IDENTIFICADAS ATIVIDADES INDIVIDUAIS. CONFIRA A LEGIBILIDADE DA TABELA DO RELATÓRIO.");
  const avisos=Array.isArray(dados.avisos)?dados.avisos.map(String):[];
- const competenciaIdentificada=String(dados.competencia||"");\n const atividades:AtividadeImportada[]=dados.atividades.map((a:Record<string,unknown>,index:number)=>{
+ const competenciaIdentificada=String(dados.competencia||"");
+ const atividades:AtividadeImportada[]=dados.atividades.map((a:Record<string,unknown>,index:number)=>{
   const campos=["data","hora","duracao","municipio","comunidade","propriedade","agricultor","telefone","tipoAtividade","tipoMuda","quantidadeMudas","observacao","resumo"] as const;
   const item=Object.fromEntries(campos.map(c=>[c,String(a[c]??"")])) as Record<typeof campos[number],string>;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(item.data)&&/^\d{4}-\d{2}$/.test(competenciaIdentificada)&&!item.data.startsWith(`${competenciaIdentificada}-`)){const partes=item.data.split("-");const mesCompetencia=competenciaIdentificada.slice(5,7);const dia=partes[1]===mesCompetencia?partes[2]:partes[2]===mesCompetencia?partes[1]:"";if(dia){const candidata=`${competenciaIdentificada}-${dia}`;if(!Number.isNaN(Date.parse(candidata))&&new Date(candidata).toISOString().slice(0,10)===candidata)item.data=candidata;}}
   if(!/^\d{4}-\d{2}-\d{2}$/.test(item.data)||Number.isNaN(Date.parse(item.data))||new Date(item.data).toISOString().slice(0,10)!==item.data){item.data="";avisos.push(`Atividade ${index+1}: confira e preencha a data não identificada.`);}
   if(item.duracao&&(!Number.isFinite(Number(item.duracao))||Number(item.duracao)<0||Number(item.duracao)>1440)){item.duracao="";avisos.push(`Atividade ${index+1}: duração não identificada com segurança.`);}
   item.resumo=item.resumo||item.observacao||String(a.descricao||"")||item.tipoAtividade;
   item.tipoAtividade=tipoAtividadeImportada(item.tipoAtividade,item.resumo);
+  const resumoNormalizado=`${item.tipoAtividade} ${item.resumo}`.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toUpperCase();
+  if(item.tipoAtividade==="Atividades internas"&&item.agricultor&&/(ASSISTENCIA TECNICA|ACOMPANHAMENTO TECNICO|ORIENTACAO TECNICA)/.test(resumoNormalizado))item.tipoAtividade="Visita Técnica";
   if(item.tipoAtividade!=="Visita Técnica")item.agricultor="";
   else if(/ACAMPAMENTO|ASSOCIACAO|SECRETARIA|PREFEITURA|TREINAMENTO|REUNIAO|VISITAMATAFRIA/.test(item.agricultor.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"")))item.agricultor="";
   return {...item,inicio:item.hora,executada:a.executada!==false,assinaturaProdutor:"",assinaturaTecnico:""};
