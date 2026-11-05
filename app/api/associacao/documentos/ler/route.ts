@@ -115,8 +115,9 @@ function dadosDeterministicos(conteudo:string,nome:string,lista:Array<{nome:stri
 }
 
 function associacaoPeloNome(nome:string,lista:Array<{nome:string|null;razaoSocial:string|null;cnpj:string|null}>){
- const chave=normalizar(nome).replace(/[^A-Z0-9]/g,"").replace(/^APPROVIPA/,"APROVIPA");
- return lista.find(item=>chave.includes(normalizar(String(item.nome||"")).replace(/[^A-Z0-9]/g,"")))?.nome||"";
+ const canonica=(valor:string)=>{const chave=normalizar(valor).replace(/[^A-Z0-9]/g,"");return chave==="APROVIPA"?"APPROVIPA":chave;};
+ const chave=canonica(nome);
+ return lista.find(item=>chave.includes(canonica(String(item.nome||""))))?.nome||"";
 }
 
 async function imagensParaLeitura(bytes:ArrayBuffer,tipo:string):Promise<string[]>{
