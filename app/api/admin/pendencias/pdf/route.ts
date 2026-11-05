@@ -11,22 +11,22 @@ export const runtime="edge";
 export async function GET(request:Request){
   if(!await getAdminUser())return new Response("ACESSO RESTRITO",{status:403});
   const url=new URL(request.url);const solicitado=url.searchParams.get("tipo");const tipo=solicitado==="prestacao"?"prestacao":solicitado==="notas-servico"?"notas-servico":"plano";
-  const associacaoSolicitada=url.searchParams.get("associacao");
-  const associacaoFiltro=associacaoSolicitada?normalizarNomeAssociacao(associacaoSolicitada):"";
   const competencias=url.searchParams.getAll("competencias").filter(c=>/^\d{4}-\d{2}$/.test(c));
   if(!competencias.length)return new Response("INFORME AO MENOS UMA COMPETÊNCIA",{status:400});
   const db=getDb();
   if(tipo==="notas-servico"){
     const [usuarios,documentos]=await Promise.all([db.select().from(colaboradores),db.select().from(documentosAssociacao)]);
-    const pendentes=listarNotasServicoPendentes(usuarios,documentos,competencias).filter(item=>!associacaoFiltro||normalizarNomeAssociacao(item.associacao)===associacaoFiltro);
+    const pendentes=listarNotasServicoPendentes(usuarios,documentos,competencias);
     const associacoes=[...new Set(pendentes.map(item=>item.associacao))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
     const secoes=associacoes.map(associacao=>({heading:associacao,lines:pendentes.filter(item=>item.associacao===associacao).sort((a,b)=>a.nomeCompleto.localeCompare(b.nomeCompleto,"pt-BR")||a.competencia.localeCompare(b.competencia)).map(item=>`${item.nomeCompleto} · ${item.cargo} · COMPETÊNCIA ${item.competencia} · ${item.email}`)}));
-    const pdf=await createPdf(`PENDÊNCIAS DE NOTAS FISCAIS DE SERVIÇO${associacaoFiltro?` · ${associacaoFiltro}`:""}`,secoes.length?secoes:[{heading:"RESULTADO",lines:["NENHUMA NOTA FISCAL DE SERVIÇO PENDENTE NAS COMPETÊNCIAS SELECIONADAS."]}]);
+    const pdf=await createPdf("PENDÊNCIAS DE NOTAS FISCAIS DE SERVIÇO",secoes.length?secoes:[{heading:"RESULTADO",lines:["NENHUMA NOTA FISCAL DE SERVIÇO PENDENTE NAS COMPETÊNCIAS SELECIONADAS."]}]);
     return new Response(pdf.buffer.slice(pdf.byteOffset,pdf.byteOffset+pdf.byteLength),{headers:{"content-type":"application/pdf","content-disposition":'attachment; filename="pendencias-notas-servico.pdf"'}});
   }
   const [usuarios,registros]=await Promise.all([db.select().from(colaboradores),tipo==="plano"?db.select().from(planosTrabalho):db.select().from(prestacoes)]);
   const enviados=new Set(registros.filter(r=>competencias.includes(r.competencia)).map(r=>`${r.authUserId}:${r.competencia}`));
-  const secoes=competencias.flatMap(comp=>{const faltantes=usuarios.filter(u=>ativoNaCompetencia(u,comp)&&(!associacaoFiltro||normalizarNomeAssociacao(u.associacao)===associacaoFiltro)&&!enviados.has(`${u.authUserId}:${comp}`));return [{heading:`COMPETÊNCIA ${comp}`,lines:faltantes.length?faltantes.map(u=>`${u.nomeCompleto} · ${u.cargo} · ${u.associacao||"SEM ASSOCIAÇÃO"} · ${u.email}`):["NENHUMA PENDÊNCIA NESTA COMPETÊNCIA."]}];});
-  const nome=tipo==="plano"?"PLANOS DE TRABALHO":"PRESTAÇÕES DE CONTAS";const pdf=await createPdf(`PENDÊNCIAS DE ${nome}${associacaoFiltro?` · ${associacaoFiltro}`:""}`,secoes);
+  const pendentes=competencias.flatMap(competencia=>usuarios.filter(u=>ativoNaCompetencia(u,competencia)&&!enviados.has(`${u.authUserId}:${competencia}`)).map(u=>({...u,competencia,associacaoNormalizada:normalizarNomeAssociacao(u.associacao)})));
+  const associacoes=[...new Set(pendentes.map(item=>item.associacaoNormalizada))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+  const secoes=associacoes.map(associacao=>({heading:associacao,lines:pendentes.filter(item=>item.associacaoNormalizada===associacao).sort((a,b)=>a.nomeCompleto.localeCompare(b.nomeCompleto,"pt-BR")||a.competencia.localeCompare(b.competencia)).map(item=>`${item.nomeCompleto} · ${item.cargo} · COMPETÊNCIA ${item.competencia} · ${item.email}`)}));
+  const nome=tipo==="plano"?"PLANOS DE TRABALHO":"PRESTAÇÕES DE CONTAS";const pdf=await createPdf(`PENDÊNCIAS DE ${nome} POR ASSOCIAÇÃO`,secoes.length?secoes:[{heading:"RESULTADO",lines:["NENHUMA PENDÊNCIA NAS COMPETÊNCIAS SELECIONADAS."]}]);
   return new Response(pdf.buffer.slice(pdf.byteOffset,pdf.byteOffset+pdf.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="pendencias-${tipo}.pdf"`}});
 }
