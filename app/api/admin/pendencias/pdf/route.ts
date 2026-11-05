@@ -23,8 +23,10 @@ export async function GET(request:Request){
     return new Response(pdf.buffer.slice(pdf.byteOffset,pdf.byteOffset+pdf.byteLength),{headers:{"content-type":"application/pdf","content-disposition":'attachment; filename="pendencias-notas-servico.pdf"'}});
   }
   const [usuarios,registros]=await Promise.all([db.select().from(colaboradores),tipo==="plano"?db.select().from(planosTrabalho):db.select().from(prestacoes)]);
-  const enviados=new Set(registros.filter(r=>competencias.includes(r.competencia)).map(r=>`${r.authUserId}:${r.competencia}`));
-  const pendentes=competencias.flatMap(competencia=>usuarios.filter(u=>ativoNaCompetencia(u,competencia)&&!enviados.has(`${u.authUserId}:${competencia}`)).map(u=>({...u,competencia,associacaoNormalizada:normalizarNomeAssociacao(u.associacao)})));
+  const chaveAssociacao=(valor:string|null|undefined)=>normalizarNomeAssociacao(valor||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Z0-9]/gi,"").toUpperCase();
+  const associacoesDoUsuario=(usuario:typeof usuarios[number])=>{let lista:string[]=[];try{const dados=JSON.parse(usuario.associacoesJson||"[]");if(Array.isArray(dados))lista=dados.filter((item):item is string=>typeof item==="string"&&!!item.trim());}catch{}if(!lista.length&&usuario.associacao)lista=[usuario.associacao];return [...new Set(lista.map(normalizarNomeAssociacao).filter(Boolean))];};
+  const enviados=new Set(registros.filter(r=>competencias.includes(r.competencia)).map(r=>`${r.authUserId}:${r.competencia}:${chaveAssociacao(r.associacao)}`));
+  const pendentes=competencias.flatMap(competencia=>usuarios.filter(u=>ativoNaCompetencia(u,competencia)).flatMap(u=>associacoesDoUsuario(u).filter(associacao=>!enviados.has(`${u.authUserId}:${competencia}:${chaveAssociacao(associacao)}`)).map(associacao=>({...u,competencia,associacaoNormalizada:associacao}))));
   const associacoes=[...new Set(pendentes.map(item=>item.associacaoNormalizada))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
   const secoes=associacoes.map(associacao=>({heading:associacao,lines:pendentes.filter(item=>item.associacaoNormalizada===associacao).sort((a,b)=>a.nomeCompleto.localeCompare(b.nomeCompleto,"pt-BR")||a.competencia.localeCompare(b.competencia)).map(item=>`${item.nomeCompleto} · ${item.cargo} · COMPETÊNCIA ${item.competencia} · ${item.email}`)}));
   const nome=tipo==="plano"?"PLANOS DE TRABALHO":"PRESTAÇÕES DE CONTAS";const pdf=await createPdf(`PENDÊNCIAS DE ${nome} POR ASSOCIAÇÃO`,secoes.length?secoes:[{heading:"RESULTADO",lines:["NENHUMA PENDÊNCIA NAS COMPETÊNCIAS SELECIONADAS."]}]);
