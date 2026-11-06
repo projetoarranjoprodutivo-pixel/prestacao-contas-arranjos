@@ -27,8 +27,14 @@ type DadosImportacao = {
 const agora = () => new Date().toISOString();
 const identificadorHistorico = (email: string) => `historico-${email.toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 
-function agricultoresDasAtividades(dados: DadosImportacao) {
+function agricultoresDasAtividades(dados: DadosImportacao, anteriores = "[]") {
   const encontrados = new Map<string, { municipio: string; comunidade: string; propriedade: string; agricultor: string; telefone: string }>();
+  const cadastrados = JSON.parse(anteriores || "[]") as Array<{ municipio: string; comunidade: string; propriedade: string; agricultor: string; telefone: string }>;
+  for (const agricultor of cadastrados) {
+    if (!agricultor.agricultor?.trim()) continue;
+    const chave = `${agricultor.agricultor.trim().toLocaleUpperCase("pt-BR")}|${(agricultor.municipio || "").trim().toLocaleUpperCase("pt-BR")}`;
+    encontrados.set(chave, agricultor);
+  }
   for (const relatorio of dados.relatorios) for (const atividade of relatorio.atividades) {
     if (!atividade.agricultor) continue;
     const chave = `${atividade.agricultor.trim().toLocaleUpperCase("pt-BR")}|${atividade.municipio.trim().toLocaleUpperCase("pt-BR")}`;
@@ -123,7 +129,7 @@ export async function POST(request: Request) {
       cidade: existente?.cidade || tecnico.municipiosAtendidos[0] || "",
       uf: existente?.uf || "ES",
       celular: tecnico.celular || existente?.celular || "",
-      atendimentosJson: JSON.stringify(agricultoresDasAtividades(dados)),
+      atendimentosJson: JSON.stringify(agricultoresDasAtividades(dados, existente?.atendimentosJson || "[]")),
       superioresJson: tecnico.superiores && Object.keys(tecnico.superiores).length
         ? JSON.stringify(tecnico.superiores)
         : existente?.superioresJson || "{}",
