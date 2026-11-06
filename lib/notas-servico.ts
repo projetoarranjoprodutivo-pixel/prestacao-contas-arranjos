@@ -2,7 +2,7 @@ import { ativoNaCompetencia } from "@/lib/vinculo-colaborador";
 import { categoriaDaNota } from "@/lib/classificacao-notas";
 type ColaboradorNota={id:number;nomeCompleto:string;nomeEmpresarial:string|null;mei:string|null;email:string;cargo:string;associacao:string|null;associacoesJson:string;dataSaida?:string|null;dataAdmissao?:string|null};
 type DocumentoNota={associacao:string;competencia:string;notasFiscaisJson:string};
-type ArquivoNota={categoriaNota?:string;nome?:string;descricao?:string;key?:string;fornecedor?:string;prestador?:string;cnpjPrestador?:string};
+type ArquivoNota={competencia?:string;origemLeitura?:string;categoriaNota?:string;nome?:string;descricao?:string;key?:string;fornecedor?:string;prestador?:string;cnpjPrestador?:string};
 
 function normalizar(valor?:string|null){return String(valor||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Z0-9]+/gi," ").trim().toUpperCase();}
 
@@ -10,6 +10,8 @@ function normalizar(valor?:string|null){return String(valor||"").normalize("NFD"
 function chaveAssociacao(valor:string){const chave=normalizar(valor).replace(/ /g,"");return chave==="APROVIPA"?"APPROVIPA":chave;}
 
 export function competenciaDaNota(nota:ArquivoNota,competenciaEnvio:string){
+ if(nota.competencia&&/^20\d{2}-(0[1-9]|1[0-2])$/.test(nota.competencia))return nota.competencia;
+ if(nota.origemLeitura==="conteudo")return competenciaEnvio;
  const meses=["JANEIRO","FEVEREIRO","MARCO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
  // O nome costuma informar o mês do serviço; a emissão pode ser no mês seguinte.
  const nome=normalizar(nota.nome);
@@ -36,6 +38,7 @@ function tokensIdentificadores(usuario:ColaboradorNota){
 }
 
 export function notaPertenceAoColaborador(nota:ArquivoNota,usuario:ColaboradorNota,usuariosAssociacao:ColaboradorNota[]){
+  if(nota.origemLeitura==="conteudo"){const cnpj=String(nota.cnpjPrestador||"").replace(/\D/g,"");const mei=String(usuario.mei||"").replace(/\D/g,"");if(cnpj&&mei)return cnpj===mei;const nome=normalizar(nota.prestador);return !!nome&&[usuario.nomeCompleto,usuario.nomeEmpresarial].filter(Boolean).some(candidato=>nome.includes(normalizar(candidato)));}
   const texto=normalizar(`${nota.nome||""} ${nota.descricao||""} ${nota.key?.split("/").pop()||""} ${nota.fornecedor||""} ${nota.prestador||""} ${nota.cnpjPrestador||""}`);if(!texto)return false;
   const candidatos=[usuario.nomeCompleto,usuario.nomeEmpresarial,usuario.email.split("@")[0]].map(normalizar).filter(Boolean);
   if(candidatos.some(candidato=>{

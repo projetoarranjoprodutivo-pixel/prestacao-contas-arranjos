@@ -1,51 +1,29 @@
-import {eq} from "drizzle-orm";
-import {getChatGPTUser} from "@/app/chatgpt-auth";
+import {env} from "cloudflare:workers";
+import {and,eq,sql} from "drizzle-orm";
+import {getAderesOrAdminUser} from "@/lib/admin";
 import {getDb} from "@/db";
-import {garantirBanco} from "@/db/bootstrap";
 import {documentosAssociacao} from "@/db/schema";
-import {isAdminEmail} from "@/lib/admin";
-
+import {POST as lerDocumento} from "@/app/api/associacao/documentos/ler/route";
+import {categoriaDaNota} from "@/lib/classificacao-notas";
 export const runtime="edge";
-type Arquivo={key?:string;nome?:string;tipo?:string;descricao?:string;quantidade?:string;valor?:string;dataEmissao?:string};
-
-const produtos:Record<string,Pick<Arquivo,"descricao"|"quantidade"|"valor"|"dataEmissao">>={
-  "AAFAIAR 073.PDF":{descricao:"MUDAS DE BANANA-DA-TERRA",quantidade:"9.090 UN",valor:"100000.00",dataEmissao:"2026-05-19"},
-  "AAFAIAR 100420001.PDF":{descricao:"MUDAS FRUTÍFERAS NÃO ORNAMENTAIS",quantidade:"5.264 UN",valor:"100000.00",dataEmissao:"2026-04-10"},
-  "AAFARSCRUZ 021.PDF":{descricao:"MUDAS DE CAFÉ CONILON CLONAL",quantidade:"76.924 UN",valor:"200000.00",dataEmissao:"2026-04-24"},
-  "AAFATRIM 071.PDF":{descricao:"MUDAS DE PIMENTA-DO-REINO",quantidade:"8.333 UN",valor:"50000.00",dataEmissao:"2026-05-19"},
-  "APRUVAB 026.PDF":{descricao:"MUDAS DE CAFÉ CONILON CLONAL",quantidade:"38.462 UN",valor:"100000.00",dataEmissao:"2026-05-18"},
-  "APRUVAB 25089.PDF":{descricao:"MUDAS DE CACAU CCN 51 (2.780 UN) E PS 13.19 (2.776 UN)",quantidade:"5.556 UN",valor:"100000.00",dataEmissao:"2026-06-19"},
-  "APRVG 027.PDF":{descricao:"MUDAS DE CAFÉ ARÁBICA",quantidade:"26.924 UN",valor:"70000.00",dataEmissao:"2026-05-18"},
-  "APRVG 24631.PDF":{descricao:"MUDAS DE ABACATE E CITROS (GEADA, HASS, MARGARIDA, PRIMAVERA, LARANJA, MEXERICA E TANGERINA)",quantidade:"8.389 UN",valor:"200016.00",dataEmissao:"2026-04-24"},
-  "APRVG 24825.PDF":{descricao:"MUDAS DE CACAU CCN 51 (1.389 UN) E PS 13.19 (1.389 UN)",quantidade:"2.778 UN",valor:"50000.00",dataEmissao:"2026-05-19"},
-  "ARQSCD 066.PDF":{descricao:"MUDAS DE PIMENTA-DO-REINO",quantidade:"33.334 UN",valor:"200000.00",dataEmissao:"2026-04-08"},
-  "NEEMIAS 038.PDF":{descricao:"MUDAS DE CAFÉ CONILON CLONAL",quantidade:"19.231 UN",valor:"50000.00",dataEmissao:"2026-05-28"},
-  "NEEMIAS 8794.PDF":{descricao:"MUDAS DE BANANA BRS TERRA ANÃ",quantidade:"2.500 UN",valor:"27500.00",dataEmissao:"2026-06-18"},
-};
-
-function nomeNormalizado(nome=""){return nome.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/_/g," ").replace(/\s+/g," ").trim().toUpperCase()}
-function mesExtenso(competencia:string){const [ano,mes]=competencia.split("-");const nomes=["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];return `${nomes[Number(mes)-1]||mes} DE ${ano}`}
-
-async function processar(){
-  const user=await getChatGPTUser();
-  if(!user||(user.role!=="aderes"&&user.role!=="admin"&&!isAdminEmail(user.email)))return Response.json({message:"ACESSO NEGADO."},{status:403});
-  await garantirBanco();const db=getDb();const registros=await db.select().from(documentosAssociacao);let alterados=0;
+export async function POST(request:Request){
+ if(!await getAderesOrAdminUser())return Response.json({message:"ACESSO NEGADO."},{status:403});
+ try{
+  const {key}=await request.json() as {key?:string};
+  if(typeof key!=="string"||!key)return Response.json({message:"SELECIONE UMA NOTA PARA RELER O CONTEÚDO."},{status:400});
+  const db=getDb();const registros=await db.select().from(documentosAssociacao).where(sql`instr(${documentosAssociacao.notasFiscaisJson}, ${key}) > 0`);
   for(const registro of registros){
-    let notas:Arquivo[]=[];try{notas=JSON.parse(registro.notasFiscaisJson||"[]")}catch{continue}
-    let mudou=false;
-    notas=notas.map(nota=>{
-      if(nota.descricao&&nota.valor&&nota.dataEmissao)return nota;
-      const nome=nomeNormalizado(nota.nome);const produto=produtos[nome];
-      if(produto){mudou=true;alterados++;return {...nota,...produto}}
-      // Os demais arquivos históricos são NFS-e mensais dos profissionais.
-      // Preenche somente dados confirmáveis pelo contrato e pela competência;
-      // a data permanece vazia quando não consta na indexação original.
-      mudou=true;alterados++;
-      return {...nota,descricao:`PRESTAÇÃO DE SERVIÇOS TÉCNICOS ESPECIALIZADOS — COMPETÊNCIA ${mesExtenso(registro.competencia)}`,quantidade:"160 H",valor:"5200.00"};
-    });
-    if(mudou)await db.update(documentosAssociacao).set({notasFiscaisJson:JSON.stringify(notas)}).where(eq(documentosAssociacao.id,registro.id));
+   const notas=JSON.parse(registro.notasFiscaisJson) as Array<Record<string,unknown>>;const nota=notas.find(n=>n.key===key);if(!nota)continue;
+   const objeto=await env.BUCKET.get(key);if(!objeto)return Response.json({message:"ARQUIVO ORIGINAL NÃO ENCONTRADO."},{status:404});
+   const form=new FormData();form.set("arquivo",new File([await objeto.arrayBuffer()],String(nota.nome||"nota.pdf"),{type:String(nota.tipo||"application/pdf")}));
+   const resposta=await lerDocumento(new Request(request.url,{method:"POST",body:form}));const lidos=await resposta.json() as Record<string,string>;
+   if(!resposta.ok)return Response.json(lidos,{status:resposta.status});
+   if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(lidos.competencia)||(!lidos.prestador&&!lidos.cnpjPrestador))return Response.json({message:"O CONTEÚDO NÃO IDENTIFICOU PRESTADOR E COMPETÊNCIA COM SEGURANÇA. CONFIRA O DOCUMENTO."},{status:422});
+   Object.assign(nota,lidos,{origemLeitura:"conteudo",relidoEm:new Date().toISOString()});nota.categoriaNota=categoriaDaNota({descricao:lidos.descricao});
+   const alterados=await db.update(documentosAssociacao).set({notasFiscaisJson:JSON.stringify(notas),atualizadoEm:new Date().toISOString()}).where(and(eq(documentosAssociacao.id,registro.id),eq(documentosAssociacao.notasFiscaisJson,registro.notasFiscaisJson))).returning({id:documentosAssociacao.id});
+   if(!alterados.length)return Response.json({message:"DOCUMENTO ALTERADO POR OUTRO ACESSO. ATUALIZE A PÁGINA."},{status:409});
+   return Response.json({message:`CONTEÚDO RELIDO. ${lidos.prestador||lidos.cnpjPrestador} · COMPETÊNCIA ${lidos.competencia}. ${lidos.aviso||""}`});
   }
-  return Response.json({message:"DOCUMENTOS PROCESSADOS COM SUCESSO.",alterados});
+  return Response.json({message:"NOTA NÃO ENCONTRADA."},{status:404});
+ }catch(error){console.error("releitura_nota",error);return Response.json({message:"NÃO FOI POSSÍVEL RELER A NOTA. O CADASTRO ANTERIOR FOI PRESERVADO."},{status:500});}
 }
-export const POST=processar;
-export const GET=processar;
