@@ -14,8 +14,8 @@ export async function POST(request:Request){
   const db=getDb();const registros=await db.select().from(documentosAssociacao).where(sql`instr(${documentosAssociacao.notasFiscaisJson}, ${key}) > 0`);
   for(const registro of registros){
    const notas=JSON.parse(registro.notasFiscaisJson) as Array<Record<string,unknown>>;const nota=notas.find(n=>n.key===key);if(!nota)continue;
-   const objeto=await env.BUCKET.get(key);if(!objeto)return Response.json({message:"ARQUIVO ORIGINAL NÃO ENCONTRADO."},{status:404});
-   const form=new FormData();form.set("arquivo",new File([await objeto.arrayBuffer()],String(nota.nome||"nota.pdf"),{type:String(nota.tipo||"application/pdf")}));
+   const objeto=await env.BUCKET.get(key,"arrayBuffer");if(!objeto)return Response.json({message:"ARQUIVO ORIGINAL NÃO ENCONTRADO."},{status:404});
+   const form=new FormData();form.set("arquivo",new File([objeto],String(nota.nome||"nota.pdf"),{type:String(nota.tipo||"application/pdf")}));
    const resposta=await lerDocumento(new Request(request.url,{method:"POST",body:form}));const lidos=await resposta.json() as Record<string,string>;
    if(!resposta.ok)return Response.json(lidos,{status:resposta.status});
    if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(lidos.competencia)||(!lidos.prestador&&!lidos.cnpjPrestador))return Response.json({message:"O CONTEÚDO NÃO IDENTIFICOU PRESTADOR E COMPETÊNCIA COM SEGURANÇA. CONFIRA O DOCUMENTO."},{status:422});
