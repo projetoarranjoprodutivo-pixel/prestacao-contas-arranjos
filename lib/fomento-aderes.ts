@@ -93,8 +93,8 @@ export function avaliarFomento(base:BaseFomento,meses:string[],registros:Registr
   if(meta.indicador==='sistema'){
    const trimestrais=[...new Set((contexto.arquivosTecnicos||[]).filter(a=>/TRIMESTR/.test(normal(a.nome))).map(a=>a.nome))];
    const mesesInformados=new Set(relatorios.map(r=>r.competencia));
-   resultado=`${mesesInformados.size} competências com prestações registradas no sistema. ${trimestrais.length} relatório(s) trimestral(is) localizado(s) nos anexos.`;
-   situacao=trimestrais.length?'RELATÓRIO TRIMESTRAL ANEXADO · PERIODICIDADE A CONFERIR':mesesInformados.size?'MONITORAMENTO MENSAL REGISTRADO · RELATÓRIO TRIMESTRAL NÃO LOCALIZADO':'SEM REGISTROS DE MONITORAMENTO LOCALIZADOS';
+   resultado=`${mesesInformados.size} competências com prestações registradas no sistema. ${trimestrais.length} arquivo(s) identificado(s) como relatório trimestral nos anexos.`;
+   situacao=trimestrais.length?'RELATÓRIO TRIMESTRAL ANEXADO · PERIODICIDADE A CONFERIR':mesesInformados.size?'MONITORAMENTO MENSAL REGISTRADO · PERIODICIDADE TRIMESTRAL A CONFERIR':'SEM REGISTROS DE MONITORAMENTO LOCALIZADOS';
    if(trimestrais.length)evidenciaAutomatica=trimestrais.join('; ');else if(mesesInformados.size)evidenciaAutomatica='Prestações mensais registradas: '+[...mesesInformados].sort().join('; ')+'.';
   }
   if(meta.indicador==='qualitativo'){

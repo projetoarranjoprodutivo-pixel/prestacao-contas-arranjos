@@ -103,9 +103,12 @@ export async function GET(request:Request){
     const avaliacao=avaliarFomento(base,competencias,atividades,totalMudasCompradas,totalMudasEntregues,conferencia,{profissionais,relatorios,arquivosTecnicos});
     const comparativo:PdfSection[]=[{heading:"OBJETO E BASE DO TERMO DE FOMENTO",lines:[`TERMO DE FOMENTO Nº ${base.numero} | ASSOCIAÇÃO: ${associacao.nome}`,`FONTE: TERMO ORIGINAL CADASTRADO E PLANO DE TRABALHO ANEXO I. VINCULAÇÃO CONFERIDA PELO CNPJ E ARQUIVO ORIGINAL.`,`OBJETIVO GERAL: ${base.objetivoGeral}`,`PERÍODO PREVISTO NO PLANO: ${base.inicio} A ${base.termino}. PERÍODO ANALISADO: ${competencias.join("; ")}.`,`METAS DA VIGÊNCIA NÃO SÃO RATEADAS AUTOMATICAMENTE POR MÊS. ESTE RELATÓRIO AVALIA OS REGISTROS DO PERÍODO SELECIONADO; AUSÊNCIA DE COMPROVAÇÃO NÃO SIGNIFICA, POR SI SÓ, NÃO EXECUÇÃO OU DESCUMPRIMENTO FINAL.`,...(base.alerta?[base.alerta]:[])]}];
     for(const item of avaliacao){
-      const relatoriosDaMeta=item.meta.indicador==="consultoria"?relatorios.filter(r=>/CONSULTOR/.test(chaveTexto(nomes.get(r.authUserId)?.cargo))):relatorios;
+      const contemAtividade=(r:typeof relatorios[number],teste:(a:Atividade)=>boolean)=>lista<Atividade>(r.atividadesJson).some(a=>a.executada!==false&&teste(a));
+      const ehVisita=(a:Atividade)=>chaveTexto(a.tipoAtividade).trim()==="VISITA TECNICA";
+      const ehEvento=(a:Atividade)=>/^(DIAS? DE CAMPO|SEMINARIOS?|TREINAMENTOS?|CAPACITACOES|CAPACITACAO)$/.test(chaveTexto(a.tipoAtividade).trim());
+      const relatoriosDaMeta=relatorios.filter(r=>item.meta.indicador==="consultoria"?/CONSULTOR/.test(chaveTexto(nomes.get(r.authUserId)?.cargo)):item.meta.indicador==="mudas"?contemAtividade(r,ehEntregaMudas):item.meta.indicador==="capacitacao"?contemAtividade(r,ehEvento):item.meta.indicador==="selecao"||item.meta.indicador==="assistencia"?contemAtividade(r,ehVisita):item.meta.id==="apoio"?contemAtividade(r,a=>/ASSOCIAC|AGROINDUSTR|REGULARIZ|DIAGNOSTIC|CREDITO|MERCADO/.test(chaveTexto(a.resumo))):true);
       const anexosDaMeta=relatoriosDaMeta.flatMap(r=>lista<Arquivo>(r.anexosJson)).filter(a=>/application\/pdf|image\/jpeg|image\/png/i.test(a.tipo));
-      const arquivosDaMeta=item.meta.indicador==="mudas"?[...comprasMudas,...anexosDaMeta]:anexosDaMeta;
+      const arquivosDaMeta=item.meta.indicador==="mudas"?[...comprasMudas,...anexosDaMeta]:item.meta.indicador==="sistema"?anexosDaMeta.filter(a=>/TRIMESTR/.test(chaveTexto(a.nome))):anexosDaMeta;
       const nomesEvidencias=[...new Set(arquivosDaMeta.map(a=>a.nome))];
       const evidenciasAutomaticas=nomesEvidencias.length?`DOCUMENTOS E REGISTROS FOTOGRÁFICOS ANEXADOS: ${nomesEvidencias.join("; ")}`:"";
       const evidencias=[item.evidenciaAutomatica,evidenciasAutomaticas,item.evidencia].filter(Boolean).join(" | ");
