@@ -24,7 +24,10 @@ export function avaliarFomento(base:BaseFomento,meses:string[],registros:Registr
  const pareceres=conferencia?.sha256===base.sha256&&[...conferencia.competencias].sort().join() === [...meses].sort().join()?conferencia.pareceres:{};
  return base.metas.map(meta=>{
   let situacao='SEM COMPROVAÇÃO SUFICIENTE';let resultado='';
-  if(meta.indicador==='selecao')resultado=`${qtd(imoveis.size)} propriedades distintas identificadas nas visitas do período. ${qtd(visitas.filter(x=>!propriedade(x)).length)} visitas sem propriedade identificada. O nome do agricultor identifica a propriedade quando o nome do imóvel não foi informado. O diagnóstico de seleção deve ser conferido. ${base.alerta?'Meta quantitativa divergente no documento; confirmar antes de atestar.':''}`;
+  if(meta.indicador==='selecao'){
+   if(meta.quantidade&&meta.quantidade>0)situacao=base.alerta?'META QUANTITATIVA A CONFERIR':imoveis.size>=meta.quantidade?'META QUANTITATIVA ATINGIDA':'META QUANTITATIVA AINDA NÃO ATINGIDA NO PERÍODO';
+   resultado=`${qtd(imoveis.size)} propriedades distintas identificadas nas visitas do período. ${qtd(visitas.filter(x=>!propriedade(x)).length)} visitas sem propriedade identificada. ${base.alerta?'Meta quantitativa divergente no documento; confirmar antes de atestar.':''}`;
+  }
   if(meta.indicador==='assistencia'){
    const grupos=new Map<string,Set<string>>();for(const x of visitas){const k=x.r.competencia+' | '+(x.u?.nomeCompleto||x.r.authUserId);const set=grupos.get(k)||new Set<string>();if(propriedade(x))set.add(propriedade(x));grupos.set(k,set);}
    resultado=[`${qtd(visitas.length)} visitas registradas; a meta é de propriedades distintas por técnico/mês, não de visitas.`,...Array.from(grupos,([k,v])=>`${k}: ${qtd(v.size)}/30 propriedades identificadas; ${v.size>=30?"quantidade mínima registrada":"abaixo da meta mensal; faltam "+qtd(30-v.size)+" propriedades identificadas"}`),'Técnicos sem relatório e propriedades sem identificação exigem conferência; não se presume cumprimento pela soma geral.'].join('; ');
@@ -42,7 +45,8 @@ export function avaliarFomento(base:BaseFomento,meses:string[],registros:Registr
   }
   if(meta.indicador==='sistema')resultado='A existência de cadastros e prestações mensais no portal não comprova, por si só, o manual digital e a emissão de relatório trimestral de acompanhamento. Informar a referência e a data dos relatórios e do manual nas evidências.';
   if(meta.indicador==='qualitativo')resultado='Visitas, eventos e entrega de insumos são registros de atividades. A melhoria de manejo, produção, renda e permanência no campo exige evidências de resultados e acompanhamento; não é presumida automaticamente.';
-  const p=pareceres[meta.id];if(p&&p.situacao!=='automatico'){situacao=({'realizada':'REALIZADA - DECLARAÇÃO DO RESPONSÁVEL','parcial':'PARCIALMENTE REALIZADA - DECLARAÇÃO DO RESPONSÁVEL','nao-realizada':'NÃO REALIZADA - DECLARAÇÃO DO RESPONSÁVEL'} as const)[p.situacao];}
-  return {meta,situacao,resultado,evidencia:p?.evidencia?.trim()||'',justificativa:p?.justificativa?.trim()||'',declarado:!!p&&p.situacao!=='automatico'};
+  const situacaoQuantitativa=meta.indicador==='selecao'&&!!meta.quantidade?situacao:'';
+  const p=pareceres[meta.id];if(p&&p.situacao!=='automatico'&&!situacaoQuantitativa){situacao=({'realizada':'REALIZADA - DECLARAÇÃO DO RESPONSÁVEL','parcial':'PARCIALMENTE REALIZADA - DECLARAÇÃO DO RESPONSÁVEL','nao-realizada':'NÃO REALIZADA - DECLARAÇÃO DO RESPONSÁVEL'} as const)[p.situacao];}
+  return {meta,situacao,situacaoQuantitativa,resultado,evidencia:p?.evidencia?.trim()||'',justificativa:p?.justificativa?.trim()||'',declarado:!!p&&p.situacao!=='automatico'};
  });
 }
