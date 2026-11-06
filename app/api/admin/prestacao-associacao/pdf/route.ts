@@ -104,7 +104,7 @@ export async function GET(request:Request){
     const comparativo:PdfSection[]=[{heading:"OBJETO E BASE DO TERMO DE FOMENTO",lines:[`TERMO DE FOMENTO Nº ${base.numero} | ASSOCIAÇÃO: ${associacao.nome}`,`FONTE: TERMO ORIGINAL CADASTRADO E PLANO DE TRABALHO ANEXO I. VINCULAÇÃO CONFERIDA PELO CNPJ E ARQUIVO ORIGINAL.`,`OBJETIVO GERAL: ${base.objetivoGeral}`,`PERÍODO PREVISTO NO PLANO: ${base.inicio} A ${base.termino}. PERÍODO ANALISADO: ${competencias.join("; ")}.`,`METAS DA VIGÊNCIA NÃO SÃO RATEADAS AUTOMATICAMENTE POR MÊS. ESTE RELATÓRIO AVALIA OS REGISTROS DO PERÍODO SELECIONADO; AUSÊNCIA DE COMPROVAÇÃO NÃO SIGNIFICA, POR SI SÓ, NÃO EXECUÇÃO OU DESCUMPRIMENTO FINAL.`,...(base.alerta?[base.alerta]:[])]}];
     for(const item of avaliacao){
       const relatoriosDaMeta=item.meta.indicador==="consultoria"?relatorios.filter(r=>/CONSULTOR/.test(chaveTexto(nomes.get(r.authUserId)?.cargo))):relatorios;
-      const anexosDaMeta=relatoriosDaMeta.flatMap(r=>lista<Arquivo>(r.anexosJson)).filter(a=>/application\\/pdf|image\\/jpeg|image\\/png/i.test(a.tipo));
+      const anexosDaMeta=relatoriosDaMeta.flatMap(r=>lista<Arquivo>(r.anexosJson)).filter(a=>/application\/pdf|image\/jpeg|image\/png/i.test(a.tipo));
       const arquivosDaMeta=item.meta.indicador==="mudas"?[...comprasMudas,...anexosDaMeta]:anexosDaMeta;
       const nomesEvidencias=[...new Set(arquivosDaMeta.map(a=>a.nome))];
       const evidenciasAutomaticas=nomesEvidencias.length?`DOCUMENTOS E REGISTROS FOTOGRÁFICOS ANEXADOS: ${nomesEvidencias.join("; ")}`:"";
