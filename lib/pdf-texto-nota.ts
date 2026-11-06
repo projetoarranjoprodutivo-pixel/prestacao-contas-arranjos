@@ -4,7 +4,7 @@ import { PDFDocument, PDFArray, PDFRawStream, PDFName, PDFDict, decodePDFRawStre
 // pela conversão/OCR; nunca interpretamos códigos de fontes como texto legível.
 export async function extrairTextoNotaPdf(bytes: ArrayBuffer): Promise<string> {
  const pdf = await PDFDocument.load(bytes);
- if (pdf.getPageCount() > 4) return "";
+ if (pdf.getPageCount() > 8) return "";
  const paginas: string[] = [];
  for (const page of pdf.getPages()) {
   const fonts = page.node.Resources()?.lookup(PDFName.of("Font"));
