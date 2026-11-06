@@ -16,37 +16,95 @@ export function propriedadeIdentificada(a:Pick<Atividade,"propriedade"|"agricult
  const valido=(v:string|undefined)=>{const n=normal(v);return n&&!/^(NAO INFORMAD[OA]|DIVERSOS|NAO IDENTIFICAD[OA]|SEM IDENTIFICACAO|SEM NOME|-)$/.test(n)?String(v).trim():"";};
  return valido(a.propriedade)||valido(a.agricultor)||valido(a.beneficiario);
 }
-type Registro={a:Atividade;r:{authUserId:string;competencia:string};u?:{cargo:string;nomeCompleto:string}};
-export function avaliarFomento(base:BaseFomento,meses:string[],registros:Registro[],compradas:number,entregues:number,conferencia:ConferenciaFomento|null){
- const validos=registros.filter(x=>x.a.executada!==false);const visitas=validos.filter(x=>normal(x.a.tipoAtividade)==='VISITA TECNICA');
+
+type Registro={a:Atividade;r:{id?:number;authUserId:string;competencia:string;totalMinutos?:number};u?:{cargo:string;nomeCompleto:string}};
+type Profissional={authUserId:string;nomeCompleto:string;cargo:string;dataAdmissao?:string|null;dataSaida?:string|null};
+type RelatorioMeta={id?:number;authUserId:string;competencia:string;totalMinutos?:number};
+type ContextoMetas={profissionais?:Profissional[];relatorios?:RelatorioMeta[];arquivosTecnicos?:Array<{nome:string;competencia:string}>};
+export function avaliarFomento(base:BaseFomento,meses:string[],registros:Registro[],compradas:number,entregues:number,conferencia:ConferenciaFomento|null,contexto:ContextoMetas={}){
+ const validos=registros.filter(x=>x.a.executada!==false);
+ const visita=(x:Registro)=>normal(x.a.tipoAtividade)==='VISITA TECNICA';
+ const visitas=validos.filter(visita);
  const propriedade=(x:Registro)=>normal(propriedadeIdentificada(x.a));
  const imoveis=new Set(visitas.map(propriedade).filter(Boolean));
- const pareceres=conferencia?.sha256===base.sha256&&[...conferencia.competencias].sort().join() === [...meses].sort().join()?conferencia.pareceres:{};
+ const pareceres=conferencia?.sha256===base.sha256&&[...conferencia.competencias].sort().join()===[...meses].sort().join()?conferencia.pareceres:{};
+ const relatorios=contexto.relatorios||[...new Map(registros.map(x=>[x.r.authUserId+'|'+x.r.competencia,x.r])).values()];
+ const pessoas=new Map((contexto.profissionais||[]).map(u=>[u.authUserId,u]));
+ for(const x of registros)if(x.u&&!pessoas.has(x.r.authUserId))pessoas.set(x.r.authUserId,{authUserId:x.r.authUserId,...x.u});
+ const tecnico=(cargo:string)=>/TECNIC[OA].*CAMPO/.test(normal(cargo));
+ const consultor=(cargo:string)=>/CONSULTOR/.test(normal(cargo));
+ const nome=(id:string)=>pessoas.get(id)?.nomeCompleto||id;
+ const chave=(r:RelatorioMeta)=>r.competencia+' | '+r.authUserId;
+ const rotulo=(k:string)=>{const [mes,id]=k.split(' | ');return mes+' | '+nome(id);};
+ const gruposEsperados=(filtro:(cargo:string)=>boolean)=>{
+  const grupos=new Map<string,boolean>();
+  for(const u of contexto.profissionais||[])if(filtro(u.cargo))for(const mes of meses){
+   if(mes<base.inicio||mes>base.termino||mes>new Date().toISOString().slice(0,7)||(u.dataAdmissao&&mes<u.dataAdmissao.slice(0,7))||(u.dataSaida&&mes>=u.dataSaida.slice(0,7)))continue;
+   grupos.set(mes+' | '+u.authUserId,false);
+  }
+  for(const r of relatorios)if(filtro(pessoas.get(r.authUserId)?.cargo||''))grupos.set(chave(r),true);
+  return grupos;
+ };
+ const comparar=(valor:number,meta:number)=>valor>=meta?'META QUANTITATIVA ATINGIDA':'META QUANTITATIVA AINDA NÃO ATINGIDA NOS REGISTROS DO PERÍODO';
  return base.metas.map(meta=>{
-  let situacao='SEM COMPROVAÇÃO SUFICIENTE';let resultado='';
+  let situacao='SEM REGISTROS LOCALIZADOS PARA AVALIAÇÃO';let resultado='';let situacaoQuantitativa='';let atingida=false;let evidenciaAutomatica='';
+  const limite=meta.quantidade&&meta.quantidade>0?meta.quantidade:null;
   if(meta.indicador==='selecao'){
-   if(meta.quantidade&&meta.quantidade>0)situacao=base.alerta?'META QUANTITATIVA A CONFERIR':imoveis.size>=meta.quantidade?'META QUANTITATIVA ATINGIDA':'META QUANTITATIVA AINDA NÃO ATINGIDA NO PERÍODO';
-   resultado=`${qtd(imoveis.size)} propriedades distintas identificadas nas visitas do período. ${qtd(visitas.filter(x=>!propriedade(x)).length)} visitas sem propriedade identificada. ${base.alerta?'Meta quantitativa divergente no documento; confirmar antes de atestar.':''}`;
+   if(limite){atingida=imoveis.size>=limite;situacaoQuantitativa=comparar(imoveis.size,limite);if(base.alerta)situacaoQuantitativa=atingida?'QUANTIDADE ATINGE A META DE REFERÊNCIA CADASTRADA · META DOCUMENTAL DIVERGENTE':'META DE REFERÊNCIA AINDA NÃO ATINGIDA · META DOCUMENTAL DIVERGENTE';situacao=situacaoQuantitativa;}
+   else if(imoveis.size)situacao='PROPRIEDADES IDENTIFICADAS NOS REGISTROS';
+   resultado=`${qtd(imoveis.size)} propriedades distintas identificadas nas visitas do período. ${qtd(visitas.filter(x=>!propriedade(x)).length)} visitas sem propriedade identificada.`;
+   if(base.alerta)resultado+=' '+base.alerta;
+   if(visitas.length)evidenciaAutomatica=`${qtd(visitas.length)} visitas técnicas registradas nas prestações de ${meses.join('; ')}.`;
   }
   if(meta.indicador==='assistencia'){
-   const grupos=new Map<string,Set<string>>();for(const x of visitas){const k=x.r.competencia+' | '+(x.u?.nomeCompleto||x.r.authUserId);const set=grupos.get(k)||new Set<string>();if(propriedade(x))set.add(propriedade(x));grupos.set(k,set);}
-   resultado=[`${qtd(visitas.length)} visitas registradas; a meta é de propriedades distintas por técnico/mês, não de visitas.`,...Array.from(grupos,([k,v])=>`${k}: ${qtd(v.size)}/30 propriedades identificadas; ${v.size>=30?"quantidade mínima registrada":"abaixo da meta mensal; faltam "+qtd(30-v.size)+" propriedades identificadas"}`),'Técnicos sem relatório e propriedades sem identificação exigem conferência; não se presume cumprimento pela soma geral.'].join('; ');
+   const alvo=limite||30;const grupos=new Map<string,Set<string>>();const informados=gruposEsperados(tecnico);
+   for(const k of informados.keys())grupos.set(k,new Set());
+   for(const x of visitas){const k=chave(x.r);const grupo=grupos.get(k)||new Set<string>();if(propriedade(x))grupo.add(propriedade(x));grupos.set(k,grupo);informados.set(k,true);}
+   const cumpridos=[...grupos.values()].filter(v=>v.size>=alvo).length;const semRegistro=[...grupos.keys()].filter(k=>!informados.get(k)).length;
+   atingida=grupos.size>0&&cumpridos===grupos.size;
+   situacaoQuantitativa=atingida?'META MENSAL ATINGIDA EM TODOS OS TÉCNICOS E MESES ANALISADOS':cumpridos?`META MENSAL ATINGIDA EM ${cumpridos} DE ${grupos.size} COMBINAÇÕES TÉCNICO/MÊS`:grupos.size?'META MENSAL AINDA NÃO ATINGIDA NOS REGISTROS ANALISADOS':'SEM REGISTROS DE ASSISTÊNCIA TÉCNICA NO PERÍODO';situacao=situacaoQuantitativa;
+   resultado=[`${qtd(visitas.length)} visitas técnicas registradas. ${cumpridos} de ${grupos.size} combinações técnico/mês atingiram ${qtd(alvo)} propriedades distintas.`,...Array.from(grupos,([k,v])=>`${rotulo(k)}: ${qtd(v.size)}/${qtd(alvo)} propriedades · ${!informados.get(k)?'SEM PRESTAÇÃO LOCALIZADA':v.size>=alvo?'META ATINGIDA':'QUANTIDADE REGISTRADA ABAIXO DA META'}`),...(semRegistro?[`${semRegistro} combinações técnico/mês sem prestação localizada.`]:[])].join('; ');
+   if(visitas.length)evidenciaAutomatica=`Visitas individualizadas por agricultor e data nas prestações do período.`;
   }
-  if(meta.indicador==='mudas')resultado=`Mudas adquiridas identificadas nas notas do período: ${qtd(compradas)}. Mudas entregues nos lançamentos oficiais do período: ${qtd(entregues)}. Compra, entrega e implantação são etapas distintas. É necessária a conferência das especificações, beneficiários, PPM, prazos e acompanhamento do plantio; quantidade isolada não comprova o objetivo integral.`;
+  if(meta.indicador==='mudas'){
+   resultado=`${qtd(compradas)} mudas adquiridas identificadas nas notas fiscais. ${qtd(entregues)} mudas entregues nos lançamentos oficiais.`;
+   if(limite){atingida=compradas>=limite;situacaoQuantitativa=atingida?'META QUANTITATIVA DE AQUISIÇÃO ATINGIDA':'META QUANTITATIVA DE AQUISIÇÃO AINDA NÃO ATINGIDA NOS REGISTROS';situacao=situacaoQuantitativa;resultado+=` Meta de aquisição: ${qtd(limite)} mudas. A distribuição e a implantação seguem acompanhamento próprio.`;}
+   else situacao=compradas>0||entregues>0?'AQUISIÇÕES OU ENTREGAS REGISTRADAS · EXECUÇÃO DO PPM EM ACOMPANHAMENTO':'SEM AQUISIÇÕES OU ENTREGAS LOCALIZADAS NO PERÍODO';
+   if(compradas>0||entregues>0)evidenciaAutomatica=`Notas fiscais de aquisição e lançamentos oficiais de entrega de mudas do período.`;
+  }
   if(meta.indicador==='capacitacao'){
-   const eventos=validos.filter(x=>/^(DIA(S)? DE CAMPO|SEMINARIO|TREINAMENTO|CAPACITACAO)$/.test(normal(x.a.tipoAtividade)));
-   const unicos=new Set(eventos.map(x=>`${x.r.competencia}|${normal((x.a as {data?:string}).data)}|${normal(x.a.municipio)}|${normal(x.a.tipoAtividade)}|${normal(x.a.resumo)}`));
-   resultado=`${qtd(unicos.size)} registros distintos de capacitação, dia de campo, seminário ou treinamento executado no período. Validar datas, listas de presença e relatório do evento; registros de organização ou mobilização não são tratados como evento realizado.`;
-   if(unicos.size)situacao='EXECUÇÃO REGISTRADA - VALIDAR EVIDÊNCIAS';
+   const eventos=validos.filter(x=>/^(DIAS? DE CAMPO|SEMINARIOS?|TREINAMENTOS?|CAPACITACOES|CAPACITACAO)$/.test(normal(x.a.tipoAtividade)));
+   const unicos=new Set(eventos.map(x=>`${x.r.competencia}|${normal((x.a as {data?:string}).data)}|${normal(x.a.municipio)}|${normal(x.a.comunidade)}|${normal(x.a.tipoAtividade)}|${normal(x.a.resumo)}`));
+   resultado=`${qtd(unicos.size)} registros distintos de capacitação, dia de campo, seminário ou treinamento executado no período.`;
+   if(limite){atingida=unicos.size>=limite;situacaoQuantitativa=comparar(unicos.size,limite);situacao=situacaoQuantitativa;resultado+=` Meta mínima: ${qtd(limite)} evento(s).`;}
+   else situacao=unicos.size?'CAPACITAÇÕES EXECUTADAS E REGISTRADAS':'SEM CAPACITAÇÕES LOCALIZADAS NO PERÍODO';
+   if(unicos.size)evidenciaAutomatica=`Eventos executados registrados nas prestações, com os relatórios e registros fotográficos vinculados.`;
   }
   if(meta.indicador==='consultoria'){
-   const grupos=new Map<string,number>();let semDuracao=0;for(const x of validos.filter(x=>/CONSULTOR/.test(normal(x.u?.cargo)))){const d=Number(String(x.a.duracao||'').replace(',','.'));if(!(d>0)){semDuracao++;continue;}const k=x.r.competencia+' | '+(x.u?.nomeCompleto||x.r.authUserId);grupos.set(k,(grupos.get(k)||0)+d/60);}
-   resultado=[...Array.from(grupos,([k,v])=>`${k}: ${qtd(v)} horas de duração explícita`),`${semDuracao} atividades de consultoria sem duração explícita. Horas mínimas ou previstas não substituem horas comprovadas. Conferir a vinculação ao objetivo de consultoria e a cada consultor/mês.`].join('; ');
+   const alvo=limite||160;const grupos=new Map<string,number|null>();const informados=gruposEsperados(consultor);for(const k of informados.keys())grupos.set(k,null);
+   for(const r of relatorios)if(consultor(pessoas.get(r.authUserId)?.cargo||'')){const total=Number(r.totalMinutos);grupos.set(chave(r),total>0?total/60:null);}
+   for(const x of validos.filter(x=>consultor(x.u?.cargo||pessoas.get(x.r.authUserId)?.cargo||''))){const k=chave(x.r);if(Number(x.r.totalMinutos)>0){grupos.set(k,Number(x.r.totalMinutos)/60);continue;}if(!grupos.has(k))grupos.set(k,null);}
+   for(const k of grupos.keys())if(grupos.get(k)===null&&informados.get(k)){const minutos=validos.filter(x=>chave(x.r)===k).reduce((n,x)=>n+Math.max(0,Number(String(x.a.duracao||'').replace(',','.'))||0),0);if(minutos>0)grupos.set(k,minutos/60);}
+   const cumpridos=[...grupos.values()].filter(h=>h!==null&&h>=alvo).length;atingida=grupos.size>0&&cumpridos===grupos.size;
+   situacaoQuantitativa=atingida?'META MENSAL DE HORAS ATINGIDA EM TODOS OS CONSULTORES E MESES ANALISADOS':cumpridos?`META MENSAL DE HORAS ATINGIDA EM ${cumpridos} DE ${grupos.size} COMBINAÇÕES CONSULTOR/MÊS`:grupos.size?'META MENSAL DE HORAS A CONFERIR NOS REGISTROS':'SEM PRESTAÇÕES DE CONSULTORIA LOCALIZADAS NO PERÍODO';situacao=situacaoQuantitativa;
+   resultado=grupos.size?[`Meta: ${qtd(alvo)} horas por consultor/mês.`,...Array.from(grupos,([k,h])=>`${rotulo(k)}: ${h===null?'HORAS NÃO INFORMADAS':qtd(h)+'/'+qtd(alvo)+' horas registradas · '+(h>=alvo?'META ATINGIDA':'QUANTIDADE REGISTRADA ABAIXO DA META')}`)].join('; '):'Nenhuma prestação vinculada a consultor foi localizada no período selecionado.';
+   if([...grupos.values()].some(h=>h!==null))evidenciaAutomatica='Totais de horas registrados nas prestações dos consultores, sem repetir o total por atividade.';
   }
-  if(meta.indicador==='sistema')resultado='A existência de cadastros e prestações mensais no portal não comprova, por si só, o manual digital e a emissão de relatório trimestral de acompanhamento. Informar a referência e a data dos relatórios e do manual nas evidências.';
-  if(meta.indicador==='qualitativo')resultado='Visitas, eventos e entrega de insumos são registros de atividades. A melhoria de manejo, produção, renda e permanência no campo exige evidências de resultados e acompanhamento; não é presumida automaticamente.';
-  const situacaoQuantitativa=meta.indicador==='selecao'&&!!meta.quantidade?situacao:'';
-  const p=pareceres[meta.id];if(p&&p.situacao!=='automatico'&&!situacaoQuantitativa){situacao=({'realizada':'REALIZADA - DECLARAÇÃO DO RESPONSÁVEL','parcial':'PARCIALMENTE REALIZADA - DECLARAÇÃO DO RESPONSÁVEL','nao-realizada':'NÃO REALIZADA - DECLARAÇÃO DO RESPONSÁVEL'} as const)[p.situacao];}
-  return {meta,situacao,situacaoQuantitativa,resultado,evidencia:p?.evidencia?.trim()||'',justificativa:p?.justificativa?.trim()||'',declarado:!!p&&p.situacao!=='automatico'};
+  if(meta.indicador==='sistema'){
+   const trimestrais=[...new Set((contexto.arquivosTecnicos||[]).filter(a=>/TRIMESTR/.test(normal(a.nome))).map(a=>a.nome))];
+   const mesesInformados=new Set(relatorios.map(r=>r.competencia));
+   resultado=`${mesesInformados.size} competências com prestações registradas no sistema. ${trimestrais.length} relatório(s) trimestral(is) localizado(s) nos anexos.`;
+   situacao=trimestrais.length?'RELATÓRIO TRIMESTRAL ANEXADO · PERIODICIDADE A CONFERIR':mesesInformados.size?'MONITORAMENTO MENSAL REGISTRADO · RELATÓRIO TRIMESTRAL NÃO LOCALIZADO':'SEM REGISTROS DE MONITORAMENTO LOCALIZADOS';
+   if(trimestrais.length)evidenciaAutomatica=trimestrais.join('; ');else if(mesesInformados.size)evidenciaAutomatica='Prestações mensais registradas: '+[...mesesInformados].sort().join('; ')+'.';
+  }
+  if(meta.indicador==='qualitativo'){
+   const apoio=validos.filter(x=>/ASSOCIAC|AGROINDUSTR|REGULARIZ|DIAGNOSTIC|CREDITO|MERCADO/.test(normal(x.a.resumo)));
+   const relacionados=meta.id==='apoio'?apoio:validos;
+   resultado=meta.id==='apoio'?`${apoio.length} atividades de apoio institucional identificadas nas descrições das prestações.`:`${validos.length} atividades executadas registradas, com ${imoveis.size} propriedades distintas identificadas e ${qtd(entregues)} mudas entregues.`;
+   situacao=relacionados.length?'EXECUÇÃO REGISTRADA · RESULTADOS QUALITATIVOS EM ACOMPANHAMENTO':'SEM REGISTROS ESPECÍFICOS LOCALIZADOS NO PERÍODO';
+   if(relacionados.length)evidenciaAutomatica='Descrições das atividades executadas e relatórios técnicos do período.';
+  }
+  const p=pareceres[meta.id];if(p&&p.situacao!=='automatico'&&!situacaoQuantitativa)situacao=({'realizada':'REALIZADA - DECLARAÇÃO DO RESPONSÁVEL','parcial':'PARCIALMENTE REALIZADA - DECLARAÇÃO DO RESPONSÁVEL','nao-realizada':'NÃO REALIZADA - DECLARAÇÃO DO RESPONSÁVEL'} as const)[p.situacao];
+  return {meta,situacao,situacaoQuantitativa,atingida,resultado,evidenciaAutomatica,evidencia:p?.evidencia?.trim()||'',justificativa:p?.justificativa?.trim()||'',declarado:!!p&&p.situacao!=='automatico'};
  });
 }

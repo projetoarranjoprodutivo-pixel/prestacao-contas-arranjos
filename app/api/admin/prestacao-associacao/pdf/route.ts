@@ -31,19 +31,19 @@ export async function GET(request:Request){
   const db=getDb();
   const associacao=await db.query.associacoes.findFirst({where:and(eq(associacoes.nome,nomeAssociacao),eq(associacoes.ativo,true))});
   if(!associacao)return new Response("Associação não encontrada",{status:404});
-  let relatorios:typeof prestacoes.$inferSelect[]=[],usuarios:Array<Pick<typeof colaboradores.$inferSelect,"authUserId"|"nomeCompleto"|"nomeEmpresarial"|"email"|"cargo">>=[],financeiro:typeof documentosAssociacao.$inferSelect[]=[];
+  let relatorios:typeof prestacoes.$inferSelect[]=[],usuarios:Array<Pick<typeof colaboradores.$inferSelect,"authUserId"|"nomeCompleto"|"nomeEmpresarial"|"email"|"cargo"|"associacao"|"associacoesJson"|"dataAdmissao"|"dataSaida">>=[],financeiro:typeof documentosAssociacao.$inferSelect[]=[];
   const colunasPrestacao=getTableColumns(prestacoes);
   try{[relatorios,usuarios,financeiro]=await Promise.all([
-    db.select({...colunasPrestacao,atividadesJson:sql<string>`COALESCE((SELECT json_group_array(json_remove(value, '$.assinaturaProdutor', '$.assinaturaTecnico')) FROM json_each(${prestacoes.atividadesJson})), '[]')`}).from(prestacoes).where(and(or(eq(prestacoes.associacao,associacao.nome),eq(prestacoes.authUserId,"admin-importacao-mudas-2026")),inArray(prestacoes.competencia,competencias))),
-    db.select({authUserId:colaboradores.authUserId,nomeCompleto:colaboradores.nomeCompleto,nomeEmpresarial:colaboradores.nomeEmpresarial,email:colaboradores.email,cargo:colaboradores.cargo}).from(colaboradores),
-    db.select().from(documentosAssociacao).where(and(eq(documentosAssociacao.associacao,associacao.nome),inArray(documentosAssociacao.competencia,competencias))),
+    db.select({...colunasPrestacao,atividadesJson:sql<string>`COALESCE((SELECT json_group_array(json_remove(value, '$.assinaturaProdutor', '$.assinaturaTecnico')) FROM json_each(${prestacoes.atividadesJson})), '[]')`}).from(prestacoes).where(and(or(sql`replace(upper(trim(${prestacoes.associacao})), 'APROVIPA', 'APPROVIPA') = ${associacao.nome.toUpperCase().replace(/^APROVIPA$/,"APPROVIPA")}`,eq(prestacoes.authUserId,"admin-importacao-mudas-2026")),inArray(prestacoes.competencia,competencias))),
+    db.select({authUserId:colaboradores.authUserId,nomeCompleto:colaboradores.nomeCompleto,nomeEmpresarial:colaboradores.nomeEmpresarial,email:colaboradores.email,cargo:colaboradores.cargo,associacao:colaboradores.associacao,associacoesJson:colaboradores.associacoesJson,dataAdmissao:colaboradores.dataAdmissao,dataSaida:colaboradores.dataSaida}).from(colaboradores),
+    db.select().from(documentosAssociacao).where(and(sql`replace(upper(trim(${documentosAssociacao.associacao})), 'APROVIPA', 'APPROVIPA') = ${associacao.nome.toUpperCase().replace(/^APROVIPA$/,"APPROVIPA")}`,inArray(documentosAssociacao.competencia,competencias))),
   ]);}catch(error){return new Response(`FALHA AO CONSULTAR OS DADOS: ${error instanceof Error?error.message:String(error)}`,{status:500});}
   const nomes=new Map(usuarios.map(u=>[u.authUserId,u]));
   const associacaoPorMunicipio=mapaAssociacoesPorMunicipio([{nome:associacao.nome,municipiosJson:associacao.municipiosJson}]);
   const quantidadeAtividadesPorRelatorio=new Map(relatorios.map(r=>[r.id,lista<Atividade>(r.atividadesJson).filter(a=>a.executada!==false).length]));
   const atividades=relatorios.flatMap(r=>lista<Atividade>(r.atividadesJson).filter(a=>a.executada!==false&&(r.authUserId!=="admin-importacao-mudas-2026"||associacaoPorMunicipio.get(chaveMunicipio(a.municipio))===associacao.nome)).map(a=>({a,r,u:nomes.get(r.authUserId)})));
-  const visitas=atividades.filter(x=>informado(x.a.tipoAtividade).toLocaleLowerCase("pt-BR")==="visita técnica");
-  const eventos=atividades.filter(x=>informado(x.a.tipoAtividade).toLocaleLowerCase("pt-BR")!=="visita técnica"&&!ehEntregaMudas(x.a));
+  const visitas=atividades.filter(x=>chaveTexto(x.a.tipoAtividade).trim()==="VISITA TECNICA");
+  const eventos=atividades.filter(x=>chaveTexto(x.a.tipoAtividade).trim()!=="VISITA TECNICA"&&!ehEntregaMudas(x.a));
   const entregas=atividades.filter(x=>x.r.authUserId==="admin-importacao-mudas-2026"&&ehEntregaMudas(x.a));
   const agricultoresMap=new Map<string,{nome:string;municipio:string;beneficios:string[];minutos:number;observacoes:string[]}>();
   for(const {a,r} of atividades){const nome=informado(a.agricultor||a.beneficiario);if(nome==="NÃO INFORMADO")continue;const atual=agricultoresMap.get(nome)||{nome,municipio:informado(a.municipio),beneficios:[],minutos:0,observacoes:[]};if(a.tipoAtividade)atual.beneficios.push(informado(a.tipoAtividade));if(ehEntregaMudas(a))atual.beneficios.push(`MUDAS DE ${tipoMudaEntregue(a)}`);const duracaoInformada=Math.max(0,numero(a.duracao));const quantidadeAtividades=quantidadeAtividadesPorRelatorio.get(r.id)||1;const duracaoCalculada=r.totalMinutos>0?r.totalMinutos/quantidadeAtividades:0;atual.minutos+=duracaoInformada||duracaoCalculada;if(a.resumo)atual.observacoes.push(a.resumo);agricultoresMap.set(nome,atual);}
@@ -97,14 +97,20 @@ export async function GET(request:Request){
   if(base){
     const json=env.BUCKET?await env.BUCKET.get(chaveConferencia(associacao.id,base.sha256,competencias),"text"):null;
     const conferencia:ConferenciaFomento|null=json?JSON.parse(json):null;
-    const avaliacao=avaliarFomento(base,competencias,atividades,totalMudasCompradas,totalMudasEntregues,conferencia);
+    const normalAssociacao=(v:string)=>chaveTexto(v).trim().replace(/^APROVIPA$/,"APPROVIPA");
+    const profissionais=usuarios.filter(u=>[u.associacao||"",...lista<string>(u.associacoesJson)].some(a=>normalAssociacao(a)===normalAssociacao(associacao.nome)));
+    const arquivosTecnicos=relatorios.flatMap(r=>lista<Arquivo>(r.anexosJson).map(a=>({nome:a.nome,competencia:r.competencia})));
+    const avaliacao=avaliarFomento(base,competencias,atividades,totalMudasCompradas,totalMudasEntregues,conferencia,{profissionais,relatorios,arquivosTecnicos});
     const comparativo:PdfSection[]=[{heading:"OBJETO E BASE DO TERMO DE FOMENTO",lines:[`TERMO DE FOMENTO Nº ${base.numero} | ASSOCIAÇÃO: ${associacao.nome}`,`FONTE: TERMO ORIGINAL CADASTRADO E PLANO DE TRABALHO ANEXO I. VINCULAÇÃO CONFERIDA PELO CNPJ E ARQUIVO ORIGINAL.`,`OBJETIVO GERAL: ${base.objetivoGeral}`,`PERÍODO PREVISTO NO PLANO: ${base.inicio} A ${base.termino}. PERÍODO ANALISADO: ${competencias.join("; ")}.`,`METAS DA VIGÊNCIA NÃO SÃO RATEADAS AUTOMATICAMENTE POR MÊS. ESTE RELATÓRIO AVALIA OS REGISTROS DO PERÍODO SELECIONADO; AUSÊNCIA DE COMPROVAÇÃO NÃO SIGNIFICA, POR SI SÓ, NÃO EXECUÇÃO OU DESCUMPRIMENTO FINAL.`,...(base.alerta?[base.alerta]:[])]}];
     for(const item of avaliacao){
-      const evidenciasArquivos=relatoriosEvidencia.map(arquivo=>arquivo.nome);
-      const evidenciasAutomaticas=evidenciasArquivos.length?`RELATÓRIOS TÉCNICOS E REGISTROS FOTOGRÁFICOS ANEXADOS: ${[...new Set(evidenciasArquivos)].join("; ")}`:"";
-      const evidencias=[evidenciasAutomaticas,item.evidencia].filter(Boolean).join(" | ");
-      const situacao=item.situacaoQuantitativa?`${item.situacaoQuantitativa} · ${evidenciasAutomaticas?"EVIDÊNCIAS ANEXADAS":"SEM EVIDÊNCIAS ANEXADAS"}`:item.situacao;
-      comparativo.push({heading:`META / OBJETIVO: ${item.meta.titulo}`,lines:[`OBJETIVO: ${item.meta.objetivo}`,`META PACTUADA: ${item.meta.meta} | PERIODICIDADE: ${item.meta.periodicidade}`,`REFERÊNCIA: ${item.meta.fonte}`,`RESULTADO IDENTIFICADO NO SISTEMA: ${item.resultado}`,`SITUAÇÃO: ${situacao}`,`EVIDÊNCIAS: ${evidencias||"NÃO LOCALIZADAS NOS ANEXOS DO PERÍODO."}`,...(item.declarado?[`DECLARAÇÃO DO RESPONSÁVEL: ${conferencia?.pareceres[item.meta.id]?.situacao==="realizada"?"REALIZADA":conferencia?.pareceres[item.meta.id]?.situacao==="parcial"?"PARCIALMENTE REALIZADA":"NÃO REALIZADA"}`]:[]),...(item.justificativa?[`JUSTIFICATIVA: ${item.justificativa}`]:!item.situacaoQuantitativa||!item.situacaoQuantitativa.includes("ATINGIDA")||item.situacaoQuantitativa.includes("NÃO ATINGIDA")?["JUSTIFICATIVA: NÃO INFORMADA PELO RESPONSÁVEL."]:[])]});
+      const relatoriosDaMeta=item.meta.indicador==="consultoria"?relatorios.filter(r=>/CONSULTOR/.test(chaveTexto(nomes.get(r.authUserId)?.cargo))):relatorios;
+      const anexosDaMeta=relatoriosDaMeta.flatMap(r=>lista<Arquivo>(r.anexosJson)).filter(a=>/application\\/pdf|image\\/jpeg|image\\/png/i.test(a.tipo));
+      const arquivosDaMeta=item.meta.indicador==="mudas"?[...comprasMudas,...anexosDaMeta]:anexosDaMeta;
+      const nomesEvidencias=[...new Set(arquivosDaMeta.map(a=>a.nome))];
+      const evidenciasAutomaticas=nomesEvidencias.length?`DOCUMENTOS E REGISTROS FOTOGRÁFICOS ANEXADOS: ${nomesEvidencias.join("; ")}`:"";
+      const evidencias=[item.evidenciaAutomatica,evidenciasAutomaticas,item.evidencia].filter(Boolean).join(" | ");
+      const situacao=`${item.situacao} · ${nomesEvidencias.length?"EVIDÊNCIAS ANEXADAS":item.evidenciaAutomatica?"REGISTROS NO SISTEMA":"SEM EVIDÊNCIAS LOCALIZADAS"}`;
+      comparativo.push({heading:`META / OBJETIVO: ${item.meta.titulo}`,lines:[`OBJETIVO: ${item.meta.objetivo}`,`META PACTUADA: ${item.meta.meta} | PERIODICIDADE: ${item.meta.periodicidade}`,`REFERÊNCIA: ${item.meta.fonte}`,`RESULTADO IDENTIFICADO NO SISTEMA: ${item.resultado}`,`SITUAÇÃO: ${situacao}`,`EVIDÊNCIAS: ${evidencias||"NÃO LOCALIZADAS NOS REGISTROS DO PERÍODO."}`,...(item.declarado?[`DECLARAÇÃO DO RESPONSÁVEL: ${conferencia?.pareceres[item.meta.id]?.situacao==="realizada"?"REALIZADA":conferencia?.pareceres[item.meta.id]?.situacao==="parcial"?"PARCIALMENTE REALIZADA":"NÃO REALIZADA"}`]:[]),...(item.justificativa?[`JUSTIFICATIVA: ${item.justificativa}`]:[])]});
     }
     if(conferencia)comparativo.push({heading:"REGISTRO DA CONFERÊNCIA",lines:[`RESPONSÁVEL: ${conferencia.responsavel} | SALVO EM: ${conferencia.atualizadoEm}`,"SITUAÇÕES DECLARADAS E JUSTIFICATIVAS SÃO INFORMAÇÕES DO RESPONSÁVEL; NÃO SUBSTITUEM A VALIDAÇÃO DOS DOCUMENTOS COMPROBATÓRIOS."]});
     sections.splice(2,0,...comparativo);
