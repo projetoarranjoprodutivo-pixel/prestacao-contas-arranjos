@@ -19,12 +19,12 @@ export function propriedadeIdentificada(a:Pick<Atividade,"propriedade"|"agricult
 type Registro={a:Atividade;r:{authUserId:string;competencia:string};u?:{cargo:string;nomeCompleto:string}};
 export function avaliarFomento(base:BaseFomento,meses:string[],registros:Registro[],compradas:number,entregues:number,conferencia:ConferenciaFomento|null){
  const validos=registros.filter(x=>x.a.executada!==false);const visitas=validos.filter(x=>normal(x.a.tipoAtividade)==='VISITA TECNICA');
- const propriedade=(x:Registro)=>{const p=normal(propriedadeIdentificada(x.a));return p?`${normal(x.a.municipio)}|${normal(x.a.comunidade)}|${p}`:'';};
+ const propriedade=(x:Registro)=>normal(propriedadeIdentificada(x.a));
  const imoveis=new Set(visitas.map(propriedade).filter(Boolean));
  const pareceres=conferencia?.sha256===base.sha256&&[...conferencia.competencias].sort().join() === [...meses].sort().join()?conferencia.pareceres:{};
  return base.metas.map(meta=>{
   let situacao='SEM COMPROVAÇÃO SUFICIENTE';let resultado='';
-  if(meta.indicador==='selecao')resultado=`${qtd(imoveis.size)} propriedades distintas identificadas nas visitas do período (município + comunidade + nome da propriedade; na ausência, nome do agricultor). ${qtd(visitas.filter(x=>!propriedade(x)).length)} visitas sem propriedade identificada. O nome do agricultor identifica a propriedade quando o nome do imóvel não foi informado. O diagnóstico de seleção deve ser conferido. ${base.alerta?'Meta quantitativa divergente no documento; confirmar antes de atestar.':''}`;
+  if(meta.indicador==='selecao')resultado=`${qtd(imoveis.size)} propriedades distintas identificadas nas visitas do período (nomes únicos da propriedade; na ausência, nome do agricultor, desconsiderando maiúsculas, acentos e espaços repetidos). ${qtd(visitas.filter(x=>!propriedade(x)).length)} visitas sem propriedade identificada. O nome do agricultor identifica a propriedade quando o nome do imóvel não foi informado. O diagnóstico de seleção deve ser conferido. ${base.alerta?'Meta quantitativa divergente no documento; confirmar antes de atestar.':''}`;
   if(meta.indicador==='assistencia'){
    const grupos=new Map<string,Set<string>>();for(const x of visitas){const k=x.r.competencia+' | '+(x.u?.nomeCompleto||x.r.authUserId);const set=grupos.get(k)||new Set<string>();if(propriedade(x))set.add(propriedade(x));grupos.set(k,set);}
    resultado=[`${qtd(visitas.length)} visitas registradas; a meta é de propriedades distintas por técnico/mês, não de visitas.`,...Array.from(grupos,([k,v])=>`${k}: ${qtd(v.size)}/30 propriedades identificadas; ${v.size>=30?"quantidade mínima registrada":"abaixo da meta mensal; faltam "+qtd(30-v.size)+" propriedades identificadas"}`),'Técnicos sem relatório e propriedades sem identificação exigem conferência; não se presume cumprimento pela soma geral.'].join('; ');
