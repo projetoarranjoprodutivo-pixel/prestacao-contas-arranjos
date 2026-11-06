@@ -1,7 +1,7 @@
 export function identificarPrestador(conteudo:string){
  const trecho=conteudo.split(/PRESTADOR\s*\/\s*FORNECEDOR|EMITENTE DA NFS-e/i).slice(1).join(" ").split(/TOMADOR\s*\/|DESTINATARIO|DESTINATÁRIO/i)[0]||"";
- const cnpjPrestador=trecho.match(/\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/)?.[0]||"";
- const prestador=trecho.match(/Nome\s*\/\s*Nome Empresarial\s*\n([^\n]+)/i)?.[1]?.trim()||"";
+ const cnpjPrestador=trecho.match(/\b\d{2}\s*\.\s*\d{3}\s*\.\s*\d{3}\s*\/\s*\d{4}\s*-\s*\d{2}\b/)?.[0]?.replace(/\s/g,"")||"";
+ const prestador=trecho.match(/Nome\s*\/\s*Nome Empresarial[^\n]*\n([^\n]+)/i)?.[1]?.trim()||"";
  return {prestador,cnpjPrestador};
 }
 export function lerNfseNacional(conteudo:string) {
