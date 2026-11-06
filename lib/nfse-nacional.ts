@@ -1,12 +1,31 @@
 export function identificarPrestador(conteudo:string){
- const trecho=conteudo.split(/PRESTADOR\s*\/\s*FORNECEDOR|EMITENTE DA NFS-e/i).slice(1).join(" ").split(/TOMADOR\s*\/|DESTINATARIO|DESTINATÁRIO/i)[0]||"";
+ const trecho=conteudo.split(/PRESTADOR\s*\/\s*FORNECEDOR|EMITENTE DA NFS-e|\bEMITENTE\b/i).slice(1).join(" ").split(/TOMADOR\b|DESTINATARIO|DESTINATÁRIO/i)[0]||"";
  const cnpjPrestador=trecho.match(/\b\d{2}\s*\.\s*\d{3}\s*\.\s*\d{3}\s*\/\s*\d{4}\s*-\s*\d{2}\b/)?.[0]?.replace(/\s/g,"")||"";
- const prestador=trecho.match(/Nome\s*\/\s*Nome Empresarial[^\n]*\n([^\n]+)/i)?.[1]?.trim()||"";
+ const prestador=(trecho.match(/Nome\s*\/\s*Nome Empresarial[^\n]*\n([^\n]+)/i)?.[1]||trecho.match(/Raz[ãa]o Social[^\n]*\n([^\n]+)/i)?.[1]||"").trim();
  return {prestador,cnpjPrestador};
 }
+
+function lerEmissorNacional(texto:string){
+ if(!/Identifica[çc][ãa]o da NFS-e/i.test(texto))return null;
+ const descricao=(texto.split(/Descri[çc][ãa]o do servi[çc]o/i)[1]||"").split(/Informa[çc][õo]es Complementares/i)[0].replace(/\s+/g," ").trim();
+ const meses:Record<string,string>={JANEIRO:"01",FEVEREIRO:"02",MARCO:"03",ABRIL:"04",MAIO:"05",JUNHO:"06",JULHO:"07",AGOSTO:"08",SETEMBRO:"09",OUTUBRO:"10",NOVEMBRO:"11",DEZEMBRO:"12"};
+ const ref=descricao.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().match(/COMPETENCIA\s+([A-Z]+)\s*(?:[\/-]|\s+DE\s+)\s*(20\d{2})/);
+ const competencia=ref&&meses[ref[1]]?ref[2]+"-"+meses[ref[1]]:"";
+ const data=texto.match(/Data de (?:gera[çc][ãa]o|emiss[ãa]o)[^\d]{0,80}(\d{2})\/(\d{2})\/(20\d{2})/i);
+ const dataEmissao=data?data[3]+"-"+data[2]+"-"+data[1]:"";
+ const total=texto.match(/Valor do Servi[çc]o[\s\S]{0,80}?R\$\s*([\d.]+,\d{2})/i)?.[1]||"";
+ const valor=total?Number(total.replace(/\./g,"").replace(",",".")).toFixed(2):"";
+ const quantidade=descricao.match(/\b(\d+(?:[.,]\d+)?)\s*(?:horas?\b|h\b)/i)?.[1]?.replace(",",".")||"";
+ const identidade=identificarPrestador(texto);
+ if(!competencia||!dataEmissao||!descricao||!(Number(valor)>0)||!identidade.cnpjPrestador)return null;
+ // Número da DPS não é o número da NFS-e. Não preencher a partir desse campo.
+ const numeroNota=texto.match(/N[úu]mero da NFS-e[^\d]{0,40}(\d+)/i)?.[1]||"";
+ return {...identidade,origemLeitura:"conteudo",competenciaDocumento:"",competenciaDescricao:competencia,numeroNota,descricao,quantidade,valor,dataEmissao,competencia,aviso:""};
+}
+
 export function lerNfseNacional(conteudo:string) {
  const texto=conteudo.replace(/NFS\s*-\s*e/gi,"NFS-e");
- if(!/DANFSe|Documento\s+Auxiliar\s+da\s+NFS-e/i.test(texto))return null;
+ if(!/DANFSe|Documento\s+Auxiliar\s+da\s+NFS-e/i.test(texto))return lerEmissorNacional(texto);
  const cabecalho=texto.match(/N[ÚU]MERO DA NFS-e[^\n]*\n\s*(\d{1,15})\s+(\d{2}\/\d{2}\/20\d{2})\s+(\d{2}\/\d{2}\/20\d{2})/i);
  const verticalNumero=texto.match(/N[ÚU]MERO DA NFS-e\s*\n\s*(\d{1,15})/i)?.[1];
  const verticalCompetencia=texto.match(/COMPET[ÊE]NCIA DA NFS-e\s*\n\s*(\d{2}\/\d{2}\/20\d{2})/i)?.[1];
