@@ -21,7 +21,7 @@ export function lerNfseNacional(conteudo:string) {
  // número encontrado na página nem o total de IBS/CBS.
  const total=texto.match(/VALOR TOTAL DA NFS-e[\s\S]{0,300}?R\$\s*([\d.]+,\d{2})/i)?.[1];
  const valor=total?Number(total.replace(/\./g,"").replace(",",".")).toFixed(2):"";
- const quantidade=descricao.match(/\b(\d+(?:[.,]\d+)?)\s*horas?\b/i)?.[1].replace(",",".")||"";
+ const quantidade=descricao.match(/\b(\d+(?:[.,]\d+)?)\s*(?:horas?\b|h\b)/i)?.[1].replace(",",".")||"";
  const meses:Record<string,string>={JANEIRO:"01",FEVEREIRO:"02",MARCO:"03",ABRIL:"04",MAIO:"05",JUNHO:"06",JULHO:"07",AGOSTO:"08",SETEMBRO:"09",OUTUBRO:"10",NOVEMBRO:"11",DEZEMBRO:"12"};
  const referencia=descricao.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().match(/COMPETENCIA\s+([A-Z]+)\s*[\/-]\s*(20\d{2})/);
  const competenciaDescricao=referencia&&meses[referencia[1]]?`${referencia[2]}-${meses[referencia[1]]}`:"";
