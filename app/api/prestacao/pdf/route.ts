@@ -1,3 +1,4 @@
+import {relatorioNarrativoDouglas} from "@/lib/importacao-relatorios";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
@@ -48,7 +49,7 @@ async function adicionarAtividadeComAssinaturas(pdf:PDFDocument,atividade:Ativid
   pagina.drawRectangle({x:0,y:H-92,width:W,height:92,color:VERDE});pagina.drawText("ARRANJOS PRODUTIVOS",{x:M,y:H-30,size:8,font:bold,color:rgb(0.69,0.9,0.79)});pagina.drawText(`ATIVIDADE EXECUTADA ${indice+1}`,{x:M,y:H-58,size:14,font:bold,color:rgb(1,1,1)});
   const informacoes=[`${atividade.executada===false?"NÃO EXECUTADA":"EXECUTADA"} | DATA: ${atividade.data||"SEM DATA"} | HORA: ${atividade.inicio||"SEM HORÁRIO"}`,`TIPO DE ATIVIDADE: ${atividade.tipoAtividade||"VISITA TÉCNICA"}`,`MUNICÍPIO: ${atividade.municipio||"NÃO INFORMADO"} | COMUNIDADE: ${atividade.comunidade||"NÃO INFORMADA"}`];
   if(atividade.tipoAtividade==="Entrega de mudas")informacoes.push(`TIPO DE MUDAS: ${atividade.tipoMuda||"NÃO INFORMADO"} | QUANTIDADE: ${atividade.quantidadeMudas||"0"}`);else informacoes.push(`AGRICULTOR: ${atividade.agricultor||atividade.beneficiario||"NÃO INFORMADO"}`,`PROPRIEDADE: ${atividade.propriedade||"NÃO INFORMADA"} | TELEFONE: ${atividade.telefone||"NÃO INFORMADO"}`);
-  informacoes.push(`${atividade.executada===false?"MOTIVO":"DURAÇÃO: "+duracaoHoras(atividade).toLocaleString("pt-BR",{maximumFractionDigits:2})+" HORAS | RESUMO"}: ${atividade.resumo||"NÃO INFORMADO"}`);
+  informacoes.push(`${atividade.executada===false?"MOTIVO":"DURAÇÃO: "+(atividade.duracao?duracaoHoras(atividade).toLocaleString("pt-BR",{maximumFractionDigits:2})+" HORAS":"NÃO INFORMADO")+" | RESUMO"}: ${atividade.resumo||"NÃO INFORMADO"}`);
   let y=720;for(const texto of informacoes){const linhas=dividir(texto,regular,8.5,W-M*2-24);const altura=18+linhas.length*10;pagina.drawRectangle({x:M,y:y-altura+7,width:W-M*2,height:altura,color:rgb(0.96,0.97,0.98),borderColor:CINZA,borderWidth:0.5});linhas.forEach((linha,i)=>pagina.drawText(linha,{x:M+12,y:y-8-i*10,size:8.5,font:regular,color:PRETO}));y-=altura+5;}
   pagina.drawText("ASSINATURAS DA ATIVIDADE",{x:M,y:365,size:10,font:bold,color:VERDE});
   const itens=[{titulo:"ASSINATURA DO PRODUTOR/REPRESENTANTE",valor:atividade.assinaturaProdutor},{titulo:"ASSINATURA DO TÉCNICO",valor:atividade.assinaturaTecnico}];
@@ -86,7 +87,7 @@ export async function GET(request:Request){
   ]);
   await adicionarTabelaAssociacoes(pdf);
   await copiarRelatorio(pdf,"ATIVIDADES DE ASSISTÊNCIA TÉCNICA",[{heading:"4. PÚBLICO-ALVO",lines:["Agricultores e/ou empreendedores familiares rurais participantes do Projeto, registrados na ficha cadastral dos municípios atendidos."]},{heading:"5. ATIVIDADES DE ASSISTÊNCIA TÉCNICA",lines:[`As atividades de assistência técnica para agricultores e empreendedores familiares rurais descritas neste relatório correspondem à competência ${mesCompetencia(registro.competencia)}.`]}]);
-  await copiarRelatorio(pdf,"DADOS DA PRESTAÇÃO DE CONTAS",[{heading:"IDENTIFICAÇÃO",lines:[`Colaborador: ${colaborador?.nomeCompleto||"Não informado"}`,`Cargo: ${colaborador?.cargo||"Não informado"}`,`Competência: ${mesCompetencia(registro.competencia)}`,`Associação: ${associacao?.razaoSocial||registro.associacao}`,`Carga horária executada: ${(registro.totalMinutos/60).toLocaleString("pt-BR",{maximumFractionDigits:2})} horas`,`Quantidade de atividades: ${atividades.length}`]}]);
+  await copiarRelatorio(pdf,"DADOS DA PRESTAÇÃO DE CONTAS",[{heading:"IDENTIFICAÇÃO",lines:[`Colaborador: ${colaborador?.nomeCompleto||"Não informado"}`,`Cargo: ${colaborador?.cargo||"Não informado"}`,`Competência: ${mesCompetencia(registro.competencia)}`,`Associação: ${associacao?.razaoSocial||registro.associacao}`,`Carga horária executada: ${!registro.totalMinutos&&colaborador&&relatorioNarrativoDouglas(colaborador)?"NÃO INFORMADO":(registro.totalMinutos/60).toLocaleString("pt-BR",{maximumFractionDigits:2})+" horas"}`,`Quantidade de atividades: ${atividades.length}`]}]);
   for(const [i,a] of atividades.entries()){
     await adicionarAtividadeComAssinaturas(pdf,a,i);
   }
