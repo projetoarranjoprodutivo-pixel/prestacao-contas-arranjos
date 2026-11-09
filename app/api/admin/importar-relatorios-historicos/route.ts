@@ -14,6 +14,7 @@ type Atividade = {
   assinaturaProdutor: string; assinaturaTecnico: string;
 };
 type DadosImportacao = {
+  unidadeDuracao?: "horas" | "minutos";
   tecnico: {
     nomeCompleto: string; email: string; cargo: string; associacao: string; municipiosAtendidos: string[];
     mei: string; nomeEmpresarial: string; celular: string; endereco: string;
@@ -49,10 +50,11 @@ function agricultoresDasAtividades(dados: DadosImportacao, anteriores = "[]") {
   return [...encontrados.values()];
 }
 
-function agenda(atividades: Atividade[]) {
+function agenda(atividades: Atividade[], unidadeDuracao?: "horas" | "minutos") {
   return atividades.map((atividade) => ({
     data: atividade.data,
     hora: atividade.hora,
+    duracaoEstimada: atividade.duracao ? String(Number(atividade.duracao) / (unidadeDuracao === "minutos" ? 60 : 1)) : "",
     municipio: atividade.municipio,
     comunidade: atividade.comunidade,
     propriedade: atividade.propriedade,
@@ -150,7 +152,7 @@ export async function POST(request: Request) {
         authUserId,
         competencia: relatorio.competencia,
         associacao: tecnico.associacao,
-        agendaJson: JSON.stringify(agenda(relatorio.atividades)),
+        agendaJson: JSON.stringify(agenda(relatorio.atividades, dados.unidadeDuracao)),
         status: "importado",
         atualizadoEm: agora(),
       };
