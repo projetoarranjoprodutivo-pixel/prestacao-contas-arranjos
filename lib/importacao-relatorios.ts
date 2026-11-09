@@ -16,7 +16,7 @@ export function unirAtividades<T extends {data?:string;hora?:string;inicio?:stri
  const chave=(a:T)=>[a.data,a.hora||a.inicio,a.municipio,a.agricultor,a.tipoAtividade,((a.hora||a.inicio)&&a.agricultor)?"":a.resumo||a.observacao].map(v=>chaveTexto(v||"")).join("|");
  const mapa=new Map(existentes.map(a=>[chave(a),a]));for(const a of novas)if(!mapa.has(chave(a)))mapa.set(chave(a),a);return [...mapa.values()];
 }
-export function relatorioNarrativoDouglas(pessoa:{nomeCompleto?:string;email?:string}){return pessoa.email?.trim().toLowerCase()==="doglasgasparetto86@gmail.com"||chaveTexto(pessoa.nomeCompleto||"")==="DOUGLASGASPARETTO";}
+export function relatorioNarrativoDouglas(pessoa:{nomeCompleto?:string;email?:string}){return ["doglasgasparetto86@gmail.com","dria.sic1302@gmail.com"].includes(pessoa.email?.trim().toLowerCase()||"")||["DOUGLASGASPARETTO","ANDREIAHABERLYSIQUEIRA"].includes(chaveTexto(pessoa.nomeCompleto||""));}
 export function totalMinutosImportados(atividades:Array<{duracao?:string;executada?:boolean}>,adotarPadrao=true){const feitas=atividades.filter(a=>a.executada!==false);const soma=feitas.reduce((t,a)=>t+(Number(a.duracao)||0),0);return soma|| (adotarPadrao&&feitas.length?9600:0);}
 export const confirmarImportacaoSchema=z.object({colaboradorId:z.number().int().positive(),competencia:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),associacao:z.string().min(1).max(200),descricao:z.string().max(60000),atividades:z.array(atividadeImportadaSchema).min(1).max(500),modo:z.enum(["complementar","substituir"]),versaoPrestacao:z.string().nullable(),versaoPlano:z.string().nullable()});
 
@@ -44,7 +44,7 @@ export function tipoAtividadeImportada(tipo:string,resumo:string){
 }
 
 export function descricaoDetalhadaOriginal(texto:string){
- const inicio=texto.search(/\d+\s*\.\s*\d+\s*\.\s*DESCRI[CÇ][AÃ]O\s+DETALHADA/i);if(inicio<0)return "";
- const trecho=texto.slice(inicio),fim=trecho.search(/\b\d+\s*\.\s*ANEXOS|\b(?:5|6)\s*\.\s*[13]\s*\.\s*REGISTROS\s+FOTOGR/i);
+ const inicio=texto.search(/\d+\s*\.\s*(?:\d+\s*\.\s*)?DESCRI[CÇ][AÃ]O\s+(?:DETALHADA\s+)?DAS\s+ATIVIDADES/i);if(inicio<0)return "";
+ const trecho=texto.slice(inicio),fim=trecho.search(/\b\d+\s*\.\s*ANEXOS|\b\d+\s*\.\s*\d+\s*\.?\s*REGISTROS\s+FOTOGR/i);
  return (fim<0?trecho:trecho.slice(0,fim)).replace(/\[PÁGINA\s+\d+\]/gi,"").trim();
 }
