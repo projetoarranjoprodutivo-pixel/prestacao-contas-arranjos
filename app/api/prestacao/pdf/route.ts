@@ -1,4 +1,4 @@
-import {relatorioNarrativoDouglas} from "@/lib/importacao-relatorios";
+import {relatorioNarrativoDouglas} from "@/lib/relatorios-narrativos";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";

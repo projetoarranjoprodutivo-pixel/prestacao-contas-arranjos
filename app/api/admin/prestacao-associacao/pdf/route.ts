@@ -1,4 +1,4 @@
-import {relatorioNarrativoDouglas} from "@/lib/importacao-relatorios";
+import {relatorioNarrativoDouglas} from "@/lib/relatorios-narrativos";
 import {env} from "cloudflare:workers";
 import {baseFomento,chaveConferencia,avaliarFomento,propriedadeIdentificada,type ConferenciaFomento} from "@/lib/fomento-aderes";
 import {numeroMonetario} from "@/lib/moeda";
