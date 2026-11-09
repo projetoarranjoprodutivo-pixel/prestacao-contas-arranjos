@@ -19,6 +19,12 @@ export async function POST(request:Request){
    const resposta=await lerDocumento(new Request(request.url,{method:"POST",body:form}));const lidos=await resposta.json() as Record<string,string>;
    if(!resposta.ok)return Response.json(lidos,{status:resposta.status});
    if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(lidos.competencia)||(!lidos.prestador&&!lidos.cnpjPrestador))return Response.json({message:"O CONTEÚDO NÃO IDENTIFICOU PRESTADOR E COMPETÊNCIA COM SEGURANÇA. CONFIRA O DOCUMENTO."},{status:422});
+   // Quando o arquivo já está no mês do serviço explicitamente descrito,
+   // mantenha essa referência e preserve separadamente a competência fiscal.
+   if(lidos.competenciaDescricao===registro.competencia){
+    lidos.competencia=lidos.competenciaDescricao;
+    if(lidos.competenciaDocumento&&lidos.competenciaDocumento!==lidos.competenciaDescricao)lidos.aviso=`COMPETÊNCIA DO SERVIÇO: ${lidos.competenciaDescricao}. COMPETÊNCIA FISCAL DO CABEÇALHO: ${lidos.competenciaDocumento}.`;
+   }
    Object.assign(nota,lidos,{origemLeitura:"conteudo",relidoEm:new Date().toISOString()});nota.categoriaNota=categoriaDaNota({descricao:lidos.descricao});
    const alterados=await db.update(documentosAssociacao).set({notasFiscaisJson:JSON.stringify(notas),atualizadoEm:new Date().toISOString()}).where(and(eq(documentosAssociacao.id,registro.id),eq(documentosAssociacao.notasFiscaisJson,registro.notasFiscaisJson))).returning({id:documentosAssociacao.id});
    if(!alterados.length)return Response.json({message:"DOCUMENTO ALTERADO POR OUTRO ACESSO. ATUALIZE A PÁGINA."},{status:409});
