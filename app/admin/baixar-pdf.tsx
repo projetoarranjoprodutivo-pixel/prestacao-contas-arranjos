@@ -14,7 +14,7 @@ export default function BaixarPdf({href,children,className}:{href:string;childre
    const {createPdf}=await import("@/lib/pdf");
    const secoes=dados.secoes.map(s=>({...s,lines:s.lines.flatMap(linha=>{
     const partes:string[]=[];let atual="";
-    for(const palavra of linha.split(/\s+/)){if(atual.length+palavra.length>600&&atual){partes.push(atual);atual="";}atual+=(atual?" ":"")+palavra;}
+    for(const palavra of linha.replace(/[\uf0b7\uf0a7]/g,"•").split(/\s+/)){if(atual.length+palavra.length>600&&atual){partes.push(atual);atual="";}atual+=(atual?" ":"")+palavra;}
     if(atual)partes.push(atual);return partes;
    })}));
    const bytes=await createPdf(dados.titulo,secoes);
