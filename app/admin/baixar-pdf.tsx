@@ -12,12 +12,15 @@ export default function BaixarPdf({href,children,className}:{href:string;childre
    const dados=await resposta.json() as {titulo:string;secoes:Secao[];nomeArquivo:string};
    if(!Array.isArray(dados.secoes)||!dados.titulo)throw new Error("DADOS DO RELATÓRIO INVÁLIDOS.");
    const {createPdf}=await import("@/lib/pdf");
-   const secoes=dados.secoes.map(s=>({...s,lines:s.lines.flatMap(linha=>{
+   const {PDFDocument,StandardFonts}=await import("pdf-lib");
+   const documentoFonte=await PDFDocument.create(),fonte=await documentoFonte.embedFont(StandardFonts.Helvetica);
+   const textoSeguro=(texto:string)=>Array.from(texto.replace(/[\uf0b7\uf0a7]/g,"•")).map(caractere=>{try{fonte.encodeText(caractere);return caractere;}catch{return caractere==="🚨"?"ALERTA":`[U+${caractere.codePointAt(0)!.toString(16).toUpperCase()}]`;}}).join("");
+   const secoes=dados.secoes.map(s=>({...s,heading:s.heading?textoSeguro(s.heading):undefined,lines:s.lines.flatMap(linha=>{
     const partes:string[]=[];let atual="";
-    for(const palavra of linha.replace(/[\uf0b7\uf0a7]/g,"•").split(/\s+/)){if(atual.length+palavra.length>600&&atual){partes.push(atual);atual="";}atual+=(atual?" ":"")+palavra;}
+    for(const palavra of textoSeguro(linha).split(/\s+/)){if(atual.length+palavra.length>600&&atual){partes.push(atual);atual="";}atual+=(atual?" ":"")+palavra;}
     if(atual)partes.push(atual);return partes;
    })}));
-   const bytes=await createPdf(dados.titulo,secoes);
+   const bytes=await createPdf(textoSeguro(dados.titulo),secoes);
    const arquivo=new Blob([new Uint8Array(bytes)],{type:"application/pdf"}),endereco=URL.createObjectURL(arquivo),link=document.createElement("a");
    link.href=endereco;link.download=dados.nomeArquivo||"relatorio.pdf";document.body.appendChild(link);link.click();link.remove();window.setTimeout(()=>URL.revokeObjectURL(endereco),60000);
   }catch(e){setErro(e instanceof Error?e.message:"NÃO FOI POSSÍVEL GERAR O PDF.");}finally{setGerando(false);}
