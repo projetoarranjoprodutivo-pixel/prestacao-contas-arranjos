@@ -1,3 +1,4 @@
+import {periodoDoExtrato} from "@/lib/competencias-extrato";
 import { extrairTextoNotaPdf } from "@/lib/pdf-texto-nota";
 import { identificarPrestador, lerNfseNacional } from "@/lib/nfse-nacional";
 import {env} from "cloudflare:workers";
@@ -151,6 +152,10 @@ export async function POST(request:Request){
   conteudo=textoResultado(conversao).slice(0,60000); } catch { /* A leitura visual abaixo também atende PDFs sem texto. */ }
   const db=getDb();
   const lista=await db.select({nome:associacoes.nome,razaoSocial:associacoes.razaoSocial,cnpj:associacoes.cnpj}).from(associacoes).where(eq(associacoes.ativo,true));
+  if(form.get("tipoDocumento")==="extrato"){
+   const base=dadosDeterministicos(conteudo,arquivo.name,lista);
+   return Response.json({...periodoDoExtrato(conteudo),associacao:base.associacao,origemLeitura:"conteudo"});
+  }
   const nacional=lerNfseNacional(conteudo);
   if(nacional){
    const base=dadosDeterministicos(conteudo,arquivo.name,lista);

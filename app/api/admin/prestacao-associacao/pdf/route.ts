@@ -49,7 +49,7 @@ export async function GET(request:Request){
   const agricultoresMap=new Map<string,{nome:string;municipio:string;beneficios:string[];minutos:number;observacoes:string[]}>();
   for(const {a,r} of atividades){const nome=informado(a.agricultor||a.beneficiario);if(nome==="NÃO INFORMADO")continue;const atual=agricultoresMap.get(nome)||{nome,municipio:informado(a.municipio),beneficios:[],minutos:0,observacoes:[]};if(a.tipoAtividade)atual.beneficios.push(informado(a.tipoAtividade));if(ehEntregaMudas(a))atual.beneficios.push(`MUDAS DE ${tipoMudaEntregue(a)}`);const duracaoInformada=Math.max(0,numero(a.duracao));const quantidadeAtividades=quantidadeAtividadesPorRelatorio.get(r.id)||1;const duracaoCalculada=r.totalMinutos>0?r.totalMinutos/quantidadeAtividades:0;atual.minutos+=duracaoInformada||duracaoCalculada;if(a.resumo)atual.observacoes.push(a.resumo);agricultoresMap.set(nome,atual);}
   const agricultores=[...agricultoresMap.values()];
-  const extratos=financeiro.flatMap(item=>lista<Arquivo>(item.extratosJson)),notas=financeiro.flatMap(item=>lista<Arquivo>(item.notasFiscaisJson)),anexos=relatorios.flatMap(r=>lista<Arquivo>(r.anexosJson));
+  const extratos=[...new Map(financeiro.flatMap(item=>lista<Arquivo>(item.extratosJson)).map(a=>[a.key,a])).values()],notas=financeiro.flatMap(item=>lista<Arquivo>(item.notasFiscaisJson)),anexos=relatorios.flatMap(r=>lista<Arquivo>(r.anexosJson));
   const comprasMudas=notas.filter(ehCompraMudas);
   const totalMudasCompradas=comprasMudas.reduce((total,arquivo)=>total+numero(arquivo.quantidade),0);
   const totalMudasEntregues=entregas.reduce((total,item)=>total+quantidadeEntregue(item.a),0);
