@@ -12,5 +12,6 @@ export function emailDePendencias(colaborador:ColaboradorEmail,pendencias:Penden
  });
  const assunto="Pendências de prestação de contas e notas fiscais - Arranjos Produtivos";
  const mensagem=`Prezado ${colaborador.nomeCompleto}, informamos que consta em nosso sistema as seguintes pendências, solicitamos o envio dos mesmos para o email arranjosprodutivos2026@gmail.com .\n\n${blocos.join("\n\n")}`;
- return {destinatario:email,assunto,mensagem,href:`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(mensagem)}`};
+ const gmailHref=`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(mensagem)}`;
+ return {destinatario:email,assunto,mensagem,gmailHref,href:`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(mensagem)}`};
 }
