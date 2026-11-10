@@ -23,6 +23,7 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
  const selecionadas=grupos.filter(g=>!filtros.associacao||normal(g.nome)===normal(filtros.associacao));
  const nomes=new Set(selecionadas.map(g=>normal(g.nome)));
  const cobertura=mapaAssociacoesPorMunicipio(grupos);
+ const municipiosConhecidos=new Set([...cobertura.keys(),"BARRA DE SAO FRANCISCO"]);
  const mesValido=(mes:string)=>mes.startsWith(filtros.ano+"-")&&(!filtros.mes||mes===`${filtros.ano}-${filtros.mes}`);
  const destino=(a:AtividadeTransparencia)=>a.authUserId==="admin-importacao-mudas-2026"?normal(cobertura.get(chaveMunicipio(a.municipio))):normal(a.associacao);
  const registros=atividades.filter(a=>mesValido(a.competencia)&&nomes.has(destino(a)));
@@ -31,7 +32,7 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
  const municipios=new Map<string,{associacao:string;municipio:string;visitas:number;produtores:Set<string>;mudas:number;eventos:Set<string>}>();
  let visitas=0,mudas=0;
  for(const a of registros){
-  const assoc=destino(a),m=chaveMunicipio(a.municipio),tipo=chaveMunicipio(a.tipoAtividade);
+  const assoc=destino(a),informado=chaveMunicipio(a.municipio).replace(/\s*(?:\/|-)\s*ES$/,"").trim(),m=municipiosConhecidos.has(informado)?informado:"",tipo=chaveMunicipio(a.tipoAtividade);
   const k=assoc+"|"+m,atual=municipios.get(k)||{associacao:assoc,municipio:m||"NÃO INFORMADO",visitas:0,produtores:new Set<string>(),mudas:0,eventos:new Set<string>()};
   if(tipo==="VISITA TECNICA"){
    visitas++;atual.visitas++;
