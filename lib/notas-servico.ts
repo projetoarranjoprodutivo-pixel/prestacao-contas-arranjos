@@ -2,7 +2,8 @@ import { ativoNaCompetencia } from "@/lib/vinculo-colaborador";
 import { categoriaDaNota } from "@/lib/classificacao-notas";
 type ColaboradorNota={id:number;nomeCompleto:string;nomeEmpresarial:string|null;mei:string|null;email:string;cargo:string;associacao:string|null;associacoesJson:string;dataSaida?:string|null;dataAdmissao?:string|null};
 type DocumentoNota={associacao:string;competencia:string;notasFiscaisJson:string};
-type ArquivoNota={competencia?:string;origemLeitura?:string;categoriaNota?:string;nome?:string;descricao?:string;key?:string;fornecedor?:string;prestador?:string;cnpjPrestador?:string};
+export type VinculoNotaServico = { colaboradorId: number; competencia: string };
+type ArquivoNota={vinculoPrestacao?:VinculoNotaServico;competencia?:string;origemLeitura?:string;categoriaNota?:string;nome?:string;descricao?:string;key?:string;fornecedor?:string;prestador?:string;cnpjPrestador?:string};
 
 function normalizar(valor?:string|null){return String(valor||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Z0-9]+/gi," ").trim().toUpperCase();}
 
@@ -10,6 +11,7 @@ function normalizar(valor?:string|null){return String(valor||"").normalize("NFD"
 function chaveAssociacao(valor:string){const chave=normalizar(valor).replace(/ /g,"");return chave==="APROVIPA"?"APPROVIPA":chave;}
 
 export function competenciaDaNota(nota:ArquivoNota,competenciaEnvio:string){
+ if(nota.vinculoPrestacao)return nota.vinculoPrestacao.competencia;
  if(nota.competencia&&/^20\d{2}-(0[1-9]|1[0-2])$/.test(nota.competencia))return nota.competencia;
  if(nota.origemLeitura==="conteudo")return competenciaEnvio;
  const meses=["JANEIRO","FEVEREIRO","MARCO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
@@ -25,7 +27,7 @@ export function competenciaDaNota(nota:ArquivoNota,competenciaEnvio:string){
  return numerica?`${numerica[1]}-${numerica[2]}`:competenciaEnvio;
 }
 
-function associacoesDoColaborador(usuario:ColaboradorNota){
+export function associacoesDoColaborador(usuario:Pick<ColaboradorNota,"associacao"|"associacoesJson">){
   let lista:string[]=[];try{const dados=JSON.parse(usuario.associacoesJson||"[]");if(Array.isArray(dados))lista=dados.filter((item):item is string=>typeof item==="string"&&!!item.trim());}catch{}
   if(!lista.length&&usuario.associacao)lista=[usuario.associacao];return [...new Map(lista.map(nome=>[chaveAssociacao(nome),nome])).values()];
 }
@@ -38,6 +40,7 @@ function tokensIdentificadores(usuario:ColaboradorNota){
 }
 
 export function notaPertenceAoColaborador(nota:ArquivoNota,usuario:ColaboradorNota,usuariosAssociacao:ColaboradorNota[]){
+  if(nota.vinculoPrestacao)return nota.vinculoPrestacao.colaboradorId===usuario.id;
   if(nota.origemLeitura==="conteudo"){const cnpj=String(nota.cnpjPrestador||"").replace(/\D/g,"");const mei=String(usuario.mei||"").replace(/\D/g,"");if(cnpj&&mei)return cnpj===mei;const nome=normalizar(nota.prestador);return !!nome&&[usuario.nomeCompleto,usuario.nomeEmpresarial].filter(Boolean).some(candidato=>nome.includes(normalizar(candidato)));}
   const texto=normalizar(`${nota.nome||""} ${nota.descricao||""} ${nota.key?.split("/").pop()||""} ${nota.fornecedor||""} ${nota.prestador||""} ${nota.cnpjPrestador||""}`);if(!texto)return false;
   const candidatos=[usuario.nomeCompleto,usuario.nomeEmpresarial,usuario.email.split("@")[0]].map(normalizar).filter(Boolean);
@@ -64,7 +67,7 @@ export function listarNotasServicoPendentes(usuarios:ColaboradorNota[],documento
       const notas=(porAssociacaoCompetencia.get(`${chaveAssociacao(associacao)}|${competencia}`)||[]).filter(ehNotaServico);
       const identificados=ativos.filter(usuario=>notas.some(nota=>notaPertenceAoColaborador(nota,usuario,ativos)));
       const semIdentificacao=ativos.filter(usuario=>!identificados.includes(usuario));
-      const notasIdentificadas=notas.filter(nota=>ativos.some(usuario=>notaPertenceAoColaborador(nota,usuario,ativos))).length;
+      const notasIdentificadas=notas.filter(nota=>nota.vinculoPrestacao||ativos.some(usuario=>notaPertenceAoColaborador(nota,usuario,ativos))).length;
       const notasGenericasDisponiveis=Math.max(0,notas.length-notasIdentificadas);
       if(notasGenericasDisponiveis>=semIdentificacao.length)continue;
       for(const usuario of semIdentificacao){pendentes.push({id:usuario.id,nomeCompleto:usuario.nomeCompleto,cargo:usuario.cargo,email:usuario.email,associacao,competencia});}

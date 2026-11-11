@@ -1,7 +1,8 @@
-import {notaPertenceAoColaborador} from "@/lib/notas-servico";
+import {notaPertenceAoColaborador, type VinculoNotaServico} from "@/lib/notas-servico";
 import { categoriaDaNota } from "@/lib/classificacao-notas";
 import {numeroMonetario} from "@/lib/moeda";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
+import { vinculoNotaNasCompetencias } from "@/db/vinculo-nota";
 import { env } from "cloudflare:workers";
 import { getAderesOrAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
@@ -28,6 +29,7 @@ type Atividade = {
   resumo?: string;
 };
 type Arquivo = {
+  vinculoPrestacao?: VinculoNotaServico;
   key?: string;
   numeroNota?: string;
   categoriaNota?: string;
@@ -244,7 +246,7 @@ async function gerarHoras(
     const usuario=usuarios.get(id); if(!usuario)continue;
     const registros=relatorios.filter(r=>r.authUserId===id&&r.competencia===mes);
     const horas=Math.max(160,registros.reduce((soma,r)=>soma+apurarHoras(r).minutos/60,0));
-    const candidatos=documentos.filter(d=>d.competencia===mes).flatMap(d=>lista<Arquivo>(d.notasFiscaisJson)).filter(n=>categoriaDaNota(n)==="servico"&&notaPertenceAoColaborador(n,usuario,[...usuarios.values()]));
+    const candidatos=documentos.flatMap(d=>lista<Arquivo>(d.notasFiscaisJson).filter(n=>(n.vinculoPrestacao?.competencia||d.competencia)===mes)).filter(n=>categoriaDaNota(n)==="servico"&&notaPertenceAoColaborador(n,usuario,[...usuarios.values()]));
     const notas=[...new Map(candidatos.map(n=>[n.numeroNota?`NF:${n.numeroNota}`:texto(n.nome).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s*\(\d+\)/g,"").toUpperCase(),n])).values()];
     // O valor da hora vem de uma nota mensal, nunca da soma de reenvios.
     const notaReferencia = notas.filter(n=>numeroDocumento(n.valor,true)>0).sort((a,b)=>
@@ -321,7 +323,7 @@ async function gerarExcel(request: Request) {
   const [relatorios, cadastros, documentos] = await Promise.all([
     db.select().from(prestacoes).where(and(eq(prestacoes.associacao, associacao.nome), inArray(prestacoes.competencia, competencias))),
     db.select().from(colaboradores),
-    db.select().from(documentosAssociacao).where(and(eq(documentosAssociacao.associacao, associacao.nome), inArray(documentosAssociacao.competencia, competencias))),
+    db.select().from(documentosAssociacao).where(and(eq(documentosAssociacao.associacao, associacao.nome), or(inArray(documentosAssociacao.competencia, competencias), modelo === "agricultura" ? undefined : vinculoNotaNasCompetencias(competencias)))),
   ]);
   const usuarios = new Map(cadastros.map((item) => [item.authUserId, item]));
   const arquivo = modelo === "agricultura"

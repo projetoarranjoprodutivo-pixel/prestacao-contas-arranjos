@@ -25,7 +25,7 @@ export async function POST(request:Request){
     lidos.competencia=lidos.competenciaDescricao;
     if(lidos.competenciaDocumento&&lidos.competenciaDocumento!==lidos.competenciaDescricao)lidos.aviso=`COMPETÊNCIA DO SERVIÇO: ${lidos.competenciaDescricao}. COMPETÊNCIA FISCAL DO CABEÇALHO: ${lidos.competenciaDocumento}.`;
    }
-   Object.assign(nota,lidos,{origemLeitura:"conteudo",relidoEm:new Date().toISOString()});nota.categoriaNota=categoriaDaNota({descricao:lidos.descricao});
+   Object.assign(nota,lidos,{origemLeitura:"conteudo",relidoEm:new Date().toISOString()});if(!nota.vinculoPrestacao)nota.categoriaNota=categoriaDaNota({descricao:lidos.descricao});
    const alterados=await db.update(documentosAssociacao).set({notasFiscaisJson:JSON.stringify(notas),atualizadoEm:new Date().toISOString()}).where(and(eq(documentosAssociacao.id,registro.id),eq(documentosAssociacao.notasFiscaisJson,registro.notasFiscaisJson))).returning({id:documentosAssociacao.id});
    if(!alterados.length)return Response.json({message:"DOCUMENTO ALTERADO POR OUTRO ACESSO. ATUALIZE A PÁGINA."},{status:409});
    return Response.json({message:`CONTEÚDO RELIDO. ${lidos.prestador||lidos.cnpjPrestador} · COMPETÊNCIA ${lidos.competencia}. ${lidos.aviso||""}`});
