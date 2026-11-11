@@ -1,3 +1,4 @@
+import { lerQuantidadeInteira } from "@/lib/quantidade";
 import { sql } from "drizzle-orm";
 import { getGestorMudasUser } from "@/lib/admin";
 import { getDb } from "@/db";
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
     const data = String(form.get("data") || "");
     const municipio = String(form.get("municipio") || "");
     const tipoMuda = String(form.get("tipoMuda") || "");
-    const quantidade = Number(form.get("quantidade") || 0);
+    const quantidade = lerQuantidadeInteira(form.get("quantidade"));
     const observacao = String(form.get("observacao") || "").trim();
     const dia = new Date(data + "T00:00:00Z");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !Number.isFinite(dia.getTime()) || dia.toISOString().slice(0,10) !== data ||

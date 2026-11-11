@@ -13,3 +13,10 @@ export function formatarQuantidade(valor:unknown,preservarUnidade=false):string{
  const unidade=preservarUnidade?String(valor??"").trim().match(/\s*([A-Za-zÀ-ÿ]+)\.?$/)?.[1]:"";
  return formato.format(numero)+(unidade?` ${unidade.toLocaleUpperCase("pt-BR")}`:"");
 }
+
+export function lerQuantidadeInteira(valor: unknown): number {
+  const texto = String(valor ?? "").trim();
+  if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)$/.test(texto)) return NaN;
+  const quantidade = numeroQuantidade(texto);
+  return Number.isSafeInteger(quantidade) ? quantidade : NaN;
+}
