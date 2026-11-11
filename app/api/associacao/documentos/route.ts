@@ -52,12 +52,25 @@ export async function POST(request:Request){await garantirBanco();const user=awa
  for(const item of comArquivos)for(const competencia of item.competencias){const chave=`${item.associacao}|${competencia}`;grupos.set(chave,[...(grupos.get(chave)||[]),{...item,competencia}]);}
  for(const itens of grupos.values()){
   const {associacao,competencia}=itens[0];
-  const existente=await db.query.documentosAssociacao.findFirst({where:and(eq(documentosAssociacao.associacao,associacao),eq(documentosAssociacao.competencia,competencia))});
-  let extratosAtuais:Arquivo[]=[],notasAtuais:Arquivo[]=[];try{extratosAtuais=JSON.parse(existente?.extratosJson||"[]");}catch{}try{notasAtuais=JSON.parse(existente?.notasFiscaisJson||"[]");}catch{}
-  // Uma única gravação do arquivo, com referência em cada mês coberto.
+  // Os arquivos já foram gravados. Releia o registro se outra operação alterou os vínculos.
   const novosExtratos=itens.filter(i=>i.grupo==="extrato").map(i=>i.arquivoSalvo),novasNotas=itens.filter(i=>i.grupo==="nota").map(i=>i.arquivoSalvo);
-  const values={authUserId:user.userId,associacao,competencia,extratosJson:JSON.stringify([...extratosAtuais,...novosExtratos]),notasFiscaisJson:JSON.stringify([...notasAtuais,...novasNotas]),atualizadoEm:new Date().toISOString()};
-  if(existente)await db.update(documentosAssociacao).set(values).where(eq(documentosAssociacao.id,existente.id));else await db.insert(documentosAssociacao).values(values);
+  let gravado=false;
+  for(let tentativa=0;tentativa<4&&!gravado;tentativa++){
+   const existente=await db.query.documentosAssociacao.findFirst({where:and(eq(documentosAssociacao.associacao,associacao),eq(documentosAssociacao.competencia,competencia))});
+   let extratosAtuais:Arquivo[]=[],notasAtuais:Arquivo[]=[];
+   try{extratosAtuais=JSON.parse(existente?.extratosJson||"[]");}catch{}
+   try{notasAtuais=JSON.parse(existente?.notasFiscaisJson||"[]");}catch{}
+   const values={authUserId:user.userId,associacao,competencia,extratosJson:JSON.stringify([...extratosAtuais,...novosExtratos]),notasFiscaisJson:JSON.stringify([...notasAtuais,...novasNotas]),atualizadoEm:new Date().toISOString()};
+   const salvos=existente
+    ?await db.update(documentosAssociacao).set(values).where(and(
+     eq(documentosAssociacao.id,existente.id),
+     eq(documentosAssociacao.extratosJson,existente.extratosJson),
+     eq(documentosAssociacao.notasFiscaisJson,existente.notasFiscaisJson),
+    )).returning({id:documentosAssociacao.id})
+    :await db.insert(documentosAssociacao).values(values).onConflictDoNothing().returning({id:documentosAssociacao.id});
+   gravado=salvos.length===1;
+  }
+  if(!gravado)return Response.json({message:"OS DOCUMENTOS FORAM ALTERADOS POR OUTRO ACESSO. CONFIRA OS REGISTROS ANTES DE TENTAR NOVAMENTE."},{status:409});
  }
  return Response.json({message:`${recebidos.length} DOCUMENTO(S) SALVO(S). EXTRATOS VINCULADOS A TODAS AS COMPETÊNCIAS DOS INTERVALOS INFORMADOS.`});
  }catch(error){return Response.json({message:error instanceof Error?error.message:"NÃO FOI POSSÍVEL SALVAR OS DOCUMENTOS."},{status:400});}
