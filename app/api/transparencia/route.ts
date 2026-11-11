@@ -19,6 +19,7 @@ export async function GET(request:Request){
    db.all<RelatorioTransparencia>(sql`SELECT id,auth_user_id as authUserId,competencia,associacao,municipio,total_minutos as totalMinutos,atualizado_em as atualizadoEm FROM prestacoes WHERE competencia BETWEEN ${inicio} AND ${fim}`),
    // Projeção explícita: não carregar assinaturas, telefones, anexos nem JSON completos.
    db.all<AtividadeTransparencia>(sql`SELECT p.id,p.auth_user_id as authUserId,p.competencia,p.associacao,p.total_minutos as totalMinutos,
+    json_extract(a.value,'$.agendaEntregaId') as agendaEntregaId,
     COALESCE(json_extract(a.value,'$.tipoAtividade'),'') as tipoAtividade,
     COALESCE(NULLIF(TRIM(json_extract(a.value,'$.municipio')),''),p.municipio,'') as municipio,COALESCE(json_extract(a.value,'$.comunidade'),'') as comunidade,
     COALESCE(json_extract(a.value,'$.data'),'') as data,COALESCE(json_extract(a.value,'$.agricultor'),'') as agricultor,

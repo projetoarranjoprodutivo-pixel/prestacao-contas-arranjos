@@ -1,9 +1,9 @@
-import { inArray } from "drizzle-orm";
+import { listarAtividadesDeMudasOficiais } from "@/db/entregas-mudas";
 import { getDb } from "@/db";
-import { associacoes, colaboradores, prestacoes } from "@/db/schema";
+import { associacoes, colaboradores } from "@/db/schema";
 import { getAdminUser } from "@/lib/admin";
 import { chaveMunicipio, mapaAssociacoesPorMunicipio } from "@/lib/associacoes-municipios";
-import { ehEntregaMudas, quantidadeEntregue, tipoMudaEntregue } from "@/lib/entregas-mudas";
+import { ehEntregaOficialDeMudas, quantidadeEntregue, tipoMudaEntregue } from "@/lib/entregas-mudas";
 import { createPdf } from "@/lib/pdf";
 
 export const runtime="edge";
@@ -21,7 +21,7 @@ export async function GET(request:Request){
 
   const db=getDb();
   const [registros,usuarios,listaAssociacoes]=await Promise.all([
-    db.select().from(prestacoes).where(inArray(prestacoes.competencia,competencias)),
+    listarAtividadesDeMudasOficiais(competencias),
     db.select().from(colaboradores),
     db.select().from(associacoes),
   ]);
@@ -30,22 +30,18 @@ export async function GET(request:Request){
   const entregas:Array<{associacao:string;municipio:string;data:string;tipo:string;quantidade:number;competencia:string;responsavel:string}>=[];
 
   for(const registro of registros){
-    if(registro.authUserId!=="admin-importacao-mudas-2026")continue;
-    let atividades:Array<Record<string,unknown>>=[];
-    try{atividades=JSON.parse(registro.atividadesJson||"[]");}catch{}
-    for(const atividade of atividades){
-      if(!ehEntregaMudas(atividade)||atividade.executada===false)continue;
-      const municipio=String(atividade.municipio||"NÃO INFORMADO").trim()||"NÃO INFORMADO";
-      entregas.push({
-        associacao:associacoesPorMunicipio.get(chaveMunicipio(municipio))||"ASSOCIAÇÃO NÃO IDENTIFICADA",
-        municipio,
-        data:String(atividade.data||""),
-        tipo:tipoMudaEntregue(atividade),
-        quantidade:quantidadeEntregue(atividade),
-        competencia:registro.competencia,
-        responsavel:"LANÇAMENTO ADMINISTRATIVO",
-      });
-    }
+    const atividade = JSON.parse(registro.atividadeJson) as Record<string, unknown>;
+    if(!ehEntregaOficialDeMudas(registro.authUserId,atividade))continue;
+    const municipio=String(atividade.municipio||"NÃO INFORMADO").trim()||"NÃO INFORMADO";
+    entregas.push({
+      associacao:associacoesPorMunicipio.get(chaveMunicipio(municipio))||registro.associacao||"ASSOCIAÇÃO NÃO IDENTIFICADA",
+      municipio,
+      data:String(atividade.data||""),
+      tipo:tipoMudaEntregue(atividade),
+      quantidade:quantidadeEntregue(atividade),
+      competencia:registro.competencia,
+      responsavel:atividade.agendaEntregaId ? nomes.get(registro.authUserId) || "AGENDA DE ENTREGAS" : "LANÇAMENTO ADMINISTRATIVO",
+    });
   }
 
   entregas.sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR")||a.municipio.localeCompare(b.municipio,"pt-BR")||a.data.localeCompare(b.data));

@@ -1,10 +1,11 @@
+import { listarAtividadesDeMudasOficiais } from "@/db/entregas-mudas";
 import { categoriaDaNota } from "@/lib/classificacao-notas";
 import { eq, inArray } from "drizzle-orm";
 import { getAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
-import { associacoes, documentosAssociacao, prestacoes } from "@/db/schema";
+import { associacoes, documentosAssociacao } from "@/db/schema";
 import { chaveMunicipio, mapaAssociacoesPorMunicipio } from "@/lib/associacoes-municipios";
-import { ehEntregaMudas, quantidadeEntregue, tipoMudaEntregue } from "@/lib/entregas-mudas";
+import { ehEntregaOficialDeMudas, quantidadeEntregue, tipoMudaEntregue } from "@/lib/entregas-mudas";
 import { TIPOS_MUDAS } from "@/lib/opcoes-atividades";
 import { createPdf } from "@/lib/pdf";
 
@@ -29,7 +30,7 @@ export async function GET(request:Request){
   const db=getDb();
   const [listaAssociacoes,registrosEntregas,documentos]=await Promise.all([
     db.select().from(associacoes).where(eq(associacoes.ativo,true)),
-    db.select().from(prestacoes).where(inArray(prestacoes.competencia,competencias)),
+    listarAtividadesDeMudasOficiais(competencias),
     db.select().from(documentosAssociacao).where(inArray(documentosAssociacao.competencia,competencias)),
   ]);
   const porMunicipio=mapaAssociacoesPorMunicipio(listaAssociacoes);
@@ -37,12 +38,10 @@ export async function GET(request:Request){
   const obter=(associacao:string)=>{const atual=totais.get(associacao)||{compradas:new Map<string,number>(),entregues:new Map<string,number>(),comprasSemQuantidade:new Set<string>()};totais.set(associacao,atual);return atual;};
 
   for(const registro of registrosEntregas){
-    if(registro.authUserId!=="admin-importacao-mudas-2026")continue;
-    for(const atividade of lista<Atividade>(registro.atividadesJson)){
-      if(atividade.executada===false||!ehEntregaMudas(atividade))continue;
-      const associacao=porMunicipio.get(chaveMunicipio(atividade.municipio))||"ASSOCIAÇÃO NÃO IDENTIFICADA";
-      somar(obter(associacao).entregues,tipoMudaEntregue(atividade),quantidadeEntregue(atividade));
-    }
+    const atividade = JSON.parse(registro.atividadeJson) as Atividade;
+    if(!ehEntregaOficialDeMudas(registro.authUserId,atividade))continue;
+    const associacao=porMunicipio.get(chaveMunicipio(atividade.municipio))||registro.associacao||"ASSOCIAÇÃO NÃO IDENTIFICADA";
+    somar(obter(associacao).entregues,tipoMudaEntregue(atividade),quantidadeEntregue(atividade));
   }
   for(const documento of documentos){
     const dados=obter(documento.associacao);

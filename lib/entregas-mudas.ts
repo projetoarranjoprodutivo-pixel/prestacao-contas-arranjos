@@ -2,6 +2,14 @@ import { TIPOS_MUDAS } from "@/lib/opcoes-atividades";
 
 export type AtividadeMudas={tipoAtividade?:unknown;tipoMuda?:unknown;quantidadeMudas?:unknown;resumo?:unknown;observacao?:unknown};
 
+export const RESPONSAVEL_ENTREGAS_OFICIAIS = "admin-importacao-mudas-2026";
+
+export function ehEntregaOficialDeMudas(authUserId: string, atividade: AtividadeMudas & {agendaEntregaId?: unknown; executada?: unknown}) {
+  return atividade.executada !== false &&
+    (authUserId === RESPONSAVEL_ENTREGAS_OFICIAIS || !!atividade.agendaEntregaId) &&
+    ehEntregaMudas(atividade);
+}
+
 function normalizar(valor:unknown){return String(valor??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");}
 
 function numero(valor:unknown){

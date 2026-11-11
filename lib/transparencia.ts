@@ -1,6 +1,6 @@
 import {normalizarNomeAssociacao} from "./nome-associacao";
 import {chaveMunicipio,mapaAssociacoesPorMunicipio} from "./associacoes-municipios";
-import {ehEntregaMudas,quantidadeEntregue} from "./entregas-mudas";
+import {ehEntregaMudas,ehEntregaOficialDeMudas,quantidadeEntregue} from "./entregas-mudas";
 import {numeroMonetario} from "./moeda";
 import {numeroQuantidade} from "./quantidade";
 import {categoriaDaNota} from "./classificacao-notas";
@@ -9,7 +9,7 @@ import {avaliarFomento,baseFomento,propriedadeIdentificada} from "./fomento-ader
 export type GrupoTransparencia={id:number;nome:string;razaoSocial:string|null;cnpj:string|null;municipio:string|null;municipiosJson:string;documentosJson:string};
 export type PessoaTransparencia={authUserId:string;nomeCompleto:string;cargo:string;associacao:string|null;associacoesJson:string;dataAdmissao:string;dataSaida:string|null};
 export type RelatorioTransparencia={id:number;authUserId:string;competencia:string;associacao:string;municipio?:string;totalMinutos:number;atualizadoEm:string};
-export type AtividadeTransparencia={id:number;authUserId:string;competencia:string;associacao:string;totalMinutos:number;tipoAtividade:string;municipio:string;comunidade:string;data:string;agricultor:string;beneficiario:string;propriedade:string;resumo:string;duracao:string;quantidadeMudas:string;tipoMuda:string};
+export type AtividadeTransparencia={agendaEntregaId?:string;id:number;authUserId:string;competencia:string;associacao:string;totalMinutos:number;tipoAtividade:string;municipio:string;comunidade:string;data:string;agricultor:string;beneficiario:string;propriedade:string;resumo:string;duracao:string;quantidadeMudas:string;tipoMuda:string};
 export type NotaTransparencia={associacao:string;competencia:string;key?:string;sha256?:string;categoriaNota?:string;nome?:string;descricao?:string;valor?:string;quantidade?:string};
 export type DadosTransparencia={atualizadoEm:string;filtros:{ano:string;mes:string;associacao:string};opcoes:Array<{nome:string}>;resumo:{associacoes:number;municipios:number;relatorios:number;visitas:number;agricultores:number;propriedades:number;mudas:number;eventos:number;valorNotas:number;notas:number;notasSemValor:number};execucao:LinhaExecucao[];financeiro:Array<{associacao:string;competencia:string;categoria:string;notas:number;valor:number;semValor:number}>;territorios:Array<{associacao:string;municipio:string;visitas:number;agricultores:number;mudas:number;eventos:number}>;termos:Array<{associacao:string;razaoSocial:string;cnpj:string;municipios:string[];numero:string;inicio:string;termino:string;objetivo:string;metas:Array<{titulo:string;meta:string;situacao:string;resultado:string;atingida:boolean;fonte:string}>}>};
 type LinhaExecucao = {
@@ -48,8 +48,9 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   [p.associacao,...lista<string>(p.associacoesJson)].filter(Boolean).map(normal),
  )].filter(nome=>cadastradas.has(nome))]));
  const semAssociacao="SEM ASSOCIAÇÃO";
- function destino(a:{authUserId:string;associacao:string;municipio?:string}){
+ function destino(a:{authUserId:string;associacao:string;municipio?:string;agendaEntregaId?:string}){
   const informada=normal(a.associacao),territorial=normal(cobertura.get(municipioNormal(a.municipio||"")));
+  if(a.agendaEntregaId)return territorial||informada;
   if(a.authUserId==="admin-importacao-mudas-2026")return territorial;
   if(informada!==semAssociacao&&informada!=="NAO INFORMADO"&&informada!=="NÃO INFORMADO")return informada;
   const vinculadas=vinculos.get(a.authUserId)||[];
@@ -88,7 +89,7 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
    const propriedade=chaveMunicipio(propriedadeIdentificada(a));if(valido(propriedade))propriedades.add(propriedade);
   }
   // A mesma entrega pode aparecer em vários relatórios técnicos; só o lançamento oficial entra no total.
-  if(ehEntregaMudas(a)&&a.authUserId==="admin-importacao-mudas-2026"){const q=quantidadeEntregue(a);mudas+=q;atual.mudas+=q;linha.entregas++;}
+  if(ehEntregaOficialDeMudas(a.authUserId,a)){const q=quantidadeEntregue(a);mudas+=q;atual.mudas+=q;linha.entregas++;}
   if(evento.test(tipo)){
    const e=[a.competencia,a.data,m,chaveMunicipio(a.comunidade),tipo,chaveMunicipio(a.resumo)].join("|");eventos.add(e);atual.eventos.add(e);
    const chave=assoc+"|"+e;
@@ -115,7 +116,7 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   const profissionais=pessoas.filter(p=>[p.associacao,...lista<string>(p.associacoesJson)].some(a=>normal(a||"")===associacao));
   const meses=filtros.mes?[`${filtros.ano}-${filtros.mes}`]:Array.from({length:12},(_,i)=>`${filtros.ano}-${String(i+1).padStart(2,"0")}`);
   const compras=[...unicas.values()].filter(n=>normal(n.associacao)===associacao&&categoriaDaNota(n)==="mudas").reduce((s,n)=>s+Math.max(0,numeroQuantidade(n.quantidade)||0),0);
-  const entregues=atos.filter(a=>a.authUserId==="admin-importacao-mudas-2026"&&ehEntregaMudas(a)).reduce((s,a)=>s+quantidadeEntregue(a),0);
+  const entregues=atos.filter(a=>ehEntregaOficialDeMudas(a.authUserId,a)).reduce((s,a)=>s+quantidadeEntregue(a),0);
   const mapaPessoas=new Map(profissionais.map(p=>[p.authUserId,p]));
   const mesesVigentes=base?meses.filter(m=>m>=base.inicio&&m<=base.termino):[];
   const metas=base&&mesesVigentes.length?avaliarFomento(base,mesesVigentes,atos.filter(a=>mesesVigentes.includes(a.competencia)).map(a=>({a:{...a,tipoAtividade:tipoDaAtividade(a)},r:{id:a.id,authUserId:a.authUserId,competencia:a.competencia,totalMinutos:a.totalMinutos},u:mapaPessoas.get(a.authUserId)})),compras,entregues,null,{profissionais,relatorios:relat.filter(r=>mesesVigentes.includes(r.competencia))}):base?base.metas.map(meta=>({meta,situacao:"PERÍODO FORA DA VIGÊNCIA DO TERMO",resultado:"A META NÃO É AVALIADA FORA DA VIGÊNCIA DO INSTRUMENTO.",atingida:false})):[];
