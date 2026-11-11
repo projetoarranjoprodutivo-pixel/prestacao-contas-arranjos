@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 const MESES = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
 
-export default function CompetenciasFiltro({aba,iniciais,disponiveis,associacaoPendencias,colaboradorPendencias}:{aba:string;associacaoPendencias?:string;colaboradorPendencias?:string;iniciais:string[];disponiveis:string[]}){
+export default function CompetenciasFiltro({aba,iniciais,disponiveis,associacaoPendencias,colaboradorPendencias,associacaoDocumentos}:{aba:string;associacaoDocumentos?:string;associacaoPendencias?:string;colaboradorPendencias?:string;iniciais:string[];disponiveis:string[]}){
   const anoInicial=(iniciais[0]||disponiveis[0]||String(new Date().getFullYear())).slice(0,4);
   const [ano,setAno]=useState(anoInicial);
   const [meses,setMeses]=useState(()=>new Set(iniciais.filter(item=>item.startsWith(`${anoInicial}-`)).map(item=>Number(item.slice(5,7)))));
@@ -15,6 +15,7 @@ export default function CompetenciasFiltro({aba,iniciais,disponiveis,associacaoP
   function alterarAno(novoAno:string){setAno(novoAno);const disponiveisNoAno=disponiveis.filter(item=>item.startsWith(`${novoAno}-`)).map(item=>Number(item.slice(5,7)));setMeses(new Set(disponiveisNoAno.length?disponiveisNoAno:[1]));}
   return <form className="grid w-full gap-3 sm:w-auto">
     <input type="hidden" name="aba" value={aba}/>
+    {associacaoDocumentos&&<input type="hidden" name="associacaoDocumentos" value={associacaoDocumentos}/>}
     {associacaoPendencias&&<input type="hidden" name="associacaoPendencias" value={associacaoPendencias}/>}
     {colaboradorPendencias&&<input type="hidden" name="colaboradorPendencias" value={colaboradorPendencias}/>}
     {selecionadas.map(item=><input key={item} type="hidden" name="competencias" value={item}/>)}
