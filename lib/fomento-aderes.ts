@@ -1,3 +1,4 @@
+import { chaveMunicipio } from "./associacoes-municipios";
 import bases from "@/data/metas-fomento-2026.json";
 export type MetaFomento={id:string;titulo:string;objetivo:string;meta:string;indicador:string;quantidade?:number;periodicidade:string;fonte:string};
 export type BaseFomento={cnpj:string;associacao:string;numero:string;sha256:string;inicio:string;termino:string;objetivoGeral:string;alerta:string;metas:MetaFomento[]};
@@ -20,7 +21,10 @@ export function propriedadeIdentificada(a:Pick<Atividade,"propriedade"|"agricult
 type Registro={a:Atividade;r:{id?:number;authUserId:string;competencia:string;totalMinutos?:number};u?:{cargo:string;nomeCompleto:string}};
 type Profissional={authUserId:string;nomeCompleto:string;cargo:string;dataAdmissao?:string|null;dataSaida?:string|null};
 type RelatorioMeta={id?:number;authUserId:string;competencia:string;totalMinutos?:number};
-type ContextoMetas={profissionais?:Profissional[];relatorios?:RelatorioMeta[];arquivosTecnicos?:Array<{nome:string;competencia:string}>};
+const META_PROPRIEDADES_POR_MUNICIPIO=40;
+const chaveMunicipioMeta=(valor:string|undefined)=>chaveMunicipio(valor).replace(/\s*(?:\/|-)\s*ES$/,"");
+
+type ContextoMetas={municipiosMetaSelecao?:string[];profissionais?:Profissional[];relatorios?:RelatorioMeta[];arquivosTecnicos?:Array<{nome:string;competencia:string}>};
 export function avaliarFomento(base:BaseFomento,meses:string[],registros:Registro[],compradas:number,entregues:number,conferencia:ConferenciaFomento|null,contexto:ContextoMetas={}){
  const validos=registros.filter(x=>x.a.executada!==false);
  const visita=(x:Registro)=>normal(x.a.tipoAtividade)==='VISITA TECNICA';
@@ -46,14 +50,44 @@ export function avaliarFomento(base:BaseFomento,meses:string[],registros:Registr
   return grupos;
  };
  const comparar=(valor:number,meta:number)=>valor>=meta?'META QUANTITATIVA ATINGIDA':'META QUANTITATIVA AINDA NÃO ATINGIDA NOS REGISTROS DO PERÍODO';
- return base.metas.map(meta=>{
+ return base.metas.map(metaOriginal=>{
+  const porMunicipio=metaOriginal.indicador==="selecao"&&contexto.municipiosMetaSelecao!==undefined;
+  const municipios=new Map<string,{nome:string;propriedades:Set<string>}>();
+  if(porMunicipio)for(const nome of contexto.municipiosMetaSelecao||[]){
+   const chave=chaveMunicipioMeta(nome);
+   if(chave&&!municipios.has(chave))municipios.set(chave,{nome,propriedades:new Set()});
+  }
+  const totalPactuado=municipios.size*META_PROPRIEDADES_POR_MUNICIPIO;
+  const meta=porMunicipio?{
+   ...metaOriginal,
+   quantidade:totalPactuado||undefined,
+   meta:`${META_PROPRIEDADES_POR_MUNICIPIO} propriedades rurais por município atendido no período de execução.`+
+    (totalPactuado?` Total pactuado: ${qtd(totalPactuado)} propriedades em ${municipios.size} ${municipios.size===1?"município":"municípios"}.`:""),
+  }:metaOriginal;
   let situacao='SEM REGISTROS LOCALIZADOS PARA AVALIAÇÃO';let resultado='';let situacaoQuantitativa='';let atingida=false;let evidenciaAutomatica='';
   const limite=meta.quantidade&&meta.quantidade>0?meta.quantidade:null;
   if(meta.indicador==='selecao'){
-   if(limite){atingida=imoveis.size>=limite;situacaoQuantitativa=comparar(imoveis.size,limite);if(base.alerta)situacaoQuantitativa=atingida?'QUANTIDADE ATINGE A META DE REFERÊNCIA CADASTRADA · META DOCUMENTAL DIVERGENTE':'META DE REFERÊNCIA AINDA NÃO ATINGIDA · META DOCUMENTAL DIVERGENTE';situacao=situacaoQuantitativa;}
-   else if(imoveis.size)situacao='PROPRIEDADES IDENTIFICADAS NOS REGISTROS';
-   resultado=`${qtd(imoveis.size)} propriedades distintas identificadas nas visitas do período. ${qtd(visitas.filter(x=>!propriedade(x)).length)} visitas sem propriedade identificada.`;
-   if(base.alerta)resultado+=' '+base.alerta;
+   if(porMunicipio){
+    for(const x of visitas){
+     const identificada=propriedade(x);
+     if(identificada)municipios.get(chaveMunicipioMeta(x.a.municipio))?.propriedades.add(identificada);
+    }
+    const contagens=[...municipios.values()];
+    const cumpridos=contagens.filter(m=>m.propriedades.size>=META_PROPRIEDADES_POR_MUNICIPIO).length;
+    atingida=contagens.length>0&&cumpridos===contagens.length;
+    situacaoQuantitativa=atingida?"META QUANTITATIVA ATINGIDA EM TODOS OS MUNICÍPIOS":
+     contagens.length?`META QUANTITATIVA ATINGIDA EM ${cumpridos} DE ${contagens.length} MUNICÍPIOS`:
+     "MUNICÍPIOS ATENDIDOS NÃO INFORMADOS NO CADASTRO";
+    situacao=situacaoQuantitativa;
+    resultado=contagens.length?
+     contagens.map(m=>`${m.nome}: ${qtd(m.propriedades.size)}/${META_PROPRIEDADES_POR_MUNICIPIO} propriedades identificadas`).join("; ")+ ".":
+     "O total pactuado depende da identificação dos municípios atendidos pela associação.";
+   }else{
+    if(limite){atingida=imoveis.size>=limite;situacaoQuantitativa=comparar(imoveis.size,limite);if(base.alerta)situacaoQuantitativa=atingida?'QUANTIDADE ATINGE A META DE REFERÊNCIA CADASTRADA · META DOCUMENTAL DIVERGENTE':'META DE REFERÊNCIA AINDA NÃO ATINGIDA · META DOCUMENTAL DIVERGENTE';situacao=situacaoQuantitativa;}
+    else if(imoveis.size)situacao='PROPRIEDADES IDENTIFICADAS NOS REGISTROS';
+    resultado=`${qtd(imoveis.size)} propriedades distintas identificadas nas visitas do período. ${qtd(visitas.filter(x=>!propriedade(x)).length)} visitas sem propriedade identificada.`;
+    if(base.alerta)resultado+=' '+base.alerta;
+   }
    if(visitas.length)evidenciaAutomatica=`${qtd(visitas.length)} visitas técnicas registradas nas prestações de ${meses.join('; ')}.`;
   }
   if(meta.indicador==='assistencia'){
