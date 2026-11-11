@@ -3,7 +3,8 @@ import {and,eq} from "drizzle-orm";
 import {getAdminUser} from "@/lib/admin";
 import {getDb} from "@/db";
 import {associacoes,colaboradores,planosTrabalho,prestacoes} from "@/db/schema";
-import {relatorioNarrativoDouglas,chaveTexto,confirmarImportacaoSchema,listaJson,totalMinutosImportados,unirAtividades,type AtividadeImportada} from "@/lib/importacao-relatorios";
+import {relatorioNarrativoDouglas,chaveTexto,confirmarImportacaoSchema,listaJson,unirAtividades,type AtividadeImportada} from "@/lib/importacao-relatorios";
+import {preencherDuracao,minutosDaAtividade} from "@/lib/duracao-relatorios";
 export const runtime="edge";
 const hash=async(bytes:ArrayBuffer)=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)),v=>v.toString(16).padStart(2,"0")).join("");
 type Anexo={key:string;nome:string;tipo:string;importacaoHash?:string;dadosHash?:string};
@@ -29,14 +30,14 @@ export async function POST(request:Request){
  await env.BUCKET.put(key,bytes,{metadata:{contentType:"application/pdf"}});
  const anexo={key,nome:arquivo.name,tipo:"application/pdf",importacaoHash:digest,dadosHash};
  const anexosFinais=[...anexos.filter(a=>a.key!==key),anexo];
- const atividades=dados.modo==="substituir"?dados.atividades:unirAtividades(listaJson<AtividadeImportada>(existente?.atividadesJson),dados.atividades);
- const agendaNova=dados.atividades.map(a=>({data:a.data,hora:a.hora,duracaoEstimada:a.duracao?String(Number(a.duracao)/60):"",municipio:a.municipio,comunidade:a.comunidade,propriedade:a.propriedade,agricultor:a.agricultor,telefone:a.telefone,tipoAtividade:a.tipoAtividade,tipoMuda:a.tipoMuda,quantidadeMudas:a.quantidadeMudas,observacao:a.resumo}));
+ const atividades=(dados.modo==="substituir"?dados.atividades:unirAtividades(listaJson<AtividadeImportada>(existente?.atividadesJson),dados.atividades)).map(preencherDuracao);
+ const agendaNova=dados.atividades.map(preencherDuracao).map(a=>({data:a.data,hora:a.hora,duracaoEstimada:a.duracao?String(Number(a.duracao)/60):"",municipio:a.municipio,comunidade:a.comunidade,propriedade:a.propriedade,agricultor:a.agricultor,telefone:a.telefone,tipoAtividade:a.tipoAtividade,tipoMuda:a.tipoMuda,quantidadeMudas:a.quantidadeMudas,observacao:a.resumo}));
  const agenda=dados.modo==="substituir"?agendaNova:unirAtividades(listaJson<typeof agendaNova[number]>(plano?.agendaJson),agendaNova);
  const descricao=dados.modo==="substituir"||!existente?.observacoes?dados.descricao:existente.observacoes.includes(dados.descricao)?existente.observacoes:[existente.observacoes,dados.descricao].filter(Boolean).join("\n\n");
  const agricultores=listaJson<Record<string,string>>(pessoa.atendimentosJson),porNome=new Map(agricultores.map(a=>[`${chaveTexto(a.agricultor||"")}|${chaveTexto(a.municipio||"")}`,a]));
  for(const a of dados.atividades)if(a.agricultor.trim()){const chave=`${chaveTexto(a.agricultor)}|${chaveTexto(a.municipio)}`;if(!porNome.has(chave))porNome.set(chave,{agricultor:a.agricultor,municipio:a.municipio,comunidade:a.comunidade,propriedade:a.propriedade,telefone:a.telefone});}
  const atualizadoEm=new Date().toISOString();
- const values={authUserId:pessoa.authUserId,competencia:dados.competencia,municipio:atividades.find(a=>a.municipio)?.municipio||"",associacao:dados.associacao,atividadesJson:JSON.stringify(atividades),totalMinutos:totalMinutosImportados(atividades,!narrativo),anexosJson:JSON.stringify(anexosFinais),observacoes:descricao,status:"importado",atualizadoEm};
+ const values={authUserId:pessoa.authUserId,competencia:dados.competencia,municipio:atividades.find(a=>a.municipio)?.municipio||"",associacao:dados.associacao,atividadesJson:JSON.stringify(atividades),totalMinutos:Math.round(atividades.reduce((soma,a)=>soma+minutosDaAtividade(a),0)),anexosJson:JSON.stringify(anexosFinais),observacoes:descricao,status:"importado",atualizadoEm};
  const planoValues={authUserId:pessoa.authUserId,competencia:dados.competencia,associacao:dados.associacao,agendaJson:JSON.stringify(agenda),status:"importado",atualizadoEm};
  await db.batch([db.insert(prestacoes).values(values).onConflictDoUpdate({target:[prestacoes.authUserId,prestacoes.competencia],set:values}),db.insert(planosTrabalho).values(planoValues).onConflictDoUpdate({target:[planosTrabalho.authUserId,planosTrabalho.competencia],set:planoValues}),db.update(colaboradores).set({atendimentosJson:JSON.stringify([...porNome.values()]),atualizadoEm}).where(eq(colaboradores.id,pessoa.id))]);
  return Response.json({message:`IMPORTAÇÃO CONCLUÍDA: ${pessoa.nomeCompleto} · ${dados.competencia} · ${atividades.length} ATIVIDADES. PLANO, PRESTAÇÃO E PDF ORIGINAL SALVOS.`,atividades:atividades.length});
