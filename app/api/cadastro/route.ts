@@ -5,7 +5,7 @@ import { garantirNomeEmpresarial } from "@/db/bootstrap";
 import { associacoes, colaboradores } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 export const runtime = "edge";
-const cargos = new Set(["Técnico de campo", "Mobilizador", "Consultor de agroindústria", "Consultor de projetos", "Consultor de associativismo", "Coordenador geral", "Subcoordenador", "Comunicação"]);
+const cargos = new Set(["Técnico de campo", "Mobilizador", "Consultor de agroindústria", "Consultor de projetos", "Consultor do projeto", "Consultor de associativismo", "Coordenador geral", "Subcoordenador", "Comunicação"]);
 const cargosMultiplasAssociacoes = new Set([...cargos].filter(cargo => cargo !== "Técnico de campo"));
 const text = (form: FormData, key: string) => String(form.get(key) || "").trim();
 export async function POST(request: Request) {

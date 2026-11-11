@@ -10,7 +10,7 @@ type AgricultorBase = { nome:string; municipio:string; associacao:string };
 type Superiores = { agroindustria:string; projetos:string; associativismo:string; geral:string; mobilizador:string };
 const superioresVazios:Superiores={agroindustria:"",projetos:"",associativismo:"",geral:"",mobilizador:""};
 const atendimentoVazio=(id=crypto.randomUUID()):Atendimento=>({id,municipio:"",comunidade:"",propriedade:"",agricultor:"",telefone:""});
-const cargos = ["Técnico de campo", "Mobilizador", "Consultor de agroindústria", "Consultor de projetos", "Consultor de associativismo", "Coordenador geral", "Subcoordenador", "Comunicação"];
+const cargos = ["Técnico de campo", "Mobilizador", "Consultor de agroindústria", "Consultor de projetos", "Consultor do projeto", "Consultor de associativismo", "Coordenador geral", "Subcoordenador", "Comunicação"];
 const cargosMultiplasAssociacoes = new Set(cargos.filter(cargo => cargo !== "Técnico de campo"));
 const normalizarCargo=(cargo?:string|null)=>cargos.find(item=>item.localeCompare(cargo||"","pt-BR",{sensitivity:"accent"})===0)||cargo||"";
 const cargoTecnico=(cargo:string)=>cargo.localeCompare("Técnico de campo","pt-BR",{sensitivity:"accent"})===0;
