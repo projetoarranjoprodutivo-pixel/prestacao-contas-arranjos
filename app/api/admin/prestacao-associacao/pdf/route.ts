@@ -1,7 +1,7 @@
 import { normalizarNomeAssociacao } from "@/lib/nome-associacao";
 import {relatorioNarrativoDouglas} from "@/lib/relatorios-narrativos";
 import {env} from "cloudflare:workers";
-import {baseFomento,chaveConferencia,avaliarFomento,propriedadeIdentificada,type ConferenciaFomento} from "@/lib/fomento-aderes";
+import {baseFomento,chaveConferencia,chaveOrcamentoMudas,avaliarFomento,propriedadeIdentificada,type ConferenciaFomento} from "@/lib/fomento-aderes";
 import {numeroMonetario} from "@/lib/moeda";
 import { and, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import { getAderesOrAdminUser } from "@/lib/admin";
@@ -98,6 +98,9 @@ export async function GET(request:Request){
   const base=baseFomento(associacao.cnpj,associacao.documentosJson);
   if(base){
     const json=env.BUCKET?await env.BUCKET.get(chaveConferencia(associacao.id,base.sha256,competencias),"text"):null;
+    const valorSalvo=env.BUCKET?await env.BUCKET.get(chaveOrcamentoMudas(associacao.id,base.sha256),"text"):null;
+    const valorDisponibilizado=valorSalvo===null?NaN:Number(valorSalvo);
+    const orcamentoMudas=Number.isFinite(valorDisponibilizado)&&valorDisponibilizado>=0?valorDisponibilizado:null;
     const conferencia:ConferenciaFomento|null=json?JSON.parse(json):null;
     const normalAssociacao=(v:string)=>chaveTexto(v).trim().replace(/^APROVIPA$/,"APPROVIPA");
     const profissionais=usuarios.filter(u=>[u.associacao||"",...lista<string>(u.associacoesJson)].some(a=>normalAssociacao(a)===normalAssociacao(associacao.nome)));
@@ -108,7 +111,7 @@ export async function GET(request:Request){
       normalizarNomeAssociacao(nome)===normalizarNomeAssociacao(associacao.nome))?.[1]||[];
     const municipiosMetaSelecao=municipiosCadastrados.length?municipiosCadastrados:[...municipiosPadrao];
     const avaliacao=avaliarFomento(base,competencias,atividades,totalMudasCompradas,totalMudasEntregues,conferencia,
-      {profissionais,relatorios,arquivosTecnicos,municipiosMetaSelecao});
+      {profissionais,relatorios,arquivosTecnicos,municipiosMetaSelecao,orcamentoMudas});
     const comparativo:PdfSection[]=[{heading:"OBJETO E BASE DO TERMO DE FOMENTO",lines:[`TERMO DE FOMENTO Nº ${base.numero} | ASSOCIAÇÃO: ${associacao.nome}`,`FONTE: TERMO ORIGINAL CADASTRADO E PLANO DE TRABALHO ANEXO I. VINCULAÇÃO CONFERIDA PELO CNPJ E ARQUIVO ORIGINAL.`,`OBJETIVO GERAL: ${base.objetivoGeral}`,`PERÍODO PREVISTO NO PLANO: ${base.inicio} A ${base.termino}. PERÍODO ANALISADO: ${competencias.join("; ")}.`,`METAS DA VIGÊNCIA NÃO SÃO RATEADAS AUTOMATICAMENTE POR MÊS. ESTE RELATÓRIO AVALIA OS REGISTROS DO PERÍODO SELECIONADO; AUSÊNCIA DE COMPROVAÇÃO NÃO SIGNIFICA, POR SI SÓ, NÃO EXECUÇÃO OU DESCUMPRIMENTO FINAL.`,...(base.alerta?[base.alerta]:[])]}];
     for(const item of avaliacao){
       const contemAtividade=(r:typeof relatorios[number],teste:(a:Atividade)=>boolean)=>lista<Atividade>(r.atividadesJson).some(a=>a.executada!==false&&teste(a));

@@ -1,3 +1,4 @@
+import { formatarMoeda } from "./moeda";
 import { chaveMunicipio } from "./associacoes-municipios";
 import bases from "@/data/metas-fomento-2026.json";
 export type MetaFomento={id:string;titulo:string;objetivo:string;meta:string;indicador:string;quantidade?:number;periodicidade:string;fonte:string};
@@ -9,6 +10,7 @@ export function baseFomento(cnpj:string|null,documentosJson:string){
  const b=bases.find(b=>b.cnpj===(cnpj||"").replace(/\D/g,""));
  return b&&docs.filter(d=>d.categoria==="termo-fomento").at(-1)?.sha256===b.sha256?b as BaseFomento:null;
 }
+export const chaveOrcamentoMudas=(id:number,hash:string)=>`associacoes/${id}/orcamento-mudas/${hash}.txt`;
 export const chaveConferencia=(id:number,hash:string,meses:string[])=>`associacoes/${id}/conferencia-fomento/${hash}/${[...new Set(meses)].sort().join('_')}.json`;
 const normal=(s:unknown)=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().trim().replace(/\s+/g," ");
 const qtd=(n:number)=>n.toLocaleString("pt-BR",{maximumFractionDigits:2});
@@ -24,7 +26,7 @@ type RelatorioMeta={id?:number;authUserId:string;competencia:string;totalMinutos
 const META_PROPRIEDADES_POR_MUNICIPIO=40;
 const chaveMunicipioMeta=(valor:string|undefined)=>chaveMunicipio(valor).replace(/\s*(?:\/|-)\s*ES$/,"");
 
-type ContextoMetas={municipiosMetaSelecao?:string[];profissionais?:Profissional[];relatorios?:RelatorioMeta[];arquivosTecnicos?:Array<{nome:string;competencia:string}>};
+type ContextoMetas={orcamentoMudas?:number|null;municipiosMetaSelecao?:string[];profissionais?:Profissional[];relatorios?:RelatorioMeta[];arquivosTecnicos?:Array<{nome:string;competencia:string}>};
 export function avaliarFomento(base:BaseFomento,meses:string[],registros:Registro[],compradas:number,entregues:number,conferencia:ConferenciaFomento|null,contexto:ContextoMetas={}){
  const validos=registros.filter(x=>x.a.executada!==false);
  const visita=(x:Registro)=>normal(x.a.tipoAtividade)==='VISITA TECNICA';
@@ -58,7 +60,8 @@ export function avaliarFomento(base:BaseFomento,meses:string[],registros:Registr
    if(chave&&!municipios.has(chave))municipios.set(chave,{nome,propriedades:new Set()});
   }
   const totalPactuado=municipios.size*META_PROPRIEDADES_POR_MUNICIPIO;
-  const meta=porMunicipio?{
+  const metaFinanceira=metaOriginal.indicador==="mudas"&&contexto.orcamentoMudas!==undefined;
+  const meta=metaFinanceira?{...metaOriginal,quantidade:undefined,meta:contexto.orcamentoMudas===null?"Valor disponibilizado não cadastrado.":`R$ ${formatarMoeda(contexto.orcamentoMudas)} disponibilizados para insumos e mudas.`}:porMunicipio?{
    ...metaOriginal,
    quantidade:totalPactuado||undefined,
    meta:`${META_PROPRIEDADES_POR_MUNICIPIO} propriedades rurais por município atendido no período de execução.`+

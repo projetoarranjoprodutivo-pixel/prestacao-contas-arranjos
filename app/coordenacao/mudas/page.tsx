@@ -1,3 +1,5 @@
+import OrcamentoMudas from "./orcamento-mudas";
+import { eq } from "drizzle-orm";
 import {formatarQuantidade} from "@/lib/quantidade";
 import {formatarMoeda} from "@/lib/moeda";
 import { categoriaDaNota } from "@/lib/classificacao-notas";
@@ -6,7 +8,7 @@ import { redirect } from "next/navigation";
 import { Pencil, Plus, ReceiptText, Sprout } from "lucide-react";
 import { getGestorMudasUser } from "@/lib/admin";
 import { getDb } from "@/db";
-import { colaboradores, documentosAssociacao, prestacoes } from "@/db/schema";
+import { associacoes, colaboradores, documentosAssociacao, prestacoes } from "@/db/schema";
 import { ehEntregaMudas, quantidadeEntregue, tipoMudaEntregue } from "@/lib/entregas-mudas";
 import ExcluirEntregaButton from "@/app/admin/entrega-mudas/excluir-button";
 import { chaveMunicipio, mapaAssociacoesPorMunicipio } from "@/lib/associacoes-municipios";
@@ -20,6 +22,7 @@ export default async function GestaoMudasPage({ searchParams }: { searchParams: 
   const db = getDb();
   const comparar = new Intl.Collator("pt-BR").compare;
   const [registros, pessoas] = await Promise.all([db.select({id:prestacoes.id,authUserId:prestacoes.authUserId,associacao:prestacoes.associacao,atividadesJson:prestacoes.atividadesJson}).from(prestacoes), db.select({authUserId:colaboradores.authUserId,nomeCompleto:colaboradores.nomeCompleto}).from(colaboradores)]);
+  const associacoesOrcamento = gestor.coordenador ? [] : await db.select({id:associacoes.id,nome:associacoes.nome}).from(associacoes).where(eq(associacoes.ativo,true)).orderBy(associacoes.nome);
   const documentos = filtros.notas === "1" ? await db.select({id:documentosAssociacao.id,associacao:documentosAssociacao.associacao,competencia:documentosAssociacao.competencia,notasFiscaisJson:documentosAssociacao.notasFiscaisJson}).from(documentosAssociacao) : [];
   type Nota = { categoriaNota?: string; numeroNota?: string; key?: string; nome?: string; descricao?: string; quantidade?: string; valor?: string; dataEmissao?: string };
   const notas = documentos.flatMap(documento => {
@@ -47,6 +50,7 @@ export default async function GestaoMudasPage({ searchParams }: { searchParams: 
     <div className="mx-auto max-w-6xl px-5 py-8">
       <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-black text-emerald-700">CONTROLE OPERACIONAL</p><h1 className="mt-1 text-3xl font-black">ENTREGAS E COMPRAS DE MUDAS</h1><p className="mt-2 text-slate-600">INCLUA E EDITE ENTREGAS OU ENVIE NOTAS FISCAIS DE COMPRA.</p></div><div className="flex flex-wrap gap-2">{gestor.cadastro?.id===40&&<a href="/admin/agenda-entregas" className="rounded-xl bg-emerald-800 px-5 py-3 font-black text-white">AGENDA DE ENTREGAS</a>}<a href="/admin/entrega-mudas" className="inline-flex items-center gap-2 rounded-xl bg-emerald-800 px-5 py-3 font-black text-white"><Plus className="h-4 w-4"/>NOVA ENTREGA</a><a href="/enviar-nota-fiscal" className="inline-flex items-center gap-2 rounded-xl bg-violet-800 px-5 py-3 font-black text-white"><ReceiptText className="h-4 w-4"/>ENVIAR NOTA DE COMPRA</a><a href="/coordenacao/mudas?notas=1#notas-compra" className="inline-flex items-center gap-2 rounded-xl border-2 border-violet-800 bg-white px-5 py-3 font-black text-violet-800"><ReceiptText className="h-4 w-4"/>VERIFICAR NOTAS DE COMPRA</a></div></div>
       <section aria-label="Total de mudas entregues" className="mt-7 rounded-2xl border border-emerald-200 bg-emerald-900 p-5 text-white shadow-sm"><div className="flex items-center gap-3"><Sprout className="h-8 w-8 text-emerald-200"/><div><h2 className="text-sm font-black">TOTAL DE MUDAS ENTREGUES</h2><p className="mt-1 text-4xl font-black">{totalMudasEntregues.toLocaleString("pt-BR")}</p><p className="mt-1 text-sm text-emerald-100">SOMA DAS QUANTIDADES DAS {entregas.length.toLocaleString("pt-BR")} ENTREGAS CADASTRADAS</p></div></div></section>
+      {!gestor.coordenador && <OrcamentoMudas associacoes={associacoesOrcamento}/>}
       {filtros.notas === "1" && <section id="notas-compra" className="mt-7 rounded-2xl border bg-white p-5 shadow-sm">
         <h2 className="text-xl font-black">NOTAS DE COMPRA DE MUDAS LANÇADAS</h2>
         <form className="mt-4 flex flex-wrap items-end gap-3">
