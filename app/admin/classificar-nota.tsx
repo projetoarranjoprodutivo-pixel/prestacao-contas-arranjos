@@ -7,6 +7,7 @@ type Prestador = {id:number;nomeCompleto:string};
 
 type Props = {
  arquivoKey: string;
+ compraMudas?: boolean;
  categoria?: string;
  competenciaInicial?: string;
  vinculo?: VinculoNotaServico;
@@ -15,7 +16,7 @@ type Props = {
  destinos?: Record<string,Prestador[]>;
 };
 
-export default function ClassificarNota({arquivoKey,categoria,competenciaInicial,vinculo,prestadores,origem,destinos}:Props){
+export default function ClassificarNota({arquivoKey,categoria,competenciaInicial,vinculo,prestadores,origem,destinos,compraMudas=false}:Props){
  const router=useRouter();const [valor,setValor]=useState(categoria||"automatico"),[ocupado,setOcupado]=useState(false),[mensagem,setMensagem]=useState("");
  const [prestadorId,setPrestadorId]=useState(vinculo ? String(vinculo.colaboradorId) : "");
  const [competencia,setCompetencia]=useState(vinculo?.competencia || competenciaInicial || "");
@@ -31,7 +32,7 @@ export default function ClassificarNota({arquivoKey,categoria,competenciaInicial
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
      key:arquivoKey,associacaoOrigem:origem,associacaoDestino:destino,
-     colaboradorId:Number(prestadorDestino),competencia:mesDestino,
+     colaboradorId:compraMudas?undefined:Number(prestadorDestino),competencia:mesDestino,
     }),
    });
    const dados=await resposta.json() as {message?:string};
@@ -78,16 +79,16 @@ export default function ClassificarNota({arquivoKey,categoria,competenciaInicial
     {Object.keys(destinos).filter(nome=>nome!==origem).map(nome=><option key={nome} value={nome}>{nome}</option>)}
    </select>
   </label>
-  <label className="text-xs font-black">PRESTADOR NO DESTINO
+  {!compraMudas&&<label className="text-xs font-black">PRESTADOR NO DESTINO
    <select required disabled={ocupado||!destino} value={prestadorDestino} onChange={evento=>setPrestadorDestino(evento.target.value)} className="mt-1 h-10 w-full rounded-lg border px-2">
     <option value="">SELECIONE O COLABORADOR</option>
     {(destinos[destino]||[]).map(pessoa=><option key={pessoa.id} value={pessoa.id}>{pessoa.nomeCompleto}</option>)}
    </select>
-  </label>
+  </label>}
   <label className="text-xs font-black">COMPETÊNCIA NO DESTINO
    <input type="month" required min="2000-01" max="2099-12" disabled={ocupado} value={mesDestino} onChange={evento=>setMesDestino(evento.target.value)} className="mt-1 h-10 w-full rounded-lg border px-2"/>
   </label>
-  <button type="submit" disabled={ocupado||!destino||!prestadorDestino||!mesDestino} className="rounded-lg bg-emerald-800 px-3 py-2 text-xs font-black text-white disabled:opacity-50">TRANSFERIR NOTA</button>
+  <button type="submit" disabled={ocupado||!destino||(!compraMudas&&!prestadorDestino)||!mesDestino} className="rounded-lg bg-emerald-800 px-3 py-2 text-xs font-black text-white disabled:opacity-50">TRANSFERIR NOTA</button>
  </form>
  </details>}{mensagem&&<p role="status" className="mt-2 text-xs font-bold">{mensagem}</p>}</div>;
 }
