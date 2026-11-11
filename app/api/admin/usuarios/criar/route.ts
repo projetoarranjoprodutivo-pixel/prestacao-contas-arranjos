@@ -1,3 +1,4 @@
+import { PERFIL_CONSULTOR_PROJETO } from "@/lib/consultor-projeto";
 import { criarSenha } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { garantirBanco } from "@/db/bootstrap";
@@ -15,13 +16,14 @@ export async function POST(request: Request) {
   const senha = String(form.get("senha") || "");
   const confirmar = String(form.get("confirmarSenha") || "");
   const funcaoInformada=String(form.get("funcao"));
-  const funcao = funcaoInformada === "admin" ? "admin" : funcaoInformada === "aderes" ? "aderes" : funcaoInformada === "associacao" ? "associacao" : "colaborador";
-  const associacao=funcao==="associacao"?String(form.get("associacao")||"").trim():null;
+  const funcao = funcaoInformada === "admin" ? "admin" : funcaoInformada === "aderes" ? "aderes" : funcaoInformada === "associacao" ? "associacao" : funcaoInformada === PERFIL_CONSULTOR_PROJETO ? PERFIL_CONSULTOR_PROJETO : "colaborador";
+  const exigeAssociacao = funcao === "associacao" || funcao === PERFIL_CONSULTOR_PROJETO;
+  const associacao=exigeAssociacao?String(form.get("associacao")||"").trim():null;
   if (!/^\S+@\S+\.\S+$/.test(email)) return Response.json({ message: "Informe um e-mail válido." }, { status: 400 });
   if (senha.length < 8) return Response.json({ message: "A senha deve ter pelo menos 8 caracteres." }, { status: 400 });
   if (senha !== confirmar) return Response.json({ message: "A confirmação da senha não confere." }, { status: 400 });
   const db = getDb();
-  if(funcao==="associacao"&&(!associacao||!await db.query.associacoes.findFirst({where:eq(associacoes.nome,associacao)})))return Response.json({message:"Selecione uma associação válida."},{status:400});
+  if(exigeAssociacao&&(!associacao||!await db.query.associacoes.findFirst({where:eq(associacoes.nome,associacao)})))return Response.json({message:"Selecione uma associação válida."},{status:400});
   if (await db.query.usuariosAcesso.findFirst({ where: eq(usuariosAcesso.email, email) })) return Response.json({ message: "Este e-mail já possui usuário." }, { status: 409 });
   const segredo = await criarSenha(senha);
   await db.insert(usuariosAcesso).values({ id: crypto.randomUUID(), email, senhaHash: segredo.hash, senhaSalt: segredo.salt, funcao, associacao, ativo: true });

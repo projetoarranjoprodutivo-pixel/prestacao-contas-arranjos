@@ -1,5 +1,6 @@
+import { PERFIL_CONSULTOR_PROJETO } from "@/lib/consultor-projeto";
 import { getDb } from "@/db";
-import { colaboradores, sessoesAcesso, usuariosAcesso } from "@/db/schema";
+import { associacoes, colaboradores, sessoesAcesso, usuariosAcesso } from "@/db/schema";
 import { garantirBanco } from "@/db/bootstrap";
 import { getAdminUser, isAdminEmail } from "@/lib/admin";
 import { eq, or } from "drizzle-orm";
@@ -18,14 +19,18 @@ export async function POST(request: Request) {
   const nomeCompleto = String(form.get("nomeCompleto") || "").trim().toLocaleUpperCase("pt-BR");
   const email = String(form.get("email") || "").trim().toLowerCase();
   const funcaoInformada = String(form.get("funcao") || "");
-  const funcao = ["colaborador", "associacao", "aderes", "admin"].includes(funcaoInformada) ? funcaoInformada : "colaborador";
-  const associacao = funcao === "associacao" ? String(form.get("associacao") || "").trim().toLocaleUpperCase("pt-BR") : null;
+  const funcao = ["colaborador", "associacao", "aderes", "admin", PERFIL_CONSULTOR_PROJETO].includes(funcaoInformada) ? funcaoInformada : "colaborador";
+  const exigeAssociacao = funcao === "associacao" || funcao === PERFIL_CONSULTOR_PROJETO;
+  const associacao = exigeAssociacao ? String(form.get("associacao") || "").trim().toLocaleUpperCase("pt-BR") : null;
 
   if (!id || !nomeCompleto) return Response.json({ message: "INFORME O NOME DO USUÁRIO." }, { status: 400 });
   if (!/^\S+@\S+\.\S+$/.test(email)) return Response.json({ message: "INFORME UM E-MAIL VÁLIDO." }, { status: 400 });
-  if (funcao === "associacao" && !associacao) return Response.json({ message: "SELECIONE A ASSOCIAÇÃO." }, { status: 400 });
+  if (exigeAssociacao && !associacao) return Response.json({ message: "SELECIONE A ASSOCIAÇÃO." }, { status: 400 });
 
   const db = getDb();
+  if (funcao === PERFIL_CONSULTOR_PROJETO && (!associacao || !await db.query.associacoes.findFirst({ where: eq(associacoes.nome, associacao) }))) {
+    return Response.json({ message: "SELECIONE UMA ASSOCIAÇÃO VÁLIDA." }, { status: 400 });
+  }
   const atual = await db.query.usuariosAcesso.findFirst({ where: eq(usuariosAcesso.id, id) });
   if (!atual) return Response.json({ message: "USUÁRIO NÃO ENCONTRADO." }, { status: 404 });
   if (isAdminEmail(atual.email)) return Response.json({ message: "O USUÁRIO ADMINISTRADOR PRINCIPAL NÃO PODE SER ALTERADO NESTA TELA." }, { status: 400 });

@@ -136,7 +136,7 @@ export default function UsuariosAcesso({
           return <tr key={usuario.id} className="border-b">
             <td className="py-3 font-semibold">{usuario.nomeCompleto || usuario.email}</td>
             <td>{usuario.email}</td>
-            <td>{usuario.funcao}</td>
+            <td>{usuario.funcao === "consultor_projeto" ? "Consultor do projeto" : usuario.funcao}</td>
             <td>{usuario.associacao || "-"}</td>
             <td>{usuario.ativo ? "Liberado" : "Bloqueado"}</td>
             <td className="whitespace-nowrap"><div className="flex flex-nowrap items-center justify-end gap-2">
@@ -160,7 +160,7 @@ export default function UsuariosAcesso({
       <form onSubmit={editarUsuario} className="mt-4 grid gap-3 md:grid-cols-2">
         <label className="text-sm font-bold">Nome<input name="nomeCompleto" defaultValue={usuarioEdicao.nomeCompleto || ""} required className="mt-1.5 h-11 w-full rounded-lg border bg-white px-3"/></label>
         <label className="text-sm font-bold">E-mail<input name="email" type="email" defaultValue={usuarioEdicao.email} required className="mt-1.5 h-11 w-full rounded-lg border bg-white px-3"/></label>
-        <label className="text-sm font-bold">Perfil<select name="funcao" defaultValue={usuarioEdicao.funcao} className="mt-1.5 h-11 w-full rounded-lg border bg-white px-3"><option value="colaborador">Colaborador</option><option value="associacao">Associação</option><option value="aderes">ADERES</option><option value="admin">Administrador</option></select></label>
+        <label className="text-sm font-bold">Perfil<select name="funcao" defaultValue={usuarioEdicao.funcao} className="mt-1.5 h-11 w-full rounded-lg border bg-white px-3"><option value="colaborador">Colaborador</option><option value="associacao">Associação</option><option value="consultor_projeto">Consultor do projeto</option><option value="aderes">ADERES</option><option value="admin">Administrador</option></select></label>
         <label className="text-sm font-bold">Associação<select name="associacao" defaultValue={usuarioEdicao.associacao || ""} className="mt-1.5 h-11 w-full rounded-lg border bg-white px-3"><option value="">Sem associação</option>{associacoes.map(nome => <option key={nome} value={nome}>{nome}</option>)}</select></label>
         <button disabled={enviando} className="h-11 rounded-lg bg-amber-600 px-5 font-bold text-white disabled:opacity-50 md:col-span-2">{enviando ? "SALVANDO..." : "SALVAR ALTERAÇÕES"}</button>
       </form>
