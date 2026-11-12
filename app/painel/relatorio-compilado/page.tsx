@@ -11,7 +11,7 @@ export default async function RelatorioCompilado({ searchParams }: {
   const params = await searchParams;
   const dados = await dadosRelatorioCompilado(user, params.competencia);
   if (!dados) redirect("/painel");
-  const { associacao, competencia, competenciaValida, gerar, relatorios, atividades, minutos, minutosAtividades } = dados;
+  const { associacao, competencia, competenciaValida, gerar, relatorios } = dados;
 
   return <main className="mx-auto max-w-5xl space-y-6 px-5 py-8 text-slate-900">
     <a href="/painel" className="font-bold text-emerald-800 print:hidden">Voltar à área do colaborador</a>
@@ -30,9 +30,6 @@ export default async function RelatorioCompilado({ searchParams }: {
         {relatorios.length > 0 && <div className="print:hidden"><a href={`/painel/relatorio-compilado/pdf?competencia=${encodeURIComponent(competencia)}`} className="inline-flex rounded-xl bg-emerald-800 px-4 py-2 font-bold text-white">Baixar PDF</a></div>}
       </div>
       {relatorios.length === 0 ? <p>Nenhuma prestação de contas dos técnicos registrada para a competência selecionada.</p> : <>
-        <p className="rounded-xl bg-emerald-50 p-4 font-semibold">
-          Relatórios consolidados {relatorios.length} · Atividades realizadas {atividades} · Carga horária consolidada {horas(minutos)} · Durações detalhadas {horas(minutosAtividades)} h
-        </p>
         {relatorios.map(relatorio => <section key={relatorio.id} className="space-y-2">
           <h3 className="text-lg font-bold">{relatorio.tecnico}</h3>
           <p className="text-sm">Carga horária da prestação {horas(relatorio.minutos)} · Durações detalhadas {horas(relatorio.minutosAtividades)}</p>
@@ -44,7 +41,7 @@ export default async function RelatorioCompilado({ searchParams }: {
               </tr>)}</tbody>
             </table>}
           {relatorio.observacoes && <p className="whitespace-pre-line text-sm">{relatorio.observacoes}</p>}
-          {relatorio.anexos.length > 0 && <ul className="space-y-1 text-sm">{relatorio.anexos.map((anexo, indice) => <li key={indice}><a className="font-semibold text-emerald-800 underline" href={caminhoAnexo(competencia, relatorio.id, indice)}>{anexo.nome || `Anexo ${indice + 1}`}</a></li>)}</ul>}
+          {relatorio.anexos.length > 0 && <ul className="space-y-1 text-sm">{relatorio.anexos.map((anexo, indice) => <li key={indice}><a target="_blank" rel="noopener" className="font-semibold text-emerald-800 underline" href={caminhoAnexo(competencia, relatorio.id, indice)}>{anexo.nome || `Anexo ${indice + 1}`}</a></li>)}</ul>}
         </section>)}
       </>}
     </>}

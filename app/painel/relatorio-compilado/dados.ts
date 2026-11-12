@@ -90,16 +90,11 @@ export async function dadosRelatorioCompilado(user: ChatGPTUser, competenciaSoli
   const relatorios = registros.map(registro => {
     const apuracao = apurarDuracoesRelatorio(lista<Atividade>(registro.atividades), registro.totalMinutos, registro.agendaJson, registro.status === "importado");
     const anexos = lista<Anexo>(registro.anexosJson);
-    return { id: registro.id, tecnico: registro.tecnico, municipio: registro.municipio, observacoes: registro.observacoes, anexos,
+    return { id: registro.id, tecnico: registro.tecnico, municipio: registro.municipio, observacoes: registro.observacoes?.split(/\r?\n/).filter(linha => !/^\s*RELAT[ÓO]RIO T[ÉE]CNICO HIST[ÓO]RICO DE \d{4}-\d{2},?\s*COM SOMENTE FOTOS E LISTAS DE PRESEN[ÇC]A ANEXADAS\.?\s*$/i.test(linha)).join("\n").trim(), anexos,
       ...apuracao, grupos: resumirAtividades(apuracao.itens, registro.municipio) };
   });
-  const grupos = relatorios.flatMap(relatorio => relatorio.grupos);
-  const atividades = grupos.reduce((total, grupo) => total + grupo.quantidade, 0);
-  const minutos = relatorios.reduce((total, relatorio) => total + relatorio.minutos, 0);
-  const minutosAtividades = grupos.reduce((total, grupo) => total + grupo.minutos, 0);
-
   const consultor = { nome: cadastro.nomeCompleto, nomeEmpresarial: cadastro.nomeEmpresarial, mei: cadastro.mei };
-  return { consultor, associacao, competencia, competenciaValida, gerar, relatorios, atividades, minutos, minutosAtividades };
+  return { consultor, associacao, competencia, competenciaValida, gerar, relatorios };
 }
 
 export function caminhoAnexo(competencia: string, id: number, indice: number) {

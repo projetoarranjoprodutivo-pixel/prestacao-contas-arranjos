@@ -21,12 +21,6 @@ export async function GET(request: Request) {
     .format(new Date(`${dados.competencia}-01T00:00:00Z`));
   const secoes: PdfSection[] = [
     { heading: "Identificação", lines: [`Associação: ${dados.associacao}`, `Competência: ${periodo}`] },
-    { heading: "Resumo da execução", lines: [
-      `Relatórios consolidados: ${dados.relatorios.length}`,
-      `Atividades realizadas: ${dados.atividades}`,
-      `Carga horária consolidada: ${horas(dados.minutos)}`,
-      `Soma das durações das atividades: ${horas(dados.minutosAtividades)}`,
-    ] },
     ...dados.relatorios.flatMap(relatorio => {
       const secoes: PdfSection[] = [{
         heading: relatorio.tecnico,
@@ -50,7 +44,7 @@ export async function GET(request: Request) {
       if (relatorio.observacoes?.trim()) secoes.push({ heading: "Observações da prestação", lines: [relatorio.observacoes] });
       if (relatorio.anexos.length) secoes.push({
         heading: "Anexos e evidências",
-        lines: relatorio.anexos.map((anexo, indice) => `${indice + 1}. ${anexo.nome || "Anexo"} | Clique para baixar`),
+        lines: relatorio.anexos.map((anexo, indice) => `${indice + 1}. ${anexo.nome || "Anexo"} | Clique para abrir`),
         links: relatorio.anexos.map((_, indice) => new URL(caminhoAnexo(dados.competencia, relatorio.id, indice), request.url).href),
       });
       return secoes;
