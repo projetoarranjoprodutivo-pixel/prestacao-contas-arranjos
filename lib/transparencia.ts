@@ -40,7 +40,14 @@ const valido=(s:string)=>!!s&&!/^(NAO INFORMAD[OA]|NAO IDENTIFICAD[OA]|DIVERSOS|
 // A API administrativa recebe os indicadores consolidados.
 // Nomes de agricultores, IDs internos, documentos, chaves de arquivos e assinaturas ficam no servidor.
 export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:PessoaTransparencia[],relatorios:RelatorioTransparencia[],atividades:AtividadeTransparencia[],notas:NotaTransparencia[],filtros:DadosTransparencia["filtros"]):DadosTransparencia{
- const normal=normalizarNomeAssociacao;
+ const nomesNormalizados=new Map<string|null|undefined,string>();
+ const normal=(nome?:string|null)=>{
+  const existente=nomesNormalizados.get(nome);
+  if(existente)return existente;
+  const resultado=normalizarNomeAssociacao(nome);
+  nomesNormalizados.set(nome,resultado);
+  return resultado;
+ };
  const opcoes=grupos.map(g=>({nome:normal(g.nome)})).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
  const selecionadas=grupos.filter(g=>!filtros.associacao||normal(g.nome)===normal(filtros.associacao));
  const nomes=new Set(selecionadas.map(g=>normal(g.nome)));
@@ -48,7 +55,14 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
  const cobertura=mapaAssociacoesPorMunicipio(grupos);
  const municipiosConhecidos=new Set([...cobertura.keys(),"BARRA DE SAO FRANCISCO"]);
  const mesValido=(mes:string)=>mes.startsWith(filtros.ano+"-")&&(!filtros.mes||mes===`${filtros.ano}-${filtros.mes}`);
- const municipioNormal=(nome:string)=>chaveMunicipio(nome).replace(/\s*(?:\/|-)\s*ES$/,"").trim();
+ const municipiosNormalizados=new Map<string,string>();
+ const municipioNormal=(nome:string)=>{
+  const existente=municipiosNormalizados.get(nome);
+  if(existente!==undefined)return existente;
+  const resultado=chaveMunicipio(nome).replace(/\s*(?:\/|-)\s*ES$/,"").trim();
+  municipiosNormalizados.set(nome,resultado);
+  return resultado;
+ };
  const vinculos=new Map(pessoas.map(p=>[p.authUserId,[...new Set(
   [p.associacao,...lista<string>(p.associacoesJson)].filter(Boolean).map(normal),
  )].filter(nome=>cadastradas.has(nome))]));
@@ -63,7 +77,13 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
  }
  const noFiltro=(associacao:string)=>!filtros.associacao||nomes.has(associacao);
  const atividadesPeriodo=atividades.filter(a=>mesValido(a.competencia));
- const registros=atividadesPeriodo.filter(a=>noFiltro(destino(a)));
+ const atividadesPorAssociacao=new Map<string,AtividadeTransparencia[]>();
+ const relatoriosPorAssociacao=new Map<string,RelatorioTransparencia[]>();
+ function agrupar<T>(mapa:Map<string,T[]>,chave:string,item:T){
+  const grupo=mapa.get(chave);
+  if(grupo)grupo.push(item);
+  else mapa.set(chave,[item]);
+ }
  const recebidos=relatorios.filter(r=>mesValido(r.competencia)&&noFiltro(destino(r))&&r.authUserId!=="admin-importacao-mudas-2026");
  const execucao=new Map<string,LinhaExecucao>();
  function linhaExecucao(associacao:string,competencia:string){
@@ -75,12 +95,7 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   }
   return linha;
  }
- const relatoriosComAtividades=new Set(registros.map(a=>a.id));
- for(const r of recebidos){
-  const linha=linhaExecucao(destino(r),r.competencia);
-  linha.relatorios++;
-  if(!relatoriosComAtividades.has(r.id))linha.relatoriosSemAtividades++;
- }
+ const relatoriosComAtividades=new Set<number>();
  const eventosPorAssociacao=new Set<string>();
  const produtores=new Set<string>(),propriedades=new Set<string>(),eventos=new Set<string>();
  const municipios=new Map<string,{associacao:string;municipio:string;visitas:number;produtores:Set<string>;mudas:number;eventos:Set<string>}>();
@@ -110,6 +125,8 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   }
 
   if(!incluirRelatorio)continue;
+  agrupar(atividadesPorAssociacao,assoc,tipo===a.tipoAtividade?a:{...a,tipoAtividade:tipo});
+  relatoriosComAtividades.add(a.id);
   const linha=linhaExecucao(assoc,a.competencia);
   if(visita){
    visitas++;linha.visitas++;
@@ -129,6 +146,13 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   }else if(!visita&&!ehEntregaMudas(a))linha.outras++;
  }
 
+ for(const r of recebidos){
+  const assoc=destino(r);
+  agrupar(relatoriosPorAssociacao,assoc,r);
+  const linha=linhaExecucao(assoc,r.competencia);
+  linha.relatorios++;
+  if(!relatoriosComAtividades.has(r.id))linha.relatoriosSemAtividades++;
+ }
  const unicas=new Map<string,NotaTransparencia>();
  const comprasHistoricas = notas.filter(n=>/^\d{4}-(0[1-9]|1[0-2])$/.test(n.competencia)&&nomes.has(normal(n.associacao))&&categoriaDaNota(n)==="mudas").map(n=>{
   let referenciasNfe: string[] = [];
@@ -152,18 +176,24 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   const linha=financeiro.get(k)||{associacao,competencia:n.competencia,categoria,notas:0,valor:0,semValor:0};linha.notas++;
   const valor=numeroMonetario(n.valor);if(Number.isFinite(valor)){linha.valor+=valor;valorNotas+=valor;}else{linha.semValor++;notasSemValor++;}financeiro.set(k,linha);
  }
+ const comprasPorAssociacao=new Map<string,number>();
+ for(const n of unicas.values()){
+  if(categoriaDaNota(n)!=="mudas")continue;
+  const nome=normal(n.associacao);
+  comprasPorAssociacao.set(nome,(comprasPorAssociacao.get(nome)||0)+Math.max(0,numeroQuantidade(n.quantidade)||0));
+ }
  const termos=selecionadas.map(g=>{
-  const associacao=normal(g.nome),base=baseFomento(g.cnpj,g.documentosJson),atos=registros.filter(a=>destino(a)===associacao);
+  const associacao=normal(g.nome),base=baseFomento(g.cnpj,g.documentosJson),atos=atividadesPorAssociacao.get(associacao)||[];
   const termo=lista<{categoria?:string;valorGlobal?:number}>(g.documentosJson).filter(d=>d.categoria==="termo-fomento").at(-1);
   const valorTermo=typeof termo?.valorGlobal==="number"&&Number.isFinite(termo.valorGlobal)&&termo.valorGlobal>0?termo.valorGlobal:null;
-  const relat=recebidos.filter(r=>destino(r)===associacao);
+  const relat=relatoriosPorAssociacao.get(associacao)||[];
   const profissionais=pessoas.filter(p=>[p.associacao,...lista<string>(p.associacoesJson)].some(a=>normal(a||"")===associacao));
   const meses=filtros.mes?[`${filtros.ano}-${filtros.mes}`]:Array.from({length:12},(_,i)=>`${filtros.ano}-${String(i+1).padStart(2,"0")}`);
-  const compras=[...unicas.values()].filter(n=>normal(n.associacao)===associacao&&categoriaDaNota(n)==="mudas").reduce((s,n)=>s+Math.max(0,numeroQuantidade(n.quantidade)||0),0);
+  const compras=comprasPorAssociacao.get(associacao)||0;
   const entregues=atos.filter(a=>ehEntregaOficialDeMudas(a.authUserId,a)).reduce((s,a)=>s+quantidadeEntregue(a),0);
   const mapaPessoas=new Map(profissionais.map(p=>[p.authUserId,p]));
   const mesesVigentes=base?meses.filter(m=>m>=base.inicio&&m<=base.termino):[];
-  const metas=base&&mesesVigentes.length?avaliarFomento(base,mesesVigentes,atos.filter(a=>mesesVigentes.includes(a.competencia)).map(a=>({a:{...a,tipoAtividade:tipoDaAtividade(a)},r:{id:a.id,authUserId:a.authUserId,competencia:a.competencia,totalMinutos:a.totalMinutos},u:mapaPessoas.get(a.authUserId)})),compras,entregues,null,{profissionais,relatorios:relat.filter(r=>mesesVigentes.includes(r.competencia))}):base?base.metas.map(meta=>({meta,situacao:"PERÍODO FORA DA VIGÊNCIA DO TERMO",resultado:"A META NÃO É AVALIADA FORA DA VIGÊNCIA DO INSTRUMENTO.",atingida:false})):[];
+  const metas=base&&mesesVigentes.length?avaliarFomento(base,mesesVigentes,atos.filter(a=>mesesVigentes.includes(a.competencia)).map(a=>({a,r:{id:a.id,authUserId:a.authUserId,competencia:a.competencia,totalMinutos:a.totalMinutos},u:mapaPessoas.get(a.authUserId)})),compras,entregues,null,{profissionais,relatorios:relat.filter(r=>mesesVigentes.includes(r.competencia))}):base?base.metas.map(meta=>({meta,situacao:"PERÍODO FORA DA VIGÊNCIA DO TERMO",resultado:"A META NÃO É AVALIADA FORA DA VIGÊNCIA DO INSTRUMENTO.",atingida:false})):[];
   return {associacao,razaoSocial:g.razaoSocial||g.nome,cnpj:g.cnpj||"NÃO INFORMADO",municipios:[...new Set([...cobertura].filter(([,n])=>normal(n)===associacao).map(([m])=>m))],numero:base?.numero||"NÃO IDENTIFICADO",inicio:base?.inicio||"",termino:base?.termino||"",objetivo:base?.objetivoGeral||"",valorTermo,metas:metas.map(m=>({titulo:m.meta.titulo,meta:m.meta.meta,situacao:m.situacao,resultado:m.resultado.split("; ")[0],atingida:m.atingida,fonte:m.meta.fonte}))};
  }).sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR"));
  const produtoresIds=new Map([...new Set([...municipios.values()].flatMap(m=>[...m.produtores]))].map((nome,i)=>[nome,i]));
