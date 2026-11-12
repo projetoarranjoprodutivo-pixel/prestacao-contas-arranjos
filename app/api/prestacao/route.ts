@@ -1,10 +1,18 @@
+import { apurarDuracoesRelatorio, minutosDaAtividade } from "@/lib/duracao-relatorios";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { colaboradores, planosTrabalho, prestacoes } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 export const runtime="edge";
-type Atividade={executada:boolean;municipio:string;comunidade:string;propriedade:string;agricultor:string;telefone:string;tipoAtividade:string;tipoMuda:string;quantidadeMudas:string;data:string;inicio:string;duracao:string;unidadeDuracao?:"horas";resumo:string;assinaturaProdutor?:string;assinaturaTecnico?:string};
+type Atividade={executada:boolean;municipio:string;comunidade:string;propriedade:string;agricultor:string;telefone:string;tipoAtividade:string;tipoMuda:string;quantidadeMudas:string;data:string;inicio:string;duracao:string;unidadeDuracao?:"horas"|"minutos";resumo:string;assinaturaProdutor?:string;assinaturaTecnico?:string};
+
+function paraHoras(atividade: Atividade): Atividade {
+  const valor = Number(String(atividade.duracao ?? "").replace(",", "."));
+  const duracao = String(atividade.duracao ?? "").trim();
+  return { ...atividade, duracao: duracao && Number.isFinite(valor)
+    ? String(atividade.unidadeDuracao === "horas" ? valor : valor / 60) : duracao, unidadeDuracao: "horas" };
+}
 
 export async function GET(request:Request){
   const user=await getChatGPTUser();if(!user)return Response.json({message:"Sessão expirada."},{status:401});
@@ -22,7 +30,7 @@ export async function GET(request:Request){
     for(const a of atividades){const prevista=previstas.get(chave(a));if(!a.duracao?.trim() && prevista?.duracao){a.duracao=prevista.duracao;a.unidadeDuracao="horas";}}
     const existentes=new Set(atividades.map(chave));
     const novas=agenda.map(converter).filter(a=>!existentes.has(chave(a)));
-    return Response.json({origem:"prestacao",municipio:existente.municipio,atividades:[...atividades,...novas],atividadesNovas:novas.length,observacoes:existente.observacoes||"",anexos:JSON.parse(existente.anexosJson||"[]")});
+    return Response.json({origem:"prestacao",municipio:existente.municipio,atividades:[...apurarDuracoesRelatorio(atividades,existente.totalMinutos,plano?.status==="importado"&&plano.associacao===existente.associacao?plano.agendaJson:undefined).itens.map(paraHoras),...novas],atividadesNovas:novas.length,observacoes:existente.observacoes||"",anexos:JSON.parse(existente.anexosJson||"[]")});
   }
   if(!plano)return Response.json({origem:"vazio",municipio:"",atividades:[],observacoes:"",anexos:[]});
   const agenda=JSON.parse(plano.agendaJson) as Array<Record<string,string>>;
@@ -41,12 +49,19 @@ export async function POST(request:Request){
     const indiceExibicao=Math.max(0,Number(form.get("atividadeIndice")||0));
     let recebidas:Atividade[]=[]; try{recebidas=JSON.parse(String(form.get("atividades")||"[]"));}catch{}
     if(!/^\d{4}-\d{2}$/.test(competencia)||!recebidas.length)return Response.json({message:"Preencha a competência e pelo menos uma atividade."},{status:400});
-    const atividadeInvalida=recebidas.findIndex(a=>!a.municipio||!a.tipoAtividade||!a.data||!a.inicio||(a.tipoAtividade==="Visita Técnica"&&!a.agricultor)||(a.tipoAtividade==="Entrega de mudas"&&(!a.tipoMuda||Number(a.quantidadeMudas)<=0))||(a.executada&&(Number(a.duracao)<=0||!a.resumo))||(!a.executada&&!a.resumo));
+    const atividadeInvalida=recebidas.findIndex(a=>!a.municipio||!a.tipoAtividade||!a.data||!a.inicio||(a.tipoAtividade==="Visita Técnica"&&!a.agricultor)||(a.tipoAtividade==="Entrega de mudas"&&(!a.tipoMuda||Number(a.quantidadeMudas)<=0))||(a.executada&&(minutosDaAtividade(a)<=0||!a.resumo))||(!a.executada&&!a.resumo));
     if(atividadeInvalida>=0){const numero=modoIndividual?indiceExibicao+1:atividadeInvalida+1;return Response.json({message:`Revise a atividade ${numero}: preencha todos os campos obrigatórios, a duração e o resumo da execução.`},{status:400});}
     const existente=await db.query.prestacoes.findFirst({where:and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});
     let atividades=recebidas;
     if(modoIndividual){
       let anteriores:Atividade[]=[];try{anteriores=existente?JSON.parse(existente.atividadesJson||"[]"):[];}catch{anteriores=[];}
+      if (existente && anteriores.some(a => !a.unidadeDuracao)) {
+        const plano = await db.query.planosTrabalho.findFirst({columns:{agendaJson:true},where:and(
+          eq(planosTrabalho.authUserId,user.userId),eq(planosTrabalho.competencia,competencia),
+          eq(planosTrabalho.associacao,existente.associacao),eq(planosTrabalho.status,"importado"),
+        )});
+        anteriores = apurarDuracoesRelatorio(anteriores,existente.totalMinutos,plano?.agendaJson).itens;
+      }
       const chave=(a:Atividade)=>[a.data,a.inicio,a.tipoAtividade,a.municipio,a.agricultor].join("|");
       const posicao=anteriores.findIndex(a=>chave(a)===chave(recebidas[0]));
       if(posicao>=0)anteriores[posicao]=recebidas[0];else anteriores.push(recebidas[0]);
@@ -69,9 +84,9 @@ export async function POST(request:Request){
       anexos.push({key,nome:item.name,tipo:item.type});
     }
     const observacoes=modoIndividual?(existente?.observacoes||String(form.get("observacoes")||"").trim()||null):(String(form.get("observacoes")||"").trim()||null);
-    atividades=atividades.map(a=>a.unidadeDuracao==="horas"?a:{...a,duracao:String(Number(a.duracao||0)/60),unidadeDuracao:"horas"});
+    atividades=atividades.map(paraHoras);
     const atividadesNormalizadas=JSON.stringify(atividades);
-    const values={authUserId:user.userId,competencia,municipio,associacao,atividadesJson:atividadesNormalizadas,totalMinutos:Math.round(atividades.filter(a=>a.executada).reduce((s,a)=>s+Number(a.duracao||0)*60,0)),anexosJson:JSON.stringify(anexos),observacoes,status:"enviado",atualizadoEm:new Date().toISOString()};
+    const values={authUserId:user.userId,competencia,municipio,associacao,atividadesJson:atividadesNormalizadas,totalMinutos:Math.round(atividades.reduce((s,a)=>s+minutosDaAtividade(a),0)),anexosJson:JSON.stringify(anexos),observacoes,status:"enviado",atualizadoEm:new Date().toISOString()};
     await db.insert(prestacoes).values(values).onConflictDoUpdate({target:[prestacoes.authUserId,prestacoes.competencia],set:values});
     const message=modoIndividual?`Atividade ${indiceExibicao+1} salva individualmente.`:`Todas as atividades foram salvas com ${anexos.length} anexo(s).`;
     return Response.json({message,anexos});

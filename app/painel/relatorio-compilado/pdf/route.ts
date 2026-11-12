@@ -1,7 +1,8 @@
+import { atividadeExecutada, minutosDaAtividade } from "@/lib/duracao-relatorios";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { createPdf, type PdfSection } from "@/lib/pdf";
 import { PROJETO_LOGO_BASE64 } from "@/lib/pdf-assets";
-import { dadosRelatorioCompilado, horas } from "../dados";
+import { dadosRelatorioCompilado, horas, caminhoAnexo } from "../dados";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -23,14 +24,37 @@ export async function GET(request: Request) {
     { heading: "Resumo da execução", lines: [
       `Relatórios consolidados: ${dados.relatorios.length}`,
       `Atividades realizadas: ${dados.atividades}`,
-      `Carga horária: ${horas(dados.minutos)} horas`,
+      `Carga horária consolidada: ${horas(dados.minutos)} horas`,
+      `Soma das durações das atividades: ${horas(dados.minutosAtividades)} horas`,
     ] },
-    ...dados.relatorios.map(relatorio => ({
-      heading: relatorio.tecnico,
-      lines: relatorio.grupos.length ? relatorio.grupos.map(grupo =>
-        `${grupo.municipio} | ${grupo.tipo} | ATIVIDADES: ${grupo.quantidade} | CARGA HORÁRIA: ${horas(grupo.minutos)} H`,
-      ) : ["Nenhuma atividade realizada informada."],
-    })),
+    ...dados.relatorios.flatMap(relatorio => {
+      const secoes: PdfSection[] = [{
+        heading: relatorio.tecnico,
+        lines: [
+          `Carga horária da prestação: ${horas(relatorio.minutos)} h`,
+          `Soma das durações das atividades: ${horas(relatorio.minutosAtividades)} h`,
+          ...relatorio.grupos.map(grupo => `${grupo.municipio} | ${grupo.tipo} | ATIVIDADES: ${grupo.quantidade} | HORAS: ${horas(grupo.minutos)}`),
+        ],
+      }, {
+        heading: "Detalhamento das atividades",
+        lines: relatorio.itens.length ? relatorio.itens.map((a, indice) => [
+          `${indice + 1}. ${a.data?.split("-").reverse().join("/") || "Data não informada"}`,
+          a.inicio || a.hora, a.municipio || relatorio.municipio, a.comunidade, a.tipoAtividade,
+          a.propriedade && `Propriedade: ${a.propriedade}`,
+          (a.agricultor || a.beneficiario) && `Agricultor: ${a.agricultor || a.beneficiario}`,
+          atividadeExecutada(a) ? minutosDaAtividade(a) > 0 ? `Duração: ${horas(minutosDaAtividade(a))} h` : "Duração não informada" : "Não realizada",
+          a.tipoMuda && `Mudas: ${a.tipoMuda}`, a.quantidadeMudas && `Quantidade de mudas: ${a.quantidadeMudas}`,
+          a.resumo, a.observacao !== a.resumo ? a.observacao : undefined,
+        ].filter(Boolean).join(" | ")) : ["Nenhuma atividade informada."],
+      }];
+      if (relatorio.observacoes?.trim()) secoes.push({ heading: "Observações da prestação", lines: [relatorio.observacoes] });
+      if (relatorio.anexos.length) secoes.push({
+        heading: "Anexos e evidências",
+        lines: relatorio.anexos.map((anexo, indice) => `${indice + 1}. ${anexo.nome || "Anexo"} | Clique para baixar`),
+        links: relatorio.anexos.map((_, indice) => new URL(caminhoAnexo(dados.competencia, relatorio.id, indice), request.url).href),
+      });
+      return secoes;
+    }),
   ];
 
   const { nome, nomeEmpresarial, mei } = dados.consultor;

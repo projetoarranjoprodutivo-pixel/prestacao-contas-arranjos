@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireChatGPTUser } from "@/app/chatgpt-auth";
-import { dadosRelatorioCompilado, horas } from "./dados";
+import { dadosRelatorioCompilado, horas, caminhoAnexo } from "./dados";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export default async function RelatorioCompilado({ searchParams }: {
   const params = await searchParams;
   const dados = await dadosRelatorioCompilado(user, params.competencia);
   if (!dados) redirect("/painel");
-  const { associacao, competencia, competenciaValida, gerar, relatorios, atividades, minutos } = dados;
+  const { associacao, competencia, competenciaValida, gerar, relatorios, atividades, minutos, minutosAtividades } = dados;
 
   return <main className="mx-auto max-w-5xl space-y-6 px-5 py-8 text-slate-900">
     <a href="/painel" className="font-bold text-emerald-800 print:hidden">Voltar à área do colaborador</a>
@@ -31,10 +31,11 @@ export default async function RelatorioCompilado({ searchParams }: {
       </div>
       {relatorios.length === 0 ? <p>Nenhuma prestação de contas dos técnicos registrada para a competência selecionada.</p> : <>
         <p className="rounded-xl bg-emerald-50 p-4 font-semibold">
-          Relatórios consolidados {relatorios.length} · Atividades realizadas {atividades} · Carga horária {horas(minutos)} h
+          Relatórios consolidados {relatorios.length} · Atividades realizadas {atividades} · Carga horária consolidada {horas(minutos)} h · Durações detalhadas {horas(minutosAtividades)} h
         </p>
         {relatorios.map(relatorio => <section key={relatorio.id} className="space-y-2">
           <h3 className="text-lg font-bold">{relatorio.tecnico}</h3>
+          <p className="text-sm">Carga horária da prestação {horas(relatorio.minutos)} h · Durações detalhadas {horas(relatorio.minutosAtividades)} h</p>
           {relatorio.grupos.length === 0 ? <p>Nenhuma atividade realizada informada.</p> :
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-slate-100"><tr><th className="p-2">Município</th><th className="p-2">Atividade</th><th className="p-2 text-right">Quantidade</th><th className="p-2 text-right">Horas</th></tr></thead>
@@ -42,6 +43,8 @@ export default async function RelatorioCompilado({ searchParams }: {
                 <td className="p-2">{grupo.municipio}</td><td className="p-2">{grupo.tipo}</td><td className="p-2 text-right">{grupo.quantidade}</td><td className="p-2 text-right">{horas(grupo.minutos)}</td>
               </tr>)}</tbody>
             </table>}
+          {relatorio.observacoes && <p className="whitespace-pre-line text-sm">{relatorio.observacoes}</p>}
+          {relatorio.anexos.length > 0 && <ul className="space-y-1 text-sm">{relatorio.anexos.map((anexo, indice) => <li key={indice}><a className="font-semibold text-emerald-800 underline" href={caminhoAnexo(competencia, relatorio.id, indice)}>{anexo.nome || `Anexo ${indice + 1}`}</a></li>)}</ul>}
         </section>)}
       </>}
     </>}

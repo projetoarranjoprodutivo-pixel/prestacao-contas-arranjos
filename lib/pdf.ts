@@ -1,6 +1,6 @@
-import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, PDFName, PDFString, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 
-export type PdfSection = { heading?: string; lines: string[] };
+export type PdfSection = { heading?: string; lines: string[]; links?: (string | undefined)[] };
 
 type CapaProjeto = { logoBase64: string; identificacao: string; consultor?: string[]; periodo: string };
 
@@ -46,6 +46,9 @@ export async function createPdf(title:string,sections:PdfSection[],capa?:CapaPro
  function novaPagina(){page=pdf.addPage([LARGURA,ALTURA]);page.drawRectangle({x:0,y:ALTURA-92,width:LARGURA,height:92,color:VERDE});page.drawRectangle({x:0,y:ALTURA-97,width:LARGURA,height:5,color:VERDE_MEDIO});page.drawText("ARRANJOS PRODUTIVOS",{x:MARGEM,y:ALTURA-29,size:8,font:bold,color:rgb(0.69,0.9,0.79)});page.drawText("PORTAL DE PRESTAÇÃO DE CONTAS",{x:MARGEM,y:ALTURA-48,size:9,font:bold,color:rgb(1,1,1)});quebrar(title,bold,12,CONTEUDO).slice(0,2).forEach((linha,indice)=>page.drawText(linha,{x:MARGEM,y:ALTURA-68-indice*12,size:11,font:bold,color:rgb(1,1,1)}));y=ALTURA-119;}
  function garantirEspaco(altura:number){if(y-altura<66)novaPagina();}
  function tituloSecao(titulo:string){garantirEspaco(29);page.drawRectangle({x:MARGEM,y:y-17,width:CONTEUDO,height:20,color:VERDE_CLARO});page.drawRectangle({x:MARGEM,y:y-17,width:4,height:20,color:VERDE_MEDIO});page.drawText(caixaAlta(titulo),{x:MARGEM+12,y:y-11.5,size:8.3,font:bold,color:VERDE});y-=25;}
- function linhaConteudo(texto:string){const linhas=quebrar(texto||"NÃO INFORMADO",regular,8.4,CONTEUDO-24);const altura=Math.max(27,14+linhas.length*10);garantirEspaco(altura+4);page.drawRectangle({x:MARGEM,y:y-altura,width:CONTEUDO,height:altura,color:CINZA_CLARO,borderColor:BORDA,borderWidth:0.6});linhas.forEach((linha,indice)=>page.drawText(linha,{x:MARGEM+12,y:y-17-indice*10,size:8.4,font:regular,color:PRETO}));y-=altura+4;}
- novaPagina();const conteudo=sections.length?sections:[{heading:"SEM REGISTROS",lines:["NENHUMA INFORMAÇÃO ENCONTRADA."]}];for(const section of conteudo){if(section.heading)tituloSecao(section.heading);for(const line of section.lines.length?section.lines:["NÃO INFORMADO"])linhaConteudo(line);y-=5;}
+ function linhaConteudo(texto:string,link?:string){const linhas=quebrar(texto||"NÃO INFORMADO",regular,8.4,CONTEUDO-24);const altura=Math.max(27,14+linhas.length*10);garantirEspaco(altura+4);page.drawRectangle({x:MARGEM,y:y-altura,width:CONTEUDO,height:altura,color:CINZA_CLARO,borderColor:BORDA,borderWidth:0.6});linhas.forEach((linha,indice)=>page.drawText(linha,{x:MARGEM+12,y:y-17-indice*10,size:8.4,font:regular,color:PRETO}));if(link){
+   const anotacao=pdf.context.obj({Type:"Annot",Subtype:"Link",Rect:[MARGEM,y-altura,MARGEM+CONTEUDO,y],Border:[0,0,0],A:{Type:PDFName.of("Action"),S:PDFName.of("URI"),URI:PDFString.of(link)}});
+   page.node.addAnnot(pdf.context.register(anotacao));
+ }y-=altura+4;}
+ novaPagina();const conteudo=sections.length?sections:[{heading:"SEM REGISTROS",lines:["NENHUMA INFORMAÇÃO ENCONTRADA."]}];for(const section of conteudo){if(section.heading)tituloSecao(section.heading);(section.lines.length?section.lines:["NÃO INFORMADO"]).forEach((line,indice)=>linhaConteudo(line,section.links?.[indice]));y-=5;}
  const paginas=pdf.getPages().slice(capa ? 1 : 0);const data=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date());paginas.forEach((pagina,indice)=>{pagina.drawLine({start:{x:MARGEM,y:48},end:{x:LARGURA-MARGEM,y:48},color:BORDA,thickness:0.7});pagina.drawText(`EMITIDO EM ${data}`,{x:MARGEM,y:31,size:7.5,font:regular,color:CINZA});const textoPagina=`PÁGINA ${indice+1} DE ${paginas.length}`;pagina.drawText(textoPagina,{x:LARGURA-MARGEM-bold.widthOfTextAtSize(textoPagina,7.5),y:31,size:7.5,font:bold,color:VERDE});});return pdf.save();}

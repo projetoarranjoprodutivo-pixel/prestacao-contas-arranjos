@@ -1,3 +1,4 @@
+import { atividadeExecutada, apurarDuracoesRelatorio, minutosDaAtividade } from "@/lib/duracao-relatorios";
 import {notaPertenceAoColaborador, type VinculoNotaServico} from "@/lib/notas-servico";
 import { categoriaDaNota } from "@/lib/classificacao-notas";
 import {numeroMonetario} from "@/lib/moeda";
@@ -213,19 +214,12 @@ async function gerarAgricultura(
 
 function apurarHoras(relatorio: Registro) {
   const todas = lista<Atividade>(relatorio.atividadesJson);
-  const atividades = todas.filter(a => a.executada !== false);
-  const duracoes = atividades.map(a => {
-    const valor = Number(String(a.duracao ?? "").trim().replace(",", "."));
-    return Number.isFinite(valor) && valor > 0 ? valor * (a.unidadeDuracao === "horas" ? 60 : 1) : 0;
-  });
-  const informadas = duracoes.filter(valor => valor > 0).length;
-  // Registros antigos sem unidade explícita têm formatos históricos distintos.
-  // Seu total em minutos é a referência validada; não reinterpretar a duração.
-  const totalSalvo = Math.max(0, Number(relatorio.totalMinutos) || 0);
-  const unidadeAmbigua = atividades.some(a => a.unidadeDuracao !== "horas" && Number(String(a.duracao ?? "").replace(",", ".")) > 0);
-  const minutos = unidadeAmbigua && totalSalvo > 0 ? totalSalvo : informadas ? duracoes.reduce((soma, valor) => soma + valor, 0) : todas.length && !atividades.length ? 0 : Math.max(0, Number(relatorio.totalMinutos) || 0);
-  const horasPadrao = !informadas && minutos === 0 && (!todas.length || atividades.length > 0);
-  return { minutos: horasPadrao ? 160 * 60 : minutos, horasPadrao, semDuracao: atividades.length - informadas, totalDeclarado: !informadas && minutos > 0 };
+  const apuracao = apurarDuracoesRelatorio(todas, Number(relatorio.totalMinutos), undefined, relatorio.status === "importado");
+  const atividades = apuracao.itens.filter(atividadeExecutada);
+  const semDuracao = atividades.filter(a => minutosDaAtividade(a) <= 0).length;
+  const horasPadrao = apuracao.minutos === 0 && (!todas.length || atividades.length > 0);
+  return { minutos: horasPadrao ? 160 * 60 : apuracao.minutos, horasPadrao, semDuracao,
+    totalDeclarado: apuracao.minutosAtividades === 0 && apuracao.minutos > 0 };
 }
 
 async function gerarHoras(

@@ -1,14 +1,14 @@
 import { and, eq, gt, ne } from "drizzle-orm";
 import { getDb } from "@/db";
-import { prestacoes } from "@/db/schema";
+import { planosTrabalho, prestacoes } from "@/db/schema";
 import { getAdminUser } from "@/lib/admin";
-import { preencherDuracao, minutosDaAtividade, type DuracaoAtividade } from "@/lib/duracao-relatorios";
+import { apurarDuracoesRelatorio, preencherDuracao, minutosDaAtividade, unidadeConfirmadaNoPlano, type DuracaoAtividade } from "@/lib/duracao-relatorios";
 
 export const runtime = "edge";
 
 export async function POST(request: Request) {
  if (!await getAdminUser()) return Response.json({ message: "ACESSO RESTRITO." }, { status: 403 });
- const entrada = await request.json().catch(() => null) as { cursor?: number } | null;
+ const entrada = await request.json().catch(() => null) as { cursor?: number; somenteConferir?: boolean } | null;
  const cursor = entrada?.cursor;
  if (typeof cursor !== "number" || !Number.isSafeInteger(cursor) || cursor < 0) {
   return Response.json({ message: "POSIÇÃO DE CONSULTA INVÁLIDA." }, { status: 400 });
@@ -19,23 +19,36 @@ export async function POST(request: Request) {
   const limite = 25;
   const registros = await db.select({
    id: prestacoes.id, atividadesJson: prestacoes.atividadesJson, atualizadoEm: prestacoes.atualizadoEm,
-  }).from(prestacoes).where(and(gt(prestacoes.id, cursor), ne(prestacoes.authUserId, "admin-importacao-mudas-2026")))
+   totalMinutos: prestacoes.totalMinutos, status: prestacoes.status, agendaJson: planosTrabalho.agendaJson,
+  }).from(prestacoes).leftJoin(planosTrabalho, and(
+    eq(planosTrabalho.authUserId, prestacoes.authUserId),eq(planosTrabalho.competencia, prestacoes.competencia),
+    eq(planosTrabalho.associacao, prestacoes.associacao),eq(planosTrabalho.status, "importado"),
+   )).where(and(gt(prestacoes.id, cursor), ne(prestacoes.authUserId, "admin-importacao-mudas-2026")))
    .orderBy(prestacoes.id).limit(limite);
-  let relatorios = 0, atividades = 0, conflitos = 0;
+  let relatorios = 0, atividades = 0, conflitos = 0, ambiguas = 0, candidatos = 0;
   const alteracoes = registros.flatMap(registro => {
    let dados: unknown;
    try { dados = JSON.parse(registro.atividadesJson); } catch { return []; }
    if (!Array.isArray(dados)) return [];
+   type Item = DuracaoAtividade & { municipio?: string; tipoAtividade?: string };
+   const originais = dados.filter((item): item is Item => !!item && typeof item === "object");
+   const unidade = unidadeConfirmadaNoPlano(originais, registro.agendaJson);
    let quantidade = 0;
-   const novas = dados.map((a: DuracaoAtividade | null) => {
+   const novas = dados.map((a: Item | null) => {
     if (!a || typeof a !== "object") return a;
-    const nova = preencherDuracao(a);
-    if (nova !== a) quantidade++;
-    return nova;
+    const preenchida = preencherDuracao(a);
+    if (preenchida !== a) { quantidade++; return preenchida; }
+    const valor = minutosDaAtividade(a);
+    if (a.unidadeDuracao || !valor) return a;
+    if (!unidade) { ambiguas++; return a; }
+    quantidade++;
+    return { ...a, unidadeDuracao: unidade };
    });
-   if (!quantidade) return [];
-   const totalMinutos = Math.round(novas.reduce((total, a) =>
-    total + (a && typeof a === "object" ? minutosDaAtividade(a) : 0), 0));
+   candidatos += quantidade;
+   if (!quantidade || entrada?.somenteConferir) return [];
+   const apuracao = apurarDuracoesRelatorio(novas.filter((item): item is Item => !!item && typeof item === "object"),
+    registro.totalMinutos, registro.agendaJson, registro.status === "importado" || originais.some(item => !item.unidadeDuracao && minutosDaAtividade(item) > 0));
+   const totalMinutos = Math.round(apuracao.minutos);
    return [{ quantidade, gravar: db.update(prestacoes).set({
     atividadesJson: JSON.stringify(novas), totalMinutos, atualizadoEm: new Date().toISOString(),
    }).where(and(eq(prestacoes.id, registro.id), eq(prestacoes.atividadesJson, registro.atividadesJson),
@@ -49,7 +62,7 @@ export async function POST(request: Request) {
     else conflitos++;
    });
   }
-  return Response.json({ examinados: registros.length, relatorios, atividades, conflitos,
+  return Response.json({ examinados: registros.length, relatorios, atividades, conflitos, ambiguas, candidatos,
    proximo: registros.length === limite ? registros.at(-1)?.id : null });
  } catch (erro) {
   console.error("padronizar_duracao_relatorios", erro);

@@ -1,20 +1,26 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { ChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
-import { colaboradores, prestacoes } from "@/db/schema";
+import { colaboradores, planosTrabalho, prestacoes } from "@/db/schema";
 import { associacaoAutorizadaConsultor, chaveAssociacaoConsultoria } from "@/lib/consultor-projeto";
-import { atividadeExecutada, preencherDuracao, minutosDaAtividade, unidadeDuracaoDoRelatorio, type DuracaoAtividade } from "@/lib/duracao-relatorios";
+import { atividadeExecutada, apurarDuracoesRelatorio, minutosDaAtividade, type DuracaoAtividade } from "@/lib/duracao-relatorios";
 
-type Atividade = DuracaoAtividade & { municipio?: string; tipoAtividade?: string };
+type Atividade = DuracaoAtividade & {
+  municipio?: string; tipoAtividade?: string; comunidade?: string; propriedade?: string;
+  agricultor?: string; beneficiario?: string; inicio?: string; hora?: string; resumo?: string; observacao?: string;
+  tipoMuda?: string; quantidadeMudas?: string;
+};
+type Anexo = { key: string; nome: string; tipo?: string };
 
-function resumirAtividades(json: string, municipioRelatorio: string, totalMinutos: number) {
-  let atividades: Atividade[] = [];
+function lista<T>(json: string) {
   try {
     const dados = JSON.parse(json);
-    if (Array.isArray(dados)) atividades = dados.filter(item => item && typeof item === "object");
+    if (Array.isArray(dados)) return dados.filter(item => item && typeof item === "object") as T[];
   } catch {}
+  return [] as T[];
+}
 
-  const unidadeLegada = unidadeDuracaoDoRelatorio(atividades, totalMinutos);
+function resumirAtividades(atividades: Atividade[], municipioRelatorio: string) {
   const grupos = new Map<string, { municipio: string; tipo: string; quantidade: number; minutos: number }>();
   for (const atividade of atividades.filter(atividadeExecutada)) {
     const municipio = String(atividade.municipio || municipioRelatorio || "Não informado").trim();
@@ -22,7 +28,7 @@ function resumirAtividades(json: string, municipioRelatorio: string, totalMinuto
     const chave = JSON.stringify([municipio.toUpperCase(), tipo.toUpperCase()]);
     const grupo = grupos.get(chave) ?? { municipio, tipo, quantidade: 0, minutos: 0 };
     grupo.quantidade++;
-    grupo.minutos += minutosDaAtividade(preencherDuracao({ ...atividade, unidadeDuracao: atividade.unidadeDuracao || unidadeLegada }));
+    grupo.minutos += minutosDaAtividade(atividade);
     grupos.set(chave, grupo);
   }
   return [...grupos.values()].sort((a, b) => a.municipio.localeCompare(b.municipio, "pt-BR") || a.tipo.localeCompare(b.tipo, "pt-BR"));
@@ -30,7 +36,7 @@ function resumirAtividades(json: string, municipioRelatorio: string, totalMinuto
 
 export const horas = (minutos: number) => (minutos / 60).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
-export async function dadosRelatorioCompilado(user: ChatGPTUser, competenciaSolicitada: unknown) {
+export async function dadosRelatorioCompilado(user: ChatGPTUser, competenciaSolicitada: unknown, prestacaoId?: number) {
   const db = getDb();
   const [cadastro] = await db.select({
     cargo: colaboradores.cargo,
@@ -54,16 +60,26 @@ export async function dadosRelatorioCompilado(user: ChatGPTUser, competenciaSoli
   const chave = chaveAssociacaoConsultoria(associacao);
   const chaves = chave === "APPROVIPA" ? ["APPROVIPA", "APROVIPA"] : [chave];
   const valores = sql.join(chaves.map(item => sql`${item}`), sql`, `);
-  const normalizar = (coluna: typeof prestacoes.associacao | typeof colaboradores.associacao) =>
+  const normalizar = (coluna: typeof prestacoes.associacao | typeof colaboradores.associacao | typeof planosTrabalho.associacao) =>
     sql`upper(replace(replace(replace(${coluna}, ' ', ''), '.', ''), '-', ''))`;
 
   const registros = gerar ? await db.select({
     id: prestacoes.id,
     tecnico: colaboradores.nomeCompleto,
     municipio: prestacoes.municipio,
-    atividades: prestacoes.atividadesJson,
+    atividades: sql<string>`COALESCE((SELECT json_group_array(json_remove(value, '$.assinaturaProdutor', '$.assinaturaTecnico')) FROM json_each(${prestacoes.atividadesJson})), '[]')`,
+    observacoes: prestacoes.observacoes,
+    anexosJson: prestacoes.anexosJson,
+    agendaJson: planosTrabalho.agendaJson,
     totalMinutos: prestacoes.totalMinutos,
-  }).from(prestacoes).innerJoin(colaboradores, eq(colaboradores.authUserId, prestacoes.authUserId)).where(and(
+    status: prestacoes.status,
+  }).from(prestacoes).innerJoin(colaboradores, eq(colaboradores.authUserId, prestacoes.authUserId)).leftJoin(planosTrabalho, and(
+    eq(planosTrabalho.authUserId, prestacoes.authUserId),
+    eq(planosTrabalho.competencia, prestacoes.competencia),
+    eq(planosTrabalho.status, "importado"),
+    sql`${normalizar(planosTrabalho.associacao)} in (${valores})`,
+  )).where(and(
+    prestacaoId === undefined ? undefined : eq(prestacoes.id, prestacaoId),
     eq(prestacoes.competencia, competencia),
     inArray(prestacoes.status, ["enviado", "importado"]),
     sql`lower(replace(replace(trim(${colaboradores.cargo}), 'É', 'e'), 'é', 'e')) = 'tecnico de campo'`,
@@ -71,11 +87,21 @@ export async function dadosRelatorioCompilado(user: ChatGPTUser, competenciaSoli
     sql`${normalizar(prestacoes.associacao)} in (${valores})`,
   )).orderBy(colaboradores.nomeCompleto) : [];
 
-  const relatorios = registros.map(registro => ({ ...registro, grupos: resumirAtividades(registro.atividades, registro.municipio, registro.totalMinutos) }));
+  const relatorios = registros.map(registro => {
+    const apuracao = apurarDuracoesRelatorio(lista<Atividade>(registro.atividades), registro.totalMinutos, registro.agendaJson, registro.status === "importado");
+    const anexos = lista<Anexo>(registro.anexosJson);
+    return { id: registro.id, tecnico: registro.tecnico, municipio: registro.municipio, observacoes: registro.observacoes, anexos,
+      ...apuracao, grupos: resumirAtividades(apuracao.itens, registro.municipio) };
+  });
   const grupos = relatorios.flatMap(relatorio => relatorio.grupos);
   const atividades = grupos.reduce((total, grupo) => total + grupo.quantidade, 0);
-  const minutos = grupos.reduce((total, grupo) => total + grupo.minutos, 0);
+  const minutos = relatorios.reduce((total, relatorio) => total + relatorio.minutos, 0);
+  const minutosAtividades = grupos.reduce((total, grupo) => total + grupo.minutos, 0);
 
   const consultor = { nome: cadastro.nomeCompleto, nomeEmpresarial: cadastro.nomeEmpresarial, mei: cadastro.mei };
-  return { consultor, associacao, competencia, competenciaValida, gerar, relatorios, atividades, minutos };
+  return { consultor, associacao, competencia, competenciaValida, gerar, relatorios, atividades, minutos, minutosAtividades };
+}
+
+export function caminhoAnexo(competencia: string, id: number, indice: number) {
+  return `/painel/relatorio-compilado/anexo?${new URLSearchParams({ competencia, id: String(id), indice: String(indice) })}`;
 }
