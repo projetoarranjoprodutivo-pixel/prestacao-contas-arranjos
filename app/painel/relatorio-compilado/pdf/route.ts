@@ -1,4 +1,4 @@
-import { atividadeExecutada, minutosDaAtividade } from "@/lib/duracao-relatorios";
+import { incluirRegistrosFotograficos } from "./fotos";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { createPdf, type PdfSection } from "@/lib/pdf";
 import { PROJETO_LOGO_BASE64 } from "@/lib/pdf-assets";
@@ -29,22 +29,11 @@ export async function GET(request: Request) {
           `Soma das durações das atividades: ${horas(relatorio.minutosAtividades)}`,
           ...relatorio.grupos.map(grupo => `${grupo.municipio} | ${grupo.tipo} | ATIVIDADES: ${grupo.quantidade} | DURAÇÃO: ${horas(grupo.minutos)}`),
         ],
-      }, {
-        heading: "Detalhamento das atividades",
-        lines: relatorio.itens.length ? relatorio.itens.map((a, indice) => [
-          `${indice + 1}. ${a.data?.split("-").reverse().join("/") || "Data não informada"}`,
-          a.inicio || a.hora, a.municipio || relatorio.municipio, a.comunidade, a.tipoAtividade,
-          a.propriedade && `Propriedade: ${a.propriedade}`,
-          (a.agricultor || a.beneficiario) && `Agricultor: ${a.agricultor || a.beneficiario}`,
-          atividadeExecutada(a) ? minutosDaAtividade(a) > 0 ? `Duração: ${horas(minutosDaAtividade(a))}` : "Duração não informada" : "Não realizada",
-          a.tipoMuda && `Mudas: ${a.tipoMuda}`, a.quantidadeMudas && `Quantidade de mudas: ${a.quantidadeMudas}`,
-          a.resumo, a.observacao !== a.resumo ? a.observacao : undefined,
-        ].filter(Boolean).join(" | ")) : ["Nenhuma atividade informada."],
       }];
       if (relatorio.observacoes?.trim()) secoes.push({ heading: "Observações da prestação", lines: [relatorio.observacoes] });
       if (relatorio.anexos.length) secoes.push({
         heading: "Anexos e evidências",
-        lines: relatorio.anexos.map((anexo, indice) => `${indice + 1}. ${anexo.nome || "Anexo"} | Clique para abrir`),
+        lines: relatorio.anexos.map((anexo, indice) => `${indice + 1}. ${anexo.nome || "Anexo"} | Clique para abrir o anexo completo`),
         links: relatorio.anexos.map((_, indice) => new URL(caminhoAnexo(dados.competencia, relatorio.id, indice), request.url).href),
       });
       return secoes;
@@ -65,7 +54,8 @@ export async function GET(request: Request) {
     consultor,
     periodo,
   });
-  return new Response(new Uint8Array(pdf), {
+  const resultado = await incluirRegistrosFotograficos(pdf, dados.relatorios);
+  return new Response(new Uint8Array(resultado), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="relatorio-compilado-${dados.competencia}.pdf"`,
