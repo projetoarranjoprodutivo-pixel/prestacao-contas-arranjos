@@ -1,3 +1,4 @@
+import { identificarVinculoNfe } from "@/lib/notas-compra-mudas";
 import {periodoDoExtrato} from "@/lib/competencias-extrato";
 import { extrairTextoNotaPdf } from "@/lib/pdf-texto-nota";
 import { identificarPrestador, lerNfseNacional } from "@/lib/nfse-nacional";
@@ -197,6 +198,7 @@ export async function POST(request:Request){
   const quantidade=somaItens>0?String(somaItens):String(dados.quantidade||fallback.quantidade||"");
   if(!descricao&&!quantidade&&!valor&&!dataEmissao)throw new Error("O DOCUMENTO FOI LIDO, MAS OS DADOS DA NOTA NÃO FORAM IDENTIFICADOS. CONFIRA SE O ARQUIVO ESTÁ LEGÍVEL.");
   return Response.json({
+   ...identificarVinculoNfe(conteudo),
    numeroNota:String(dados.numeroNota||conteudo.match(/(?:N[ÚU]MERO\s+(?:DA\s+)?(?:NOTA|NFS-?E)|N[º°.]\s*)[\s:.-]*([0-9][0-9.]*)/i)?.[1]||""),
    descricao,quantidade,valor,dataEmissao,associacao:String(dados.associacao||fallback.associacao||""),competencia,origemLeitura:"conteudo",prestador:String(dados.prestador||identificarPrestador(conteudo).prestador||""),cnpjPrestador:String(dados.cnpjPrestador||identificarPrestador(conteudo).cnpjPrestador||"")
   });

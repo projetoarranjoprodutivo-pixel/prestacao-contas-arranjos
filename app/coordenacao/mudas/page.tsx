@@ -1,7 +1,8 @@
+import { verificarComprasMudas, type NotaCompraMudas } from "@/lib/notas-compra-mudas";
 import OrcamentoMudas from "./orcamento-mudas";
 import { eq } from "drizzle-orm";
 import {formatarQuantidade} from "@/lib/quantidade";
-import {formatarMoeda} from "@/lib/moeda";
+import {formatarMoeda, numeroMonetario} from "@/lib/moeda";
 import { categoriaDaNota } from "@/lib/classificacao-notas";
 import NotaAcoes from "./nota-acoes";
 import { redirect } from "next/navigation";
@@ -24,13 +25,20 @@ export default async function GestaoMudasPage({ searchParams }: { searchParams: 
   const [registros, pessoas] = await Promise.all([db.select({id:prestacoes.id,authUserId:prestacoes.authUserId,associacao:prestacoes.associacao,atividadesJson:prestacoes.atividadesJson}).from(prestacoes), db.select({authUserId:colaboradores.authUserId,nomeCompleto:colaboradores.nomeCompleto}).from(colaboradores)]);
   const associacoesOrcamento = gestor.coordenador ? [] : await db.select({id:associacoes.id,nome:associacoes.nome}).from(associacoes).where(eq(associacoes.ativo,true)).orderBy(associacoes.nome);
   const documentos = filtros.notas === "1" ? await db.select({id:documentosAssociacao.id,associacao:documentosAssociacao.associacao,competencia:documentosAssociacao.competencia,notasFiscaisJson:documentosAssociacao.notasFiscaisJson}).from(documentosAssociacao) : [];
-  type Nota = { categoriaNota?: string; numeroNota?: string; key?: string; nome?: string; descricao?: string; quantidade?: string; valor?: string; dataEmissao?: string };
+  type Nota = NotaCompraMudas & { categoriaNota?: string; numeroNota?: string; key?: string; nome?: string; descricao?: string; quantidade?: string; valor?: string; dataEmissao?: string };
   const notas = documentos.flatMap(documento => {
     let arquivos: Nota[] = [];
     try { const dados = JSON.parse(documento.notasFiscaisJson || "[]"); if (Array.isArray(dados)) arquivos = dados; } catch {}
-    return arquivos.filter(arquivo => categoriaDaNota(arquivo)==="mudas").map(arquivo => ({ documento, arquivo }));
+    return arquivos.filter(arquivo => categoriaDaNota(arquivo)==="mudas").map(arquivo => ({ documento, arquivo, associacao: documento.associacao, competencia: documento.competencia }));
   }).sort((a, b) => comparar(a.documento.associacao, b.documento.associacao) || b.documento.competencia.localeCompare(a.documento.competencia));
+  const situacoes = verificarComprasMudas(notas);
   const notasFiltradas = notas.filter(({ documento }) => (!filtros.associacao || documento.associacao === filtros.associacao) && (!filtros.competencia || documento.competencia === filtros.competencia));
+  const totais = new Map<string,number>();
+  for(const nota of notasFiltradas) {
+    const valor=numeroMonetario(nota.arquivo.valor);
+    if(situacoes.get(nota)==="contabilizada"&&Number.isFinite(valor))totais.set(nota.associacao,(totais.get(nota.associacao)||0)+valor);
+  }
+  const rotulos = { contabilizada:"CONTABILIZADA", duplicada:"DUPLICADA", "remessa-vinculada":"REMESSA VINCULADA", "conferir-remessa":"REMESSA A CONFERIR" };
   const nomes = new Map(pessoas.map(item => [item.authUserId, item.nomeCompleto]));
   const associacaoPorMunicipio = mapaAssociacoesPorMunicipio();
   const entregas = registros.flatMap(registro => {
@@ -60,8 +68,9 @@ export default async function GestaoMudasPage({ searchParams }: { searchParams: 
           <button className="h-11 rounded-lg bg-violet-800 px-5 font-bold text-white">PESQUISAR</button><a href="/coordenacao/mudas?notas=1#notas-compra" className="p-3 font-bold text-violet-800">LIMPAR FILTROS</a>
         </form>
         <p className="mt-4 text-sm text-slate-600">{notasFiltradas.length} NOTA(S) ENCONTRADA(S)</p>
+        <ul className="mt-2 flex flex-wrap gap-3 text-sm font-bold text-emerald-900">{[...totais].map(([nome,total])=><li key={nome}>{nome} · {total.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</li>)}</ul>
         <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[1250px] text-left text-sm [&_th]:whitespace-nowrap [&_th]:px-3 [&_td]:px-3"><thead><tr className="border-b text-slate-500"><th className="py-3">ASSOCIAÇÃO</th><th>COMPETÊNCIA</th><th>EMISSÃO</th><th>NÚMERO DA NOTA</th><th>DESCRIÇÃO / ARQUIVO</th><th>QUANTIDADE</th><th>VALOR (R$)</th><th>AÇÃO</th></tr></thead><tbody>
-          {notasFiltradas.map(({ documento, arquivo }, indice) => <tr key={`${documento.id}-${indice}`} className="border-b"><td className="py-3 font-bold text-emerald-900">{documento.associacao}</td><td>{documento.competencia}</td><td>{arquivo.dataEmissao?.split("-").reverse().join("/") || "NÃO INFORMADA"}</td><td className="p-3 font-bold">{arquivo.numeroNota || "NÃO INFORMADO"}</td><td className="max-w-sm break-words p-3">{arquivo.descricao || "SEM DESCRIÇÃO"}<p className="text-xs text-slate-500">{arquivo.nome}</p></td><td>{formatarQuantidade(arquivo.quantidade)}</td><td>{formatarMoeda(arquivo.valor)}</td><td><div className="flex items-center gap-2 whitespace-nowrap">{arquivo.key ? <a href={`/api/coordenacao/mudas/nota?key=${encodeURIComponent(arquivo.key)}`} target="_blank" rel="noopener noreferrer" className="shrink-0 font-black text-violet-800 underline">VISUALIZAR NOTA</a> : "SEM ARQUIVO"}{arquivo.key&&<NotaAcoes documentoId={documento.id} nota={arquivo}/>}</div></td></tr>)}
+          {notasFiltradas.map((linha, indice) => { const { documento, arquivo } = linha; return <tr key={`${documento.id}-${indice}`} className="border-b"><td className="py-3 font-bold text-emerald-900">{documento.associacao}</td><td>{documento.competencia}</td><td>{arquivo.dataEmissao?.split("-").reverse().join("/") || "NÃO INFORMADA"}</td><td className="p-3 font-bold">{arquivo.numeroNota || "NÃO INFORMADO"}</td><td className="max-w-sm break-words p-3">{arquivo.descricao || "SEM DESCRIÇÃO"}<p className="text-xs text-slate-500">{arquivo.nome}</p></td><td>{formatarQuantidade(arquivo.quantidade)}</td><td>{formatarMoeda(arquivo.valor)}<p className="text-xs font-bold text-slate-600">{rotulos[situacoes.get(linha) || "contabilizada"]}</p></td><td><div className="flex items-center gap-2 whitespace-nowrap">{arquivo.key ? <a href={`/api/coordenacao/mudas/nota?key=${encodeURIComponent(arquivo.key)}`} target="_blank" rel="noopener noreferrer" className="shrink-0 font-black text-violet-800 underline">VISUALIZAR NOTA</a> : "SEM ARQUIVO"}{arquivo.key&&<NotaAcoes documentoId={documento.id} nota={arquivo}/>}</div></td></tr>; })}
           {!notasFiltradas.length && <tr><td colSpan={8} className="py-10 text-center text-slate-500">NENHUMA NOTA DE COMPRA DE MUDAS ENCONTRADA PARA OS FILTROS SELECIONADOS.</td></tr>}
         </tbody></table></div>
       </section>}

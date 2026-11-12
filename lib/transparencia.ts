@@ -1,3 +1,4 @@
+import { verificarComprasMudas, type NotaCompraMudas } from "./notas-compra-mudas";
 import {normalizarNomeAssociacao} from "./nome-associacao";
 import {chaveMunicipio,mapaAssociacoesPorMunicipio} from "./associacoes-municipios";
 import {ehEntregaMudas,ehEntregaOficialDeMudas,quantidadeEntregue} from "./entregas-mudas";
@@ -10,8 +11,8 @@ export type GrupoTransparencia={id:number;nome:string;razaoSocial:string|null;cn
 export type PessoaTransparencia={authUserId:string;nomeCompleto:string;cargo:string;associacao:string|null;associacoesJson:string;dataAdmissao:string;dataSaida:string|null};
 export type RelatorioTransparencia={id:number;authUserId:string;competencia:string;associacao:string;municipio?:string;totalMinutos:number;atualizadoEm:string};
 export type AtividadeTransparencia={agendaEntregaId?:string;id:number;authUserId:string;competencia:string;associacao:string;totalMinutos:number;tipoAtividade:string;municipio:string;comunidade:string;data:string;agricultor:string;beneficiario:string;propriedade:string;resumo:string;duracao:string;quantidadeMudas:string;tipoMuda:string};
-export type NotaTransparencia={associacao:string;competencia:string;key?:string;sha256?:string;categoriaNota?:string;nome?:string;descricao?:string;valor?:string;quantidade?:string};
-export type DadosTransparencia={atualizadoEm:string;filtros:{ano:string;mes:string;associacao:string};opcoes:Array<{nome:string}>;resumo:{associacoes:number;municipios:number;relatorios:number;visitas:number;agricultores:number;propriedades:number;mudas:number;eventos:number;valorNotas:number;notas:number;notasSemValor:number};execucao:LinhaExecucao[];financeiro:Array<{associacao:string;competencia:string;categoria:string;notas:number;valor:number;semValor:number}>;territorios:Array<{associacao:string;municipio:string;visitas:number;agricultores:number;mudas:number;eventos:number}>;termos:Array<{associacao:string;razaoSocial:string;cnpj:string;municipios:string[];numero:string;inicio:string;termino:string;objetivo:string;metas:Array<{titulo:string;meta:string;situacao:string;resultado:string;atingida:boolean;fonte:string}>}>};
+export type NotaTransparencia=NotaCompraMudas & {associacao:string;competencia:string;key?:string;sha256?:string;referenciasNfeJson?:string;categoriaNota?:string;nome?:string;descricao?:string;valor?:string;quantidade?:string};
+export type DadosTransparencia={atualizadoEm:string;filtros:{ano:string;mes:string;associacao:string};opcoes:Array<{nome:string}>;resumo:{associacoes:number;municipios:number;relatorios:number;visitas:number;agricultores:number;propriedades:number;mudas:number;eventos:number;valorNotas:number;notas:number;notasSemValor:number;remessasPendentes:number};execucao:LinhaExecucao[];financeiro:Array<{associacao:string;competencia:string;categoria:string;notas:number;valor:number;semValor:number}>;territorios:Array<{associacao:string;municipio:string;visitas:number;agricultores:number;mudas:number;eventos:number}>;termos:Array<{associacao:string;razaoSocial:string;cnpj:string;municipios:string[];numero:string;inicio:string;termino:string;objetivo:string;metas:Array<{titulo:string;meta:string;situacao:string;resultado:string;atingida:boolean;fonte:string}>}>};
 type LinhaExecucao = {
  associacao:string;competencia:string;relatorios:number;relatoriosSemAtividades:number;
  visitas:number;diasDeCampo:number;seminarios:number;capacitacoes:number;entregas:number;outras:number;
@@ -103,7 +104,22 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   municipios.set(k,atual);
  }
  const unicas=new Map<string,NotaTransparencia>();
- for(const n of notas){if(!mesValido(n.competencia)||!nomes.has(normal(n.associacao)))continue;const key=normal(n.associacao)+"|"+(n.sha256||n.key||JSON.stringify([n.competencia,n.nome,n.descricao,n.valor]));if(!unicas.has(key))unicas.set(key,n);}
+ const comprasHistoricas = notas.filter(n=>/^\d{4}-(0[1-9]|1[0-2])$/.test(n.competencia)&&nomes.has(normal(n.associacao))&&categoriaDaNota(n)==="mudas").map(n=>{
+  let referenciasNfe: string[] = [];
+  try { const refs = JSON.parse(n.referenciasNfeJson || "[]"); if(Array.isArray(refs)) referenciasNfe=refs.filter(ref=>typeof ref==="string"); } catch {}
+  return { associacao:n.associacao,competencia:n.competencia,arquivo:{...n,referenciasNfe},nota:n };
+ });
+ const verificacao = verificarComprasMudas(comprasHistoricas);
+ const situacoes = new Map(comprasHistoricas.map(linha=>[linha.nota,verificacao.get(linha)]));
+ let remessasPendentes=0;
+ for(const n of notas){
+  if(!mesValido(n.competencia)||!nomes.has(normal(n.associacao)))continue;
+  const situacao=situacoes.get(n);
+  if(situacao==="conferir-remessa")remessasPendentes++;
+  if(situacao&&situacao!=="contabilizada")continue;
+  const key=normal(n.associacao)+"|"+(n.sha256||n.key||JSON.stringify([n.competencia,n.nome,n.descricao,n.valor]));
+  if(!unicas.has(key))unicas.set(key,n);
+ }
  const financeiro=new Map<string,DadosTransparencia["financeiro"][number]>();let valorNotas=0,notasSemValor=0;
  for(const n of unicas.values()){
   const categoria=({servico:"SERVIÇOS",mudas:"COMPRA DE MUDAS",outras:"OUTRAS NOTAS"} as const)[categoriaDaNota(n)],associacao=normal(n.associacao),k=[associacao,n.competencia,categoria].join("|");
@@ -122,5 +138,5 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   const metas=base&&mesesVigentes.length?avaliarFomento(base,mesesVigentes,atos.filter(a=>mesesVigentes.includes(a.competencia)).map(a=>({a:{...a,tipoAtividade:tipoDaAtividade(a)},r:{id:a.id,authUserId:a.authUserId,competencia:a.competencia,totalMinutos:a.totalMinutos},u:mapaPessoas.get(a.authUserId)})),compras,entregues,null,{profissionais,relatorios:relat.filter(r=>mesesVigentes.includes(r.competencia))}):base?base.metas.map(meta=>({meta,situacao:"PERÍODO FORA DA VIGÊNCIA DO TERMO",resultado:"A META NÃO É AVALIADA FORA DA VIGÊNCIA DO INSTRUMENTO.",atingida:false})):[];
   return {associacao,razaoSocial:g.razaoSocial||g.nome,cnpj:g.cnpj||"NÃO INFORMADO",municipios:[...new Set([...cobertura].filter(([,n])=>normal(n)===associacao).map(([m])=>m))],numero:base?.numero||"NÃO IDENTIFICADO",inicio:base?.inicio||"",termino:base?.termino||"",objetivo:base?.objetivoGeral||"",metas:metas.map(m=>({titulo:m.meta.titulo,meta:m.meta.meta,situacao:m.situacao,resultado:m.resultado.split("; ")[0],atingida:m.atingida,fonte:m.meta.fonte}))};
  }).sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR"));
- return {atualizadoEm:new Date().toISOString(),filtros,opcoes,resumo:{associacoes:selecionadas.length,municipios:new Set([...municipios.values()].filter(m=>m.municipio!=="NÃO INFORMADO"&&(m.visitas||m.mudas||m.eventos.size)).map(m=>m.municipio)).size,relatorios:recebidos.length,visitas,agricultores:produtores.size,propriedades:propriedades.size,mudas,eventos:eventos.size,valorNotas,notas:unicas.size,notasSemValor},execucao:[...execucao.values()].sort((a,b)=>a.competencia.localeCompare(b.competencia)||a.associacao.localeCompare(b.associacao,"pt-BR")),financeiro:[...financeiro.values()].sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR")||a.competencia.localeCompare(b.competencia)||a.categoria.localeCompare(b.categoria)),territorios:[...municipios.values()].filter(m=>m.visitas||m.mudas||m.eventos.size).map(m=>({associacao:m.associacao,municipio:m.municipio,visitas:m.visitas,agricultores:m.produtores.size,mudas:m.mudas,eventos:m.eventos.size})).sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR")||a.municipio.localeCompare(b.municipio,"pt-BR")),termos};
+ return {atualizadoEm:new Date().toISOString(),filtros,opcoes,resumo:{associacoes:selecionadas.length,municipios:new Set([...municipios.values()].filter(m=>m.municipio!=="NÃO INFORMADO"&&(m.visitas||m.mudas||m.eventos.size)).map(m=>m.municipio)).size,relatorios:recebidos.length,visitas,agricultores:produtores.size,propriedades:propriedades.size,mudas,eventos:eventos.size,valorNotas,notas:unicas.size,notasSemValor,remessasPendentes},execucao:[...execucao.values()].sort((a,b)=>a.competencia.localeCompare(b.competencia)||a.associacao.localeCompare(b.associacao,"pt-BR")),financeiro:[...financeiro.values()].sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR")||a.competencia.localeCompare(b.competencia)||a.categoria.localeCompare(b.categoria)),territorios:[...municipios.values()].filter(m=>m.visitas||m.mudas||m.eventos.size).map(m=>({associacao:m.associacao,municipio:m.municipio,visitas:m.visitas,agricultores:m.produtores.size,mudas:m.mudas,eventos:m.eventos.size})).sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR")||a.municipio.localeCompare(b.municipio,"pt-BR")),termos};
 }

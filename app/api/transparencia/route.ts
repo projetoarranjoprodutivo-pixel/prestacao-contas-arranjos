@@ -32,8 +32,14 @@ export async function GET(request:Request){
     COALESCE(json_extract(n.value,'$.key'),'') as key,COALESCE(json_extract(n.value,'$.sha256'),'') as sha256,
     COALESCE(json_extract(n.value,'$.categoriaNota'),'') as categoriaNota,COALESCE(json_extract(n.value,'$.nome'),'') as nome,
     COALESCE(json_extract(n.value,'$.descricao'),'') as descricao,COALESCE(json_extract(n.value,'$.valor'),'') as valor,
+    COALESCE(json_extract(n.value,'$.numeroNota'),'') as numeroNota,
+    COALESCE(json_extract(n.value,'$.cnpjPrestador'),'') as cnpjPrestador,
+    COALESCE(json_extract(n.value,'$.chaveNfe'),'') as chaveNfe,
+    COALESCE(json_extract(n.value,'$.referenciasNfe'),'[]') as referenciasNfeJson,
+    COALESCE(json_extract(n.value,'$.numeroNotaReferenciada'),'') as numeroNotaReferenciada,
+    COALESCE(json_extract(n.value,'$.naturezaOperacao'),'') as naturezaOperacao,
     COALESCE(json_extract(n.value,'$.quantidade'),'') as quantidade FROM documentos_associacao d,json_each(CASE WHEN json_valid(d.notas_fiscais_json) THEN d.notas_fiscais_json ELSE '[]' END) n
-    WHERE n.type='object' AND (COALESCE(json_extract(n.value,'$.vinculoPrestacao.competencia'),NULLIF(json_extract(n.value,'$.competenciaDescricao'),''),CASE WHEN json_extract(n.value,'$.competencia') GLOB '[12][0-9][0-9][0-9]-[01][0-9]' THEN json_extract(n.value,'$.competencia') END,d.competencia)) BETWEEN ${inicio} AND ${fim}`),
+    WHERE n.type='object' ORDER BY d.id, CAST(n.key AS INTEGER)`),
   ]);
   if(associacao&&!grupos.some(g=>normalizarNomeAssociacao(g.nome)===normalizarNomeAssociacao(associacao)))return Response.json({message:"ASSOCIAÇÃO NÃO ENCONTRADA."},{status:400});
   return Response.json(consolidarTransparencia(grupos,pessoas,relatorios,atividades,notas,{ano,mes,associacao}),{headers:{"Cache-Control":"private, no-store, max-age=0","X-Content-Type-Options":"nosniff"}});

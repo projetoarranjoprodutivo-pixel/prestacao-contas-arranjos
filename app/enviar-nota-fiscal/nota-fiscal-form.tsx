@@ -5,7 +5,7 @@ import CampoMoeda from "@/components/campo-moeda";
 import { useState } from "react";
 import { CheckCircle2, Loader2, ReceiptText, UploadCloud } from "lucide-react";
 
-type Nota = { arquivo: File; prestador?:string; cnpjPrestador?:string; origemLeitura?:string; competenciaDocumento?:string; competenciaDescricao?:string; aviso?: string; numeroNota: string; descricao: string; quantidade: string; valor: string; dataEmissao: string; competencia: string; leitura: "lendo"|"concluida"|"erro"; erro?: string };
+type Nota = { chaveNfe?: string; referenciasNfe?: string[]; naturezaOperacao?: string; arquivo: File; prestador?:string; cnpjPrestador?:string; origemLeitura?:string; competenciaDocumento?:string; competenciaDescricao?:string; aviso?: string; numeroNota: string; descricao: string; quantidade: string; valor: string; dataEmissao: string; competencia: string; leitura: "lendo"|"concluida"|"erro"; erro?: string };
 const campo = "mt-1.5 h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base";
 
 export default function NotaFiscalForm({ associacao, associacoes = [associacao] }: { associacao: string; associacoes?: string[] }) {
@@ -20,9 +20,9 @@ export default function NotaFiscalForm({ associacao, associacoes = [associacao] 
     const form = new FormData(); form.append("arquivo", arquivo);
     try {
       const resposta = await fetch("/api/associacao/documentos/ler", { method: "POST", body: form });
-      const dados = await resposta.json().catch(() => ({})) as Record<string, string>;
+      const dados = await resposta.json().catch(() => ({})) as Record<string, string> & { referenciasNfe?: string[] };
       if (!resposta.ok) throw new Error(dados.message || "NÃO FOI POSSÍVEL LER A NOTA FISCAL.");
-      alterar(indice, { prestador:dados.prestador,cnpjPrestador:dados.cnpjPrestador,origemLeitura:dados.origemLeitura,competenciaDocumento:dados.competenciaDocumento,competenciaDescricao:dados.competenciaDescricao,aviso: dados.aviso || "", numeroNota: dados.numeroNota || "", descricao: dados.descricao || "", quantidade: dados.quantidade || "", valor: dados.valor || "", dataEmissao: dados.dataEmissao || "", competencia: dados.competencia || "", leitura: "concluida", erro: "" });
+      alterar(indice, { chaveNfe:dados.chaveNfe,referenciasNfe:dados.referenciasNfe,naturezaOperacao:dados.naturezaOperacao,prestador:dados.prestador,cnpjPrestador:dados.cnpjPrestador,origemLeitura:dados.origemLeitura,competenciaDocumento:dados.competenciaDocumento,competenciaDescricao:dados.competenciaDescricao,aviso: dados.aviso || "", numeroNota: dados.numeroNota || "", descricao: dados.descricao || "", quantidade: dados.quantidade || "", valor: dados.valor || "", dataEmissao: dados.dataEmissao || "", competencia: dados.competencia || "", leitura: "concluida", erro: "" });
     } catch (erro) { alterar(indice, { leitura: "erro", erro: erro instanceof Error ? erro.message : "NÃO FOI POSSÍVEL LER A NOTA FISCAL." }); }
   }
 
@@ -40,7 +40,7 @@ export default function NotaFiscalForm({ associacao, associacoes = [associacao] 
     setEnviando(true); setMensagem("");
     const form = new FormData(); form.set("associacao", associacaoSelecionada);
     notas.forEach(nota => form.append("notasFiscais", nota.arquivo));
-    form.set("dadosNotas", JSON.stringify(notas.map(nota => ({ prestador:nota.prestador,cnpjPrestador:nota.cnpjPrestador,origemLeitura:nota.origemLeitura,competenciaDocumento:nota.competenciaDocumento,competenciaDescricao:nota.competenciaDescricao,numeroNota: nota.numeroNota, descricao: nota.descricao, quantidade: nota.quantidade, valor: nota.valor, dataEmissao: nota.dataEmissao, competencia: nota.competencia, associacao: associacaoSelecionada }))));
+    form.set("dadosNotas", JSON.stringify(notas.map(nota => ({ chaveNfe:nota.chaveNfe,referenciasNfe:nota.referenciasNfe,naturezaOperacao:nota.naturezaOperacao,prestador:nota.prestador,cnpjPrestador:nota.cnpjPrestador,origemLeitura:nota.origemLeitura,competenciaDocumento:nota.competenciaDocumento,competenciaDescricao:nota.competenciaDescricao,numeroNota: nota.numeroNota, descricao: nota.descricao, quantidade: nota.quantidade, valor: nota.valor, dataEmissao: nota.dataEmissao, competencia: nota.competencia, associacao: associacaoSelecionada }))));
     const resposta = await fetch("/api/associacao/documentos", { method: "POST", body: form });
     const dados = await resposta.json().catch(() => ({})) as { message?: string };
     setMensagem(dados.message || "NÃO FOI POSSÍVEL ENVIAR."); setEnviando(false);
