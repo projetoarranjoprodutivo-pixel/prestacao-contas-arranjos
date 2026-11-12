@@ -1,10 +1,11 @@
 import {env} from "cloudflare:workers";
-import {eq} from "drizzle-orm";
+import {and,eq} from "drizzle-orm";
+import {numeroMonetario} from "@/lib/moeda";
 import {getAdminUser} from "@/lib/admin";
 import {getDb} from "@/db";
 import {associacoes} from "@/db/schema";
 export const runtime="edge";
-type Documento={key:string;nome:string;tipo:string;tamanho:number;categoria?:string;sha256?:string};
+type Documento={key:string;nome:string;tipo:string;tamanho:number;categoria?:string;sha256?:string;valorGlobal?:number};
 function lista(json:string|null):Documento[]{try{const dados=JSON.parse(json||"[]");return Array.isArray(dados)?dados:[];}catch{return [];}}
 export async function POST(request:Request){
  if(!await getAdminUser())return Response.json({message:"Acesso restrito."},{status:403});
@@ -26,6 +27,31 @@ export async function POST(request:Request){
   return Response.json({message:"Termo de fomento cadastrado."});
  }catch(e){return Response.json({message:e instanceof Error?e.message:"Não foi possível salvar o termo."},{status:400});}
 }
+export async function PATCH(request:Request){
+ if(!await getAdminUser())return Response.json({message:"Acesso restrito."},{status:403});
+ try{
+  const {id,key,valor}=await request.json() as {id:number;key:string;valor:string};
+  const numero=numeroMonetario(valor);
+  const centavos=Math.round(numero*100);
+  if(!Number.isSafeInteger(id)||id<=0||typeof key!=="string"||!Number.isSafeInteger(centavos)||centavos<=0){
+   return Response.json({message:"Informe um valor do termo maior que zero."},{status:400});
+  }
+  const db=getDb();
+  const a=await db.query.associacoes.findFirst({where:eq(associacoes.id,id)});
+  const docs=lista(a?.documentosJson||null);
+  const termo=docs.find(d=>d.key===key&&d.categoria==="termo-fomento");
+  if(!a?.documentosJson||!termo)return Response.json({message:"Termo não encontrado."},{status:404});
+  termo.valorGlobal=centavos/100;
+  const alterados=await db.update(associacoes).set({documentosJson:JSON.stringify(docs)})
+   .where(and(eq(associacoes.id,id),eq(associacoes.documentosJson,a.documentosJson))).returning({id:associacoes.id});
+  if(!alterados.length)return Response.json({message:"O cadastro foi alterado. Atualize a página e tente novamente."},{status:409});
+  return Response.json({message:"Valor do termo salvo."});
+ }catch(error){
+  console.error("salvar_valor_termo",error);
+  return Response.json({message:"Não foi possível salvar o valor do termo."},{status:500});
+ }
+}
+
 export async function GET(request:Request){
  if(!await getAdminUser())return new Response("Acesso restrito.",{status:403});
  if(!env.BUCKET)return new Response("Armazenamento indisponível.",{status:503});

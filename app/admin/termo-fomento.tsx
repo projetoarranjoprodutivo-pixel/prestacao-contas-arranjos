@@ -1,7 +1,41 @@
 "use client";
 import {useState} from "react";
-export default function TermoFomento({id,nome,documentos}:{id:number;nome:string;documentos:Array<{key:string;nome:string;categoria?:string}>}){
+export default function TermoFomento({id,nome,documentos}:{id:number;nome:string;documentos:Array<{key:string;nome:string;categoria?:string;valorGlobal?:number}>}){
  const [msg,setMsg]=useState("");const [salvando,setSalvando]=useState(false);
  const termos=documentos.filter(d=>d.categoria==="termo-fomento");
- return <div className="mt-3 border-t pt-3"><p className="text-xs font-bold text-emerald-900">TERMO DE FOMENTO</p>{termos.map(d=><a key={d.key} href={`/api/admin/associacoes/termo-fomento?id=${id}&key=${encodeURIComponent(d.key)}`} target="_blank" rel="noopener noreferrer" className="mt-2 block rounded-lg border border-emerald-700 bg-white px-3 py-2 text-sm font-bold text-emerald-900">Consultar termo de fomento<span className="block break-words text-xs font-normal">{d.nome}</span></a>)}{!termos.length&&<p className="mt-1 text-xs text-slate-500">Nenhum termo cadastrado.</p>}<label className="mt-2 block text-xs font-semibold">{salvando?"Enviando…":"Incluir termo de fomento (PDF)"}<input aria-label={`Termo de fomento ${nome}`} type="file" accept="application/pdf,.pdf" disabled={salvando} className="mt-1 block w-full text-xs" onChange={async e=>{const arquivo=e.target.files?.[0];if(!arquivo)return;setSalvando(true);setMsg("");try{const form=new FormData();form.set("id",String(id));form.set("arquivo",arquivo);const r=await fetch("/api/admin/associacoes/termo-fomento",{method:"POST",body:form});const d=await r.json() as {message:string};if(!r.ok)throw new Error(d.message);setMsg(d.message);location.reload();}catch(err){setMsg(err instanceof Error?err.message:"Erro ao enviar.");}finally{setSalvando(false);}}}/></label>{msg&&<p role="status" className="mt-2 text-xs">{msg}</p>}</div>;
+ return <div className="mt-3 border-t pt-3"><p className="text-xs font-bold text-emerald-900">TERMO DE FOMENTO</p>{termos.map(d=><div key={d.key} className="mb-3"><a href={`/api/admin/associacoes/termo-fomento?id=${id}&key=${encodeURIComponent(d.key)}`} target="_blank" rel="noopener noreferrer" className="mt-2 block rounded-lg border border-emerald-700 bg-white px-3 py-2 text-sm font-bold text-emerald-900">Consultar termo de fomento<span className="block break-words text-xs font-normal">{d.nome}</span></a><ValorTermo id={id} documento={d}/></div>)}{!termos.length&&<p className="mt-1 text-xs text-slate-500">Nenhum termo cadastrado.</p>}<label className="mt-2 block text-xs font-semibold">{salvando?"Enviando…":"Incluir termo de fomento (PDF)"}<input aria-label={`Termo de fomento ${nome}`} type="file" accept="application/pdf,.pdf" disabled={salvando} className="mt-1 block w-full text-xs" onChange={async e=>{const arquivo=e.target.files?.[0];if(!arquivo)return;setSalvando(true);setMsg("");try{const form=new FormData();form.set("id",String(id));form.set("arquivo",arquivo);const r=await fetch("/api/admin/associacoes/termo-fomento",{method:"POST",body:form});const d=await r.json() as {message:string};if(!r.ok)throw new Error(d.message);setMsg(d.message);location.reload();}catch(err){setMsg(err instanceof Error?err.message:"Erro ao enviar.");}finally{setSalvando(false);}}}/></label>{msg&&<p role="status" className="mt-2 text-xs">{msg}</p>}</div>;
+}
+
+function ValorTermo({id,documento}:{id:number;documento:{key:string;valorGlobal?:number}}){
+ const [valor,setValor]=useState(documento.valorGlobal?.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})??"");
+ const [mensagem,setMensagem]=useState("");
+ const [salvando,setSalvando]=useState(false);
+
+ async function salvar(){
+  setSalvando(true);
+  setMensagem("");
+  try{
+   const resposta=await fetch("/api/admin/associacoes/termo-fomento",{
+    method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,key:documento.key,valor}),
+   });
+   const dados=await resposta.json() as {message:string};
+   setMensagem(dados.message);
+  }catch{
+   setMensagem("Não foi possível salvar o valor do termo.");
+  }finally{
+   setSalvando(false);
+  }
+ }
+
+ return <div className="mt-2">
+  <div className="flex flex-wrap items-end gap-2">
+   <label className="text-xs font-semibold">Valor do termo (R$)
+    <input inputMode="decimal" value={valor} onChange={e=>{setValor(e.target.value);setMensagem("");}}
+     placeholder="0,00" className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm"/>
+   </label>
+   <button type="button" disabled={salvando||!valor.trim()} onClick={salvar}
+    className="rounded-lg bg-emerald-800 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">{salvando?"Salvando…":"Salvar valor"}</button>
+  </div>
+  {mensagem&&<p role="status" className="mt-1 text-xs">{mensagem}</p>}
+ </div>;
 }
