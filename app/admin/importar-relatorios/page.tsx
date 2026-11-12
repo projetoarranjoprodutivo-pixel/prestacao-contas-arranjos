@@ -3,6 +3,7 @@ import { getAdminUser } from "@/lib/admin";
 import {getDb} from "@/db";
 import {associacoes,colaboradores} from "@/db/schema";
 import {eq} from "drizzle-orm";
+import CorrigirDuracoes from "./corrigir-duracoes";
 import PadronizarDuracoes from "./padronizar-duracoes";
 import ImportadorPdf from "./importador-pdf";
 import ImportadorRelatorios from "./importador-client";
@@ -22,6 +23,7 @@ export default async function ImportarRelatoriosPage() {
         <ImportadorPdf pessoas={pessoas} associacoes={grupos.map(g=>g.nome).sort()}/>
         <details className="mt-8 border-t pt-4"><summary className="cursor-pointer text-sm font-bold text-slate-600">Importação de pacotes preparados anteriormente (JSON/ZIP)</summary><ImportadorRelatorios /></details>
         <PadronizarDuracoes/>
+        <CorrigirDuracoes pessoas={pessoas.map(({id,nomeCompleto,associacao})=>({id,nomeCompleto,associacao}))}/>
         <a className="mt-6 inline-block font-bold text-emerald-800" href="/admin">VOLTAR AO PAINEL</a>
       </section>
     </main>
