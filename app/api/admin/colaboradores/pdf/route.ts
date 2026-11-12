@@ -2,6 +2,8 @@ import { getDb } from "@/db";
 import { colaboradores } from "@/db/schema";
 import { getAdminUser } from "@/lib/admin";
 import { createPdf } from "@/lib/pdf";
+import { normalizarNomeAssociacao } from "@/lib/nome-associacao";
+import { associacoesDoColaborador } from "@/lib/notas-servico";
 
 export const runtime="edge";
 
@@ -10,9 +12,61 @@ function lista(valor:string|null){try{return (JSON.parse(valor||"[]") as string[
 const normalizar=(valor:unknown)=>String(valor||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleUpperCase("pt-BR");
 const dataBr=(valor:string|null)=>valor&&/^\d{4}-\d{2}-\d{2}$/.test(valor)?valor.split("-").reverse().join("/"):"NÃO INFORMADA";
 
+type ColaboradorRelacao = {
+  nomeCompleto: string;
+  cargo: string;
+  associacao: string | null;
+  associacoesJson: string;
+};
+
+function agruparColaboradores(registros: ColaboradorRelacao[], filtro: string) {
+  const comparar = new Intl.Collator("pt-BR", { sensitivity: "base" }).compare;
+  const grupos = new Map<string, Map<string, string[]>>();
+  for (const usuario of registros) {
+    const vinculadas = associacoesDoColaborador(usuario);
+    const associacoes = new Set(vinculadas.length ? vinculadas.map(normalizarNomeAssociacao) : ["SEM ASSOCIAÇÃO"]);
+    const cargo = usuario.cargo.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR") || "CARGO NÃO INFORMADO";
+    for (const associacao of associacoes) {
+      if (filtro && associacao !== filtro) continue;
+      let cargos = grupos.get(associacao);
+      if (!cargos) {
+        cargos = new Map();
+        grupos.set(associacao, cargos);
+      }
+      const nomes = cargos.get(cargo);
+      if (nomes) nomes.push(usuario.nomeCompleto);
+      else cargos.set(cargo, [usuario.nomeCompleto]);
+    }
+  }
+  return [...grupos].sort(([a], [b]) => comparar(a, b)).flatMap(([associacao, cargos]) =>
+    [...cargos].sort(([a], [b]) => comparar(a, b)).map(([cargo, nomes]) => ({
+      heading: `${associacao} · ${cargo}`,
+      lines: nomes.sort(comparar),
+    })),
+  );
+}
+
 export async function GET(request:Request){
   if(!await getAdminUser())return new Response("ACESSO RESTRITO",{status:403});
   const url=new URL(request.url);
+  if (url.searchParams.get("agrupado") === "1") {
+    const associacao = url.searchParams.get("associacao")?.trim();
+    const registros = await getDb().select({
+      nomeCompleto: colaboradores.nomeCompleto,
+      cargo: colaboradores.cargo,
+      associacao: colaboradores.associacao,
+      associacoesJson: colaboradores.associacoesJson,
+    }).from(colaboradores);
+    const secoes = agruparColaboradores(registros, associacao ? normalizarNomeAssociacao(associacao) : "");
+    const pdf = await createPdf("COLABORADORES POR ASSOCIAÇÃO E CARGO", secoes.length ? secoes : [
+      { heading: "RESULTADO", lines: ["NENHUM COLABORADOR ENCONTRADO."] },
+    ]);
+    return new Response(pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength), { headers: {
+      "content-type": "application/pdf",
+      "content-disposition": 'inline; filename="colaboradores-por-associacao-e-cargo.pdf"',
+      "cache-control": "private, no-store",
+    } });
+  }
   const simplificado=url.searchParams.get("simplificado")==="1";
   const basico=url.searchParams.get("basico")==="1";
   const id=url.searchParams.get("id");
