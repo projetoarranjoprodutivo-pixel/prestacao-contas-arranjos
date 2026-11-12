@@ -27,7 +27,6 @@ export async function GET(request: Request) {
       const secoes: PdfSection[] = [{
         heading: relatorio.tecnico,
         lines: [
-          `Carga horária da prestação: ${horas(relatorio.minutos)}`,
           `Soma das durações das atividades: ${horas(relatorio.minutosAtividades)}`,
           ...relatorio.grupos.map(grupo => `${grupo.municipio} | ${grupo.tipo} | ATIVIDADES: ${grupo.quantidade} | DURAÇÃO: ${horas(grupo.minutos)}`),
         ],

@@ -32,7 +32,7 @@ export default async function RelatorioCompilado({ searchParams }: {
       {relatorios.length === 0 ? <p>Nenhuma prestação de contas dos técnicos registrada para a competência selecionada.</p> : <>
         {relatorios.map(relatorio => <section key={relatorio.id} className="space-y-2">
           <h3 className="text-lg font-bold">{relatorio.tecnico}</h3>
-          <p className="text-sm">Carga horária da prestação {horas(relatorio.minutos)} · Durações detalhadas {horas(relatorio.minutosAtividades)}</p>
+          <p className="text-sm">Soma das durações das atividades {horas(relatorio.minutosAtividades)}</p>
           {relatorio.grupos.length === 0 ? <p>Nenhuma atividade realizada informada.</p> :
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-slate-100"><tr><th className="p-2">Município</th><th className="p-2">Atividade</th><th className="p-2 text-right">Quantidade</th><th className="p-2 text-right">Horas (H:MM)</th></tr></thead>
