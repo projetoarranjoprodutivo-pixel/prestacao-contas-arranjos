@@ -21,12 +21,16 @@ type LinhaExecucao = {
 const visita = /^(?:VISITAS?(?: TECNICAS?)?(?: (?:DE|EM) CAMPO)?|(?:ATENDIMENTO|ASSISTENCIA|ACOMPANHAMENTO|ORIENTACAO) TECNIC[AO](?: (?:DE|EM) CAMPO)?)$/;
 const evento = /^(DIAS? DE CAMPO|SEMINARIOS?|CAPACITACOES|CAPACITACAO|TREINAMENTOS?)$/;
 
+const indicioVisita=/\b(?:VISITAS?\s+TECNICAS?|(?:ATENDIMENTO|ASSISTENCIA|ACOMPANHAMENTO|ORIENTACAO)\s+TECNIC[AO]|VISITAS?\s+(?:(?:A|AS|AO|AOS|EM|NA|NAS|NO|NOS)\s+)?(?:PROPRIEDADES?|AGRICULTORES?|PRODUTOR(?:ES)?|CAMPO))\b/;
+
 function tipoDaAtividade(a:AtividadeTransparencia) {
  const tipo=chaveMunicipio(a.tipoAtividade).replace(/[()]/g," ").replace(/\s+/g," ").trim();
  if(visita.test(tipo))return "VISITA TECNICA";
- const temAtendido=[a.agricultor,a.beneficiario,a.propriedade].some(campo=>valido(campo));
- if((!tipo||tipo==="ATIVIDADES INTERNAS")&&temAtendido&&
-    (!tipo||/^(?:VISITA(?: TECNICA)?|ASSISTENCIA TECNICA|ACOMPANHAMENTO TECNICO|ORIENTACAO TECNICA)\b/.test(chaveMunicipio(a.resumo))))return "VISITA TECNICA";
+ if(evento.test(tipo)||ehEntregaMudas(a)||/^(?:REUNIAO|REUNIOES|PLANEJAMENTO)\b/.test(tipo))return tipo;
+ const temAtendido=[a.agricultor,a.beneficiario,a.propriedade].some(valido);
+ const resumo=chaveMunicipio(a.resumo);
+ if(indicioVisita.test(tipo)||(!/\b(?:PLANEJAMENTO|AGENDAMENTO|PROGRAMACAO)\s+(?:D[AEOS]+\s+)?VISITAS?\b/.test(resumo)&&indicioVisita.test(resumo))||
+    (!tipo&&temAtendido))return "VISITA TECNICA";
  return tipo;
 }
 
@@ -86,7 +90,7 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   const k=assoc+"|"+m,atual=municipios.get(k)||{associacao:assoc,municipio:m||"NÃO INFORMADO",visitas:0,produtores:new Set<string>(),mudas:0,eventos:new Set<string>()};
   if(tipo==="VISITA TECNICA"){
    visitas++;atual.visitas++;linha.visitas++;
-   const nome=chaveMunicipio(a.agricultor||a.beneficiario);if(valido(nome)){produtores.add(nome);atual.produtores.add(nome);}
+   const nome=[a.agricultor,a.beneficiario].map(chaveMunicipio).find(valido);if(nome){produtores.add(nome);atual.produtores.add(nome);}
    const propriedade=chaveMunicipio(propriedadeIdentificada(a));if(valido(propriedade))propriedades.add(propriedade);
   }
   // A mesma entrega pode aparecer em vários relatórios técnicos; só o lançamento oficial entra no total.
