@@ -62,7 +62,8 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   return vinculadas.length===1?vinculadas[0]:vinculadas.includes(territorial)?territorial:semAssociacao;
  }
  const noFiltro=(associacao:string)=>!filtros.associacao||nomes.has(associacao);
- const registros=atividades.filter(a=>mesValido(a.competencia)&&noFiltro(destino(a)));
+ const atividadesPeriodo=atividades.filter(a=>mesValido(a.competencia));
+ const registros=atividadesPeriodo.filter(a=>noFiltro(destino(a)));
  const recebidos=relatorios.filter(r=>mesValido(r.competencia)&&noFiltro(destino(r))&&r.authUserId!=="admin-importacao-mudas-2026");
  const execucao=new Map<string,LinhaExecucao>();
  function linhaExecucao(associacao:string,competencia:string){
@@ -84,19 +85,40 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
  const produtores=new Set<string>(),propriedades=new Set<string>(),eventos=new Set<string>();
  const municipios=new Map<string,{associacao:string;municipio:string;visitas:number;produtores:Set<string>;mudas:number;eventos:Set<string>}>();
  let visitas=0,mudas=0;
- for(const a of registros){
-  const assoc=destino(a),informado=municipioNormal(a.municipio),m=municipiosConhecidos.has(informado)?informado:"",tipo=tipoDaAtividade(a);
+ for(const a of atividadesPeriodo){
+  const assoc=destino(a),informado=municipioNormal(a.municipio);
+  const m=municipiosConhecidos.has(informado)?informado:"";
+  const territorial=cobertura.get(m);
+  const assocMunicipio=territorial?normal(territorial):assoc;
+  const incluirMunicipio=noFiltro(assocMunicipio),incluirRelatorio=noFiltro(assoc);
+  if(!incluirMunicipio&&!incluirRelatorio)continue;
+
+  const tipo=tipoDaAtividade(a),visita=tipo==="VISITA TECNICA";
+  const produtor=visita?[a.agricultor,a.beneficiario].map(chaveMunicipio).find(valido):undefined;
+  const entrega=ehEntregaOficialDeMudas(a.authUserId,a);
+  const quantidade=entrega?quantidadeEntregue(a):0;
+  const e=evento.test(tipo)?[a.competencia,a.data,m,chaveMunicipio(a.comunidade),tipo,chaveMunicipio(a.resumo)].join("|"):"";
+
+  if(incluirMunicipio){
+   const k=assocMunicipio+"|"+m;
+   const atual=municipios.get(k)||{associacao:assocMunicipio,municipio:m||"NÃO INFORMADO",visitas:0,produtores:new Set<string>(),mudas:0,eventos:new Set<string>()};
+   if(visita)atual.visitas++;
+   if(produtor)atual.produtores.add(produtor);
+   atual.mudas+=quantidade;
+   if(e)atual.eventos.add(e);
+   municipios.set(k,atual);
+  }
+
+  if(!incluirRelatorio)continue;
   const linha=linhaExecucao(assoc,a.competencia);
-  const k=assoc+"|"+m,atual=municipios.get(k)||{associacao:assoc,municipio:m||"NÃO INFORMADO",visitas:0,produtores:new Set<string>(),mudas:0,eventos:new Set<string>()};
-  if(tipo==="VISITA TECNICA"){
-   visitas++;atual.visitas++;linha.visitas++;
-   const nome=[a.agricultor,a.beneficiario].map(chaveMunicipio).find(valido);if(nome){produtores.add(nome);atual.produtores.add(nome);}
+  if(visita){
+   visitas++;linha.visitas++;
+   if(produtor)produtores.add(produtor);
    const propriedade=chaveMunicipio(propriedadeIdentificada(a));if(valido(propriedade))propriedades.add(propriedade);
   }
-  // A mesma entrega pode aparecer em vários relatórios técnicos; só o lançamento oficial entra no total.
-  if(ehEntregaOficialDeMudas(a.authUserId,a)){const q=quantidadeEntregue(a);mudas+=q;atual.mudas+=q;linha.entregas++;}
-  if(evento.test(tipo)){
-   const e=[a.competencia,a.data,m,chaveMunicipio(a.comunidade),tipo,chaveMunicipio(a.resumo)].join("|");eventos.add(e);atual.eventos.add(e);
+  if(entrega){mudas+=quantidade;linha.entregas++;}
+  if(e){
+   eventos.add(e);
    const chave=assoc+"|"+e;
    if(!eventosPorAssociacao.has(chave)){
     eventosPorAssociacao.add(chave);
@@ -104,9 +126,9 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
     else if(tipo.startsWith("SEMINARIO"))linha.seminarios++;
     else linha.capacitacoes++;
    }
-  }else if(tipo!=="VISITA TECNICA"&&!ehEntregaMudas(a))linha.outras++;
-  municipios.set(k,atual);
+  }else if(!visita&&!ehEntregaMudas(a))linha.outras++;
  }
+
  const unicas=new Map<string,NotaTransparencia>();
  const comprasHistoricas = notas.filter(n=>/^\d{4}-(0[1-9]|1[0-2])$/.test(n.competencia)&&nomes.has(normal(n.associacao))&&categoriaDaNota(n)==="mudas").map(n=>{
   let referenciasNfe: string[] = [];
@@ -144,7 +166,7 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   const metas=base&&mesesVigentes.length?avaliarFomento(base,mesesVigentes,atos.filter(a=>mesesVigentes.includes(a.competencia)).map(a=>({a:{...a,tipoAtividade:tipoDaAtividade(a)},r:{id:a.id,authUserId:a.authUserId,competencia:a.competencia,totalMinutos:a.totalMinutos},u:mapaPessoas.get(a.authUserId)})),compras,entregues,null,{profissionais,relatorios:relat.filter(r=>mesesVigentes.includes(r.competencia))}):base?base.metas.map(meta=>({meta,situacao:"PERÍODO FORA DA VIGÊNCIA DO TERMO",resultado:"A META NÃO É AVALIADA FORA DA VIGÊNCIA DO INSTRUMENTO.",atingida:false})):[];
   return {associacao,razaoSocial:g.razaoSocial||g.nome,cnpj:g.cnpj||"NÃO INFORMADO",municipios:[...new Set([...cobertura].filter(([,n])=>normal(n)===associacao).map(([m])=>m))],numero:base?.numero||"NÃO IDENTIFICADO",inicio:base?.inicio||"",termino:base?.termino||"",objetivo:base?.objetivoGeral||"",valorTermo,metas:metas.map(m=>({titulo:m.meta.titulo,meta:m.meta.meta,situacao:m.situacao,resultado:m.resultado.split("; ")[0],atingida:m.atingida,fonte:m.meta.fonte}))};
  }).sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR"));
- const produtoresIds=new Map([...produtores].map((nome,i)=>[nome,i]));
- const eventosIds=new Map([...eventos].map((evento,i)=>[evento,i]));
+ const produtoresIds=new Map([...new Set([...municipios.values()].flatMap(m=>[...m.produtores]))].map((nome,i)=>[nome,i]));
+ const eventosIds=new Map([...new Set([...municipios.values()].flatMap(m=>[...m.eventos]))].map((evento,i)=>[evento,i]));
  return {atualizadoEm:new Date().toISOString(),filtros,opcoes,resumo:{associacoes:selecionadas.length,municipios:new Set([...municipios.values()].filter(m=>m.municipio!=="NÃO INFORMADO"&&(m.visitas||m.mudas||m.eventos.size)).map(m=>m.municipio)).size,relatorios:recebidos.length,visitas,agricultores:produtores.size,propriedades:propriedades.size,mudas,eventos:eventos.size,valorNotas,notas:unicas.size,notasSemValor,remessasPendentes},execucao:[...execucao.values()].sort((a,b)=>a.competencia.localeCompare(b.competencia)||a.associacao.localeCompare(b.associacao,"pt-BR")),financeiro:[...financeiro.values()].sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR")||a.competencia.localeCompare(b.competencia)||a.categoria.localeCompare(b.categoria)),territorios:[...municipios.values()].filter(m=>m.visitas||m.mudas||m.eventos.size).map(m=>({associacao:m.associacao,municipio:m.municipio,visitas:m.visitas,agricultores:m.produtores.size,mudas:m.mudas,eventos:m.eventos.size,produtoresIds:[...m.produtores].map(nome=>produtoresIds.get(nome)!),eventosIds:[...m.eventos].map(evento=>eventosIds.get(evento)!)})).sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR")||a.municipio.localeCompare(b.municipio,"pt-BR")),termos};
 }
