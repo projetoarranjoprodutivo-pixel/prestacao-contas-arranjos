@@ -8,7 +8,7 @@ import { colaboradores, planosTrabalho, prestacoes, usuariosAcesso } from "@/db/
 export const runtime = "edge";
 
 type Atividade = {
-  data: string; hora: string; inicio: string; duracao: string; municipio: string; comunidade: string;
+  data: string; hora: string; inicio: string; duracao: string; unidadeDuracao?: "horas" | "minutos"; municipio: string; comunidade: string;
   propriedade: string; agricultor: string; telefone: string; tipoAtividade: string; tipoMuda: string;
   quantidadeMudas: string; observacao: string; resumo: string; executada: boolean;
   assinaturaProdutor: string; assinaturaTecnico: string;
@@ -54,7 +54,7 @@ function agenda(atividades: Atividade[], unidadeDuracao?: "horas" | "minutos") {
   return atividades.map((atividade) => ({
     data: atividade.data,
     hora: atividade.hora,
-    duracaoEstimada: atividade.duracao ? String(Number(atividade.duracao) / (unidadeDuracao === "minutos" ? 60 : 1)) : "",
+    duracaoEstimada: atividade.duracao ? String(Number(atividade.duracao) / ((atividade.unidadeDuracao || unidadeDuracao) === "minutos" ? 60 : 1)) : "",
     municipio: atividade.municipio,
     comunidade: atividade.comunidade,
     propriedade: atividade.propriedade,
@@ -165,7 +165,10 @@ export async function POST(request: Request) {
         competencia: relatorio.competencia,
         municipio: tecnico.municipiosAtendidos[0] || "",
         associacao: tecnico.associacao,
-        atividadesJson: JSON.stringify(relatorio.atividades),
+        atividadesJson: JSON.stringify(relatorio.atividades.map(atividade => ({
+          ...atividade,
+          unidadeDuracao: atividade.unidadeDuracao || dados.unidadeDuracao || "horas",
+        }))),
         totalMinutos: relatorio.totalMinutos,
         anexosJson: JSON.stringify([anexos.get(relatorio.competencia)]),
         observacoes: relatorio.descricao,

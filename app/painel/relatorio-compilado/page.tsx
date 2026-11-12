@@ -4,20 +4,21 @@ import { requireChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { colaboradores, prestacoes } from "@/db/schema";
 import { associacaoAutorizadaConsultor, chaveAssociacaoConsultoria } from "@/lib/consultor-projeto";
-import { atividadeExecutada, preencherDuracao, minutosDaAtividade, type DuracaoAtividade } from "@/lib/duracao-relatorios";
+import { atividadeExecutada, preencherDuracao, minutosDaAtividade, unidadeDuracaoDoRelatorio, type DuracaoAtividade } from "@/lib/duracao-relatorios";
 import { ImprimirRelatorio } from "./imprimir";
 
 export const dynamic = "force-dynamic";
 
 type Atividade = DuracaoAtividade & { municipio?: string; tipoAtividade?: string };
 
-function resumirAtividades(json: string, municipioRelatorio: string) {
+function resumirAtividades(json: string, municipioRelatorio: string, totalMinutos: number) {
   let atividades: Atividade[] = [];
   try {
     const dados = JSON.parse(json);
     if (Array.isArray(dados)) atividades = dados.filter(item => item && typeof item === "object");
   } catch {}
 
+  const unidadeLegada = unidadeDuracaoDoRelatorio(atividades, totalMinutos);
   const grupos = new Map<string, { municipio: string; tipo: string; quantidade: number; minutos: number }>();
   for (const atividade of atividades.filter(atividadeExecutada)) {
     const municipio = String(atividade.municipio || municipioRelatorio || "Não informado").trim();
@@ -25,7 +26,7 @@ function resumirAtividades(json: string, municipioRelatorio: string) {
     const chave = JSON.stringify([municipio.toUpperCase(), tipo.toUpperCase()]);
     const grupo = grupos.get(chave) ?? { municipio, tipo, quantidade: 0, minutos: 0 };
     grupo.quantidade++;
-    grupo.minutos += minutosDaAtividade(preencherDuracao(atividade));
+    grupo.minutos += minutosDaAtividade(preencherDuracao({ ...atividade, unidadeDuracao: atividade.unidadeDuracao || unidadeLegada }));
     grupos.set(chave, grupo);
   }
   return [...grupos.values()].sort((a, b) => a.municipio.localeCompare(b.municipio, "pt-BR") || a.tipo.localeCompare(b.tipo, "pt-BR"));
@@ -66,6 +67,7 @@ export default async function RelatorioCompilado({ searchParams }: {
     tecnico: colaboradores.nomeCompleto,
     municipio: prestacoes.municipio,
     atividades: prestacoes.atividadesJson,
+    totalMinutos: prestacoes.totalMinutos,
   }).from(prestacoes).innerJoin(colaboradores, eq(colaboradores.authUserId, prestacoes.authUserId)).where(and(
     eq(prestacoes.competencia, competencia),
     inArray(prestacoes.status, ["enviado", "importado"]),
@@ -74,7 +76,7 @@ export default async function RelatorioCompilado({ searchParams }: {
     sql`${normalizar(prestacoes.associacao)} in (${valores})`,
   )).orderBy(colaboradores.nomeCompleto) : [];
 
-  const relatorios = registros.map(registro => ({ ...registro, grupos: resumirAtividades(registro.atividades, registro.municipio) }));
+  const relatorios = registros.map(registro => ({ ...registro, grupos: resumirAtividades(registro.atividades, registro.municipio, registro.totalMinutos) }));
   const grupos = relatorios.flatMap(relatorio => relatorio.grupos);
   const atividades = grupos.reduce((total, grupo) => total + grupo.quantidade, 0);
   const minutos = grupos.reduce((total, grupo) => total + grupo.minutos, 0);
