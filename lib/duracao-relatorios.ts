@@ -82,8 +82,10 @@ export function minutosDuracaoImportada(texto: string) {
   const valor = texto.trim().toLowerCase();
   const horario = valor.match(/^(\d{1,2}):([0-5]\d)(?::00)?(?:\s*(?:h|horas?))?$/);
   const quantidade = valor.match(/^(\d+(?:[.,]\d+)?)\s*(h|hs|hrs?|horas?|m|min(?:utos?)?)?\.?$/);
-  if (!horario && !quantidade) return null;
-  const minutos = horario ? Number(horario[1]) * 60 + Number(horario[2]) :
+  const notacaoHoras = valor.match(/^(\d{1,2})\s*h\s*([0-5]\d)\s*(?:min)?$/);
+  const horasMinutos = horario ?? notacaoHoras;
+  if (!horasMinutos && !quantidade) return null;
+  const minutos = horasMinutos ? Number(horasMinutos[1]) * 60 + Number(horasMinutos[2]) :
     Number(quantidade![1].replace(",", ".")) * (quantidade![2]?.startsWith("h") ? 60 : 1);
   // Decimais menores que um sem unidade exigem a conferência da fonte.
   return minutos >= 1 && minutos <= 1440 ? Math.round(minutos) : null;
