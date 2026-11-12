@@ -33,9 +33,18 @@ export async function GET(request: Request) {
     })),
   ];
 
+  const { nome, nomeEmpresarial, mei } = dados.consultor;
+  const consultor = [`Consultor: ${nome}`, "Cargo: Consultor do Projeto"];
+  if (nomeEmpresarial?.trim()) consultor.push(`Nome empresarial: ${nomeEmpresarial.trim()}`);
+  const cnpj = (mei ?? "").replace(/\D/g, "");
+  if (cnpj.length === 14) {
+    consultor.push(`CNPJ: ${cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}`);
+  }
+
   const pdf = await createPdf("Relatório compilado dos técnicos de campo", secoes, {
     logoBase64: PROJETO_LOGO_BASE64,
     identificacao: `Associação: ${dados.associacao}`,
+    consultor,
     periodo,
   });
   return new Response(new Uint8Array(pdf), {

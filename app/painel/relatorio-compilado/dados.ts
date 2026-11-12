@@ -34,6 +34,9 @@ export async function dadosRelatorioCompilado(user: ChatGPTUser, competenciaSoli
   const db = getDb();
   const [cadastro] = await db.select({
     cargo: colaboradores.cargo,
+    nomeCompleto: colaboradores.nomeCompleto,
+    nomeEmpresarial: colaboradores.nomeEmpresarial,
+    mei: colaboradores.mei,
     associacao: colaboradores.associacao,
     associacoesJson: colaboradores.associacoesJson,
     documentoValidade: colaboradores.documentoValidade,
@@ -73,5 +76,6 @@ export async function dadosRelatorioCompilado(user: ChatGPTUser, competenciaSoli
   const atividades = grupos.reduce((total, grupo) => total + grupo.quantidade, 0);
   const minutos = grupos.reduce((total, grupo) => total + grupo.minutos, 0);
 
-  return { associacao, competencia, competenciaValida, gerar, relatorios, atividades, minutos };
+  const consultor = { nome: cadastro.nomeCompleto, nomeEmpresarial: cadastro.nomeEmpresarial, mei: cadastro.mei };
+  return { consultor, associacao, competencia, competenciaValida, gerar, relatorios, atividades, minutos };
 }

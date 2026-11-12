@@ -2,7 +2,7 @@ import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 
 export type PdfSection = { heading?: string; lines: string[] };
 
-type CapaProjeto = { logoBase64: string; identificacao: string; periodo: string };
+type CapaProjeto = { logoBase64: string; identificacao: string; consultor?: string[]; periodo: string };
 
 const LARGURA=595.28,ALTURA=841.89,MARGEM=42,CONTEUDO=LARGURA-MARGEM*2;
 const VERDE=rgb(0.02,0.28,0.19),VERDE_MEDIO=rgb(0.04,0.48,0.32),VERDE_CLARO=rgb(0.92,0.97,0.94);
@@ -28,7 +28,16 @@ export async function createPdf(title:string,sections:PdfSection[],capa?:CapaPro
    centro("Realização de assistência técnica para", 575, 10, 400);
    centro("Agricultores e empreendedores familiares", 540, 10, 400);
    folha.drawRectangle({ x: 78, y: 350, width: 440, height: 135, color: rgb(0.92, 0.92, 0.92) });
-   centro(capa.identificacao, 427, 13, 390);
+   if (capa.consultor?.length) {
+     centro(capa.identificacao, 458, 12, 390);
+     const linhas = capa.consultor.flatMap(texto => quebrar(texto, bold, 10, 390));
+     linhas.forEach((linha, indice) => folha.drawText(linha, {
+       x: (LARGURA - bold.widthOfTextAtSize(linha, 10)) / 2,
+       y: 433 - indice * 13, size: 10, font: bold, color: PRETO,
+     }));
+   } else {
+     centro(capa.identificacao, 427, 13, 390);
+   }
    centro(title, 285, 15, CONTEUDO);
    centro("Projeto Arranjos Produtivos no Estado do Espírito Santo", 226, 13, CONTEUDO);
    centro(capa.periodo, 175, 14, CONTEUDO);
