@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { requireChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { colaboradores, prestacoes } from "@/db/schema";
@@ -68,7 +68,7 @@ export default async function RelatorioCompilado({ searchParams }: {
     atividades: prestacoes.atividadesJson,
   }).from(prestacoes).innerJoin(colaboradores, eq(colaboradores.authUserId, prestacoes.authUserId)).where(and(
     eq(prestacoes.competencia, competencia),
-    eq(prestacoes.status, "enviado"),
+    inArray(prestacoes.status, ["enviado", "importado"]),
     sql`lower(replace(replace(trim(${colaboradores.cargo}), 'É', 'e'), 'é', 'e')) = 'tecnico de campo'`,
     sql`${normalizar(colaboradores.associacao)} in (${valores})`,
     sql`${normalizar(prestacoes.associacao)} in (${valores})`,
@@ -95,9 +95,9 @@ export default async function RelatorioCompilado({ searchParams }: {
         <h2 className="text-xl font-bold">{associacao} · {competencia.split("-").reverse().join("/")}</h2>
         {relatorios.length > 0 && <div className="print:hidden"><ImprimirRelatorio/></div>}
       </div>
-      {relatorios.length === 0 ? <p>Nenhuma prestação de contas enviada pelos técnicos para a competência selecionada.</p> : <>
+      {relatorios.length === 0 ? <p>Nenhuma prestação de contas dos técnicos registrada para a competência selecionada.</p> : <>
         <p className="rounded-xl bg-emerald-50 p-4 font-semibold">
-          Relatórios enviados {relatorios.length} · Atividades realizadas {atividades} · Carga horária {horas(minutos)} h
+          Relatórios consolidados {relatorios.length} · Atividades realizadas {atividades} · Carga horária {horas(minutos)} h
         </p>
         {relatorios.map(relatorio => <section key={relatorio.id} className="space-y-2">
           <h3 className="text-lg font-bold">{relatorio.tecnico}</h3>
