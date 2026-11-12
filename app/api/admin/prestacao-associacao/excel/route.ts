@@ -234,12 +234,13 @@ async function gerarHoras(
   const profissionais = idsProfissionais.map(id => usuarios.get(id)?.nomeCompleto || "PROFISSIONAL NÃO IDENTIFICADO");
   const cargos = [...new Set(relatorios.map((item) => usuarios.get(item.authUserId)?.cargo).filter(Boolean))] as string[];
   const cells: Record<string, CellValue> = { B4: profissionais.join("; "), B5: profissionais.map((nome,i)=>`${nome}: ${usuarios.get(idsProfissionais[i])?.cargo||""}`).join("; "), B6: "" };
-  const detalhes: CellValue[][] = [["PROFISSIONAL","CARGO / FUNÇÃO","COMPETÊNCIA","TRIMESTRE","NOTA FISCAL","TOTAL DAS NOTAS (R$)","VALOR DA HORA (R$)","HORAS TRABALHADAS","VALOR CORRESPONDENTE (R$)","SITUAÇÃO DA NOTA"]];
+  const horasPrevistasMensais = 160;
+  const detalhes: CellValue[][] = [["PROFISSIONAL","CARGO / FUNÇÃO","COMPETÊNCIA","TRIMESTRE","NOTA FISCAL","TOTAL DAS NOTAS (R$)","VALOR DA HORA (R$)","HORAS TRABALHADAS","VALOR CORRESPONDENTE (R$)","SITUAÇÃO DA NOTA","HORAS PREVISTAS"]];
   const valoresTrimestres = [0,0,0,0];
   for(const [quarterIndex,meses] of trimestres.entries()) for(const mes of meses) for(const id of idsProfissionais){
     const usuario=usuarios.get(id); if(!usuario)continue;
     const registros=relatorios.filter(r=>r.authUserId===id&&r.competencia===mes);
-    const horas=Math.max(160,registros.reduce((soma,r)=>soma+apurarHoras(r).minutos/60,0));
+    const horas=Math.max(horasPrevistasMensais,registros.reduce((soma,r)=>soma+apurarHoras(r).minutos/60,0));
     const candidatos=documentos.flatMap(d=>lista<Arquivo>(d.notasFiscaisJson).filter(n=>(n.vinculoPrestacao?.competencia||d.competencia)===mes)).filter(n=>categoriaDaNota(n)==="servico"&&notaPertenceAoColaborador(n,usuario,[...usuarios.values()]));
     const notas=[...new Map(candidatos.map(n=>[n.numeroNota?`NF:${n.numeroNota}`:texto(n.nome).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s*\(\d+\)/g,"").toUpperCase(),n])).values()];
     // O valor da hora vem de uma nota mensal, nunca da soma de reenvios.
@@ -247,10 +248,10 @@ async function gerarHoras(
       texto(b.dataEmissao).localeCompare(texto(a.dataEmissao)) || Number(b.numeroNota||0)-Number(a.numeroNota||0)
     )[0];
     const totalNota=notaReferencia?numeroDocumento(notaReferencia.valor,true):0;
-    const valorHora=totalNota>0?totalNota/160:0;
-    const valor=Number((horas*valorHora).toFixed(2)); valoresTrimestres[quarterIndex]+=valor;
+    const valorHora=totalNota>0?totalNota/horasPrevistasMensais:0;
+    const valor=Number((horasPrevistasMensais*valorHora).toFixed(2)); valoresTrimestres[quarterIndex]+=valor;
     const linha=detalhes.length+1;
-    detalhes.push([usuario.nomeCompleto,usuario.cargo,mes,`${quarterIndex+1}º TRIMESTRE`,notaReferencia?.numeroNota||notaReferencia?.nome||"",totalNota||"",totalNota?{formula:`F${linha}/160`,cached:valorHora}:"",horas,totalNota?{formula:`ROUND(G${linha}*H${linha},2)`,cached:valor}:"",totalNota?"NOTA IDENTIFICADA":"SEM NOTA DE SERVIÇO IDENTIFICADA — VALOR NÃO CALCULADO"]);
+    detalhes.push([usuario.nomeCompleto,usuario.cargo,mes,`${quarterIndex+1}º TRIMESTRE`,notaReferencia?.numeroNota||notaReferencia?.nome||"",totalNota||"",totalNota?{formula:`F${linha}/K${linha}`,cached:valorHora}:"",horas,totalNota?{formula:`ROUND(G${linha}*K${linha},2)`,cached:valor}:"",totalNota?"NOTA IDENTIFICADA":"SEM NOTA DE SERVIÇO IDENTIFICADA — VALOR NÃO CALCULADO",horasPrevistasMensais]);
   }
   const valoresHora = idsProfissionais.map(id => {
     const nome = usuarios.get(id)?.nomeCompleto || "PROFISSIONAL NÃO IDENTIFICADO";
@@ -263,7 +264,7 @@ async function gerarHoras(
     const meses = trimestres[quarterIndex]?.filter(competencia=>competencias.includes(competencia))||[];
     const registros = relatorios.filter((relatorio) => meses.includes(relatorio.competencia));
     cells[`B${periodoRow}`] = meses.map(mesReferencia).join("; ");
-    cells[`B${previstasRow}`] = meses.length ? 160 * meses.length * idsProfissionais.length : "";
+    cells[`B${previstasRow}`] = meses.length ? horasPrevistasMensais * meses.length * idsProfissionais.length : "";
     cells[`B${trabalhadasRow}`] = meses.length ? Number(detalhes.slice(1).filter(linha=>linha[3]===`${quarterIndex+1}º TRIMESTRE`).reduce((total,linha)=>total+Number(linha[7]||0),0).toFixed(2)) : "";
     const horasApuradas = Number(cells[`B${trabalhadasRow}`] || 0);
     const horasPrevistas = Number(cells[`B${previstasRow}`] || 0);
@@ -294,7 +295,7 @@ async function gerarHoras(
   }, 0);
   cells.E8 = { formula: "SUM(B14,B22,B30,B38)", cached: Number(totalValores.toFixed(2)) };
   const template = await carregarTemplate(request, "controle-de-horas-fomento.xlsx");
-  detalhes.push(["TOTAL","","","","", "","",{formula:`SUM(H2:H${detalhes.length})`,cached:totalTrabalhadas},{formula:`SUM(I2:I${detalhes.length})`,cached:Number(totalValores.toFixed(2))},""]);
+  detalhes.push(["TOTAL","","","","", "","",{formula:`SUM(H2:H${detalhes.length})`,cached:totalTrabalhadas},{formula:`SUM(I2:I${detalhes.length})`,cached:Number(totalValores.toFixed(2))},"",{formula:`SUM(K2:K${detalhes.length})`,cached:totalPrevistas}]);
   return addXlsxDetailSheet(fillXlsxTemplate(template, { "xl/worksheets/sheet1.xml": cells }), "Detalhamento", detalhes);
 }
 
