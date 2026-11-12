@@ -1,4 +1,5 @@
-import { incluirRegistrosFotograficos } from "./fotos";
+import { incluirFotosDoTecnico } from "./fotos";
+import { atividadeExecutada } from "@/lib/duracao-relatorios";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { createPdf, type PdfSection } from "@/lib/pdf";
 import { PROJETO_LOGO_BASE64 } from "@/lib/pdf-assets";
@@ -19,6 +20,7 @@ export async function GET(request: Request) {
 
   const periodo = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" })
     .format(new Date(`${dados.competencia}-01T00:00:00Z`));
+  const orcamentoFotos = { restante: 24 * 1024 * 1024 };
   const secoes: PdfSection[] = [
     { heading: "Identificação", lines: [`Associação: ${dados.associacao}`, `Competência: ${periodo}`] },
     ...dados.relatorios.flatMap(relatorio => {
@@ -30,6 +32,22 @@ export async function GET(request: Request) {
           ...relatorio.grupos.map(grupo => `${grupo.municipio} | ${grupo.tipo} | ATIVIDADES: ${grupo.quantidade} | DURAÇÃO: ${horas(grupo.minutos)}`),
         ],
       }];
+      const municipios = [...new Set(relatorio.grupos.map(grupo => grupo.municipio).filter(nome => nome !== "Não informado"))];
+      const tipos = [...new Set(relatorio.grupos.map(grupo => grupo.tipo).filter(nome => nome !== "Não informado"))];
+      const exemplos = [...new Set(relatorio.itens.filter(atividadeExecutada)
+        .map(item => item.resumo?.trim().replace(/\s+/g, " ") || "")
+        .filter(texto => texto && !/^atividade realizada conforme/i.test(texto)))].slice(0, 3);
+      const lista = new Intl.ListFormat("pt-BR", { type: "conjunction" });
+      const local = municipios.length ? ` em ${lista.format(municipios)}` : "";
+      const atividades = tipos.length ? `, com registros de ${lista.format(tipos.map(tipo => tipo.toLocaleLowerCase("pt-BR")))}` : "";
+      const texto = relatorio.grupos.length
+        ? `No período, o técnico realizou atividades${local}${atividades}.`
+        : "Não há atividades executadas registradas para o período.";
+      secoes.push({
+        heading: "Atividades desenvolvidas",
+        lines: exemplos.length ? [texto, `Entre as ações registradas estão ${lista.format(exemplos.map(texto => texto.replace(/[.!?]+$/, "")))}.`] : [texto],
+        depois: pdf => incluirFotosDoTecnico(pdf, relatorio, orcamentoFotos),
+      });
       if (relatorio.observacoes?.trim()) secoes.push({ heading: "Observações da prestação", lines: [relatorio.observacoes] });
       if (relatorio.anexos.length) secoes.push({
         heading: "Anexos e evidências",
@@ -54,8 +72,7 @@ export async function GET(request: Request) {
     consultor,
     periodo,
   });
-  const resultado = await incluirRegistrosFotograficos(pdf, dados.relatorios);
-  return new Response(new Uint8Array(resultado), {
+  return new Response(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="relatorio-compilado-${dados.competencia}.pdf"`,

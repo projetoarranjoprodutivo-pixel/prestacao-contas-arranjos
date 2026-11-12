@@ -1,6 +1,6 @@
 import { PDFDocument, PDFName, PDFString, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 
-export type PdfSection = { heading?: string; lines: string[]; links?: (string | undefined)[] };
+export type PdfSection = { heading?: string; lines: string[]; links?: (string | undefined)[]; depois?: (pdf: PDFDocument) => Promise<void> };
 
 type CapaProjeto = { logoBase64: string; identificacao: string; consultor?: string[]; periodo: string };
 
@@ -50,5 +50,15 @@ export async function createPdf(title:string,sections:PdfSection[],capa?:CapaPro
    const anotacao=pdf.context.obj({Type:"Annot",Subtype:"Link",Rect:[MARGEM,y-altura,MARGEM+CONTEUDO,y],Border:[0,0,0],A:{Type:PDFName.of("Action"),S:PDFName.of("URI"),URI:PDFString.of(link)}});
    page.node.addAnnot(pdf.context.register(anotacao));
  }y-=altura+4;}
- novaPagina();const conteudo=sections.length?sections:[{heading:"SEM REGISTROS",lines:["NENHUMA INFORMAÇÃO ENCONTRADA."]}];for(const section of conteudo){if(section.heading)tituloSecao(section.heading);(section.lines.length?section.lines:["NÃO INFORMADO"]).forEach((line,indice)=>linhaConteudo(line,section.links?.[indice]));y-=5;}
+ const conteudo: PdfSection[] = sections.length ? sections : [{ heading: "SEM REGISTROS", lines: ["NENHUMA INFORMAÇÃO ENCONTRADA."] }];
+ let iniciarPagina = true;
+ for (const section of conteudo) {
+   if (iniciarPagina) novaPagina();
+   if (section.heading) tituloSecao(section.heading);
+   (section.lines.length ? section.lines : ["NÃO INFORMADO"]).forEach((line, indice) => linhaConteudo(line, section.links?.[indice]));
+   y -= 5;
+   const paginasAntes = pdf.getPageCount();
+   if (section.depois) await section.depois(pdf);
+   iniciarPagina = pdf.getPageCount() > paginasAntes;
+ }
  const paginas=pdf.getPages().slice(capa ? 1 : 0);const data=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date());paginas.forEach((pagina,indice)=>{pagina.drawLine({start:{x:MARGEM,y:48},end:{x:LARGURA-MARGEM,y:48},color:BORDA,thickness:0.7});pagina.drawText(`EMITIDO EM ${data}`,{x:MARGEM,y:31,size:7.5,font:regular,color:CINZA});const textoPagina=`PÁGINA ${indice+1} DE ${paginas.length}`;pagina.drawText(textoPagina,{x:LARGURA-MARGEM-bold.widthOfTextAtSize(textoPagina,7.5),y:31,size:7.5,font:bold,color:VERDE});});return pdf.save();}
