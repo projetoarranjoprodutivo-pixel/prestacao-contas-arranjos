@@ -30,10 +30,13 @@ export async function POST(request:Request){
  await env.BUCKET.put(key,bytes,{metadata:{contentType:"application/pdf"}});
  const anexo={key,nome:arquivo.name,tipo:"application/pdf",importacaoHash:digest,dadosHash};
  const anexosFinais=[...anexos.filter(a=>a.key!==key),anexo];
- const novas = dados.atividades.map(a => ({ ...a, unidadeDuracao: "minutos" as const }));
+ const novas = dados.atividades.map(a => {
+  const atividade = preencherDuracao({ ...a, unidadeDuracao: "minutos" as const });
+  return { ...atividade, duracao: atividade.duracao === "" ? "" : String(Number(atividade.duracao) / 60), unidadeDuracao: "horas" as const };
+ });
  const anteriores = listaJson<AtividadeImportada>(existente?.atividadesJson);
  const atividades=(dados.modo==="substituir"?novas:unirAtividades(apurarDuracoesRelatorio(anteriores, existente?.totalMinutos || 0, plano?.status === "importado" && plano.associacao === existente?.associacao ? plano.agendaJson : undefined).itens,novas)).map(preencherDuracao);
- const agendaNova=dados.atividades.map(preencherDuracao).map(a=>({data:a.data,hora:a.hora,duracaoEstimada:a.duracao?String(Number(a.duracao)/60):"",municipio:a.municipio,comunidade:a.comunidade,propriedade:a.propriedade,agricultor:a.agricultor,telefone:a.telefone,tipoAtividade:a.tipoAtividade,tipoMuda:a.tipoMuda,quantidadeMudas:a.quantidadeMudas,observacao:a.resumo}));
+ const agendaNova=novas.map(a=>({data:a.data,hora:a.hora,duracaoEstimada:a.duracao,municipio:a.municipio,comunidade:a.comunidade,propriedade:a.propriedade,agricultor:a.agricultor,telefone:a.telefone,tipoAtividade:a.tipoAtividade,tipoMuda:a.tipoMuda,quantidadeMudas:a.quantidadeMudas,observacao:a.resumo}));
  const agenda=dados.modo==="substituir"?agendaNova:unirAtividades(listaJson<typeof agendaNova[number]>(plano?.agendaJson),agendaNova);
  const descricao=dados.modo==="substituir"||!existente?.observacoes?dados.descricao:existente.observacoes.includes(dados.descricao)?existente.observacoes:[existente.observacoes,dados.descricao].filter(Boolean).join("\n\n");
  const agricultores=listaJson<Record<string,string>>(pessoa.atendimentosJson),porNome=new Map(agricultores.map(a=>[`${chaveTexto(a.agricultor||"")}|${chaveTexto(a.municipio||"")}`,a]));
