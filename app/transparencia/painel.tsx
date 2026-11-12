@@ -50,7 +50,22 @@ export default function PainelTransparencia(){
 
  const execucao=(dados?.execucao||[]).filter(r=>normal(`${r.associacao} ${competencia(r.competencia)}`).includes(busca));
  const colunasExecucao=["ASSOCIAÇÃO","COMPETÊNCIA","RELATÓRIOS","SEM ATIVIDADES INDIVIDUALIZADAS","VISITAS TÉCNICAS","DIAS DE CAMPO","SEMINÁRIOS","CAPACITAÇÕES","ENTREGAS OFICIAIS","OUTRAS ATIVIDADES"];
- const linhasExecucao=execucao.map(r=>[r.associacao,competencia(r.competencia),r.relatorios,r.relatoriosSemAtividades,r.visitas,r.diasDeCampo,r.seminarios,r.capacitacoes,r.entregas,r.outras]);
+ type Execucao=DadosTransparencia["execucao"][number];
+ const camposExecucao=["relatorios","relatoriosSemAtividades","visitas","diasDeCampo","seminarios","capacitacoes","entregas","outras"] as const;
+ const somarExecucao=(linhas:Execucao[])=>camposExecucao.map(campo=>linhas.reduce((total,linha)=>total+linha[campo],0));
+ const execucaoPorAssociacao=new Map<string,Execucao[]>();
+ for(const linha of execucao){
+  const grupo=execucaoPorAssociacao.get(linha.associacao);
+  if(grupo)grupo.push(linha);
+  else execucaoPorAssociacao.set(linha.associacao,[linha]);
+ }
+ const linhasExecucao=[...execucaoPorAssociacao].sort(([a],[b])=>a.localeCompare(b,"pt-BR")).flatMap(([nome,linhas])=>[
+  ...linhas.sort((a,b)=>a.competencia.localeCompare(b.competencia)).map(r=>({
+   subtotal:false,celulas:[nome,competencia(r.competencia),...camposExecucao.map(campo=>r[campo])],
+  })),
+  {subtotal:true,celulas:[nome,"SUBTOTAL",...somarExecucao(linhas)]},
+ ]);
+ const totalExecucao=somarExecucao(execucao);
  const territorios=(dados?.territorios||[]).filter(r=>normal(`${r.associacao} ${r.municipio}`).includes(busca));
  type Territorio=DadosTransparencia["territorios"][number];
  const porAssociacao=new Map<string,Territorio[]>();
@@ -71,7 +86,7 @@ export default function PainelTransparencia(){
  ]);
  const totalMunicipios=contarResultados(territorios);
  function exportar(){if(!dados)return;
-  const linhas:unknown[][]=[["TRANSPARÊNCIA - ARRANJOS PRODUTIVOS"],["PERÍODO",periodo],["ASSOCIAÇÃO",associacao||"TODAS"],["CONSULTADO EM",dados.atualizadoEm],[],["RESUMO","QUANTIDADE"],...[['ASSOCIAÇÕES',dados.resumo.associacoes],['MUNICÍPIOS COM EXECUÇÃO',dados.resumo.municipios],['RELATÓRIOS MENSAIS',dados.resumo.relatorios],['VISITAS TÉCNICAS',dados.resumo.visitas],['AGRICULTORES ÚNICOS',dados.resumo.agricultores],['PROPRIEDADES ÚNICAS',dados.resumo.propriedades],['MUDAS ENTREGUES',dados.resumo.mudas],['EVENTOS',dados.resumo.eventos]],[],["VALORES DOCUMENTADOS EM NOTAS FISCAIS"],[...colunasFinanceiras,"NOTAS SEM VALOR"],...totaisFinanceiros.map(r=>[r.associacao,...[r.mudas,r.servicos,r.outras].map(valor=>valor.toFixed(2).replace(".",",")),r.notas,r.valor.toFixed(2).replace(".",","),valorTermo(r.associacao)?.toFixed(2).replace(".",",")??"NÃO INFORMADO",r.semValor]),[],["EXECUÇÃO POR COMPETÊNCIA"],colunasExecucao,...linhasExecucao,[],["EXECUÇÃO POR MUNICÍPIO"],["ASSOCIAÇÃO","MUNICÍPIO","VISITAS","AGRICULTORES ÚNICOS","MUDAS ENTREGUES","EVENTOS"],...linhasMunicipios.map(r=>r.celulas),...(territorios.length?[["TOTAL GERAL","",...totalMunicipios]]:[]),[],["TERMOS, OBJETIVOS E METAS"],["ASSOCIAÇÃO","TERMO","INÍCIO","TÉRMINO","META","PREVISÃO","SITUAÇÃO","RESULTADO","REFERÊNCIA"],...dados.termos.flatMap(t=>t.metas.length?t.metas.map(m=>[t.associacao,t.numero,competencia(t.inicio),competencia(t.termino),m.titulo,m.meta,m.situacao,m.resultado,m.fonte]):[[t.associacao,t.numero,"","","METAS NÃO IDENTIFICADAS"]])];
+  const linhas:unknown[][]=[["TRANSPARÊNCIA - ARRANJOS PRODUTIVOS"],["PERÍODO",periodo],["ASSOCIAÇÃO",associacao||"TODAS"],["CONSULTADO EM",dados.atualizadoEm],[],["RESUMO","QUANTIDADE"],...[['ASSOCIAÇÕES',dados.resumo.associacoes],['MUNICÍPIOS COM EXECUÇÃO',dados.resumo.municipios],['RELATÓRIOS MENSAIS',dados.resumo.relatorios],['VISITAS TÉCNICAS',dados.resumo.visitas],['AGRICULTORES ÚNICOS',dados.resumo.agricultores],['PROPRIEDADES ÚNICAS',dados.resumo.propriedades],['MUDAS ENTREGUES',dados.resumo.mudas],['EVENTOS',dados.resumo.eventos]],[],["VALORES DOCUMENTADOS EM NOTAS FISCAIS"],[...colunasFinanceiras,"NOTAS SEM VALOR"],...totaisFinanceiros.map(r=>[r.associacao,...[r.mudas,r.servicos,r.outras].map(valor=>valor.toFixed(2).replace(".",",")),r.notas,r.valor.toFixed(2).replace(".",","),valorTermo(r.associacao)?.toFixed(2).replace(".",",")??"NÃO INFORMADO",r.semValor]),[],["EXECUÇÃO POR COMPETÊNCIA"],colunasExecucao,...linhasExecucao.map(r=>r.celulas),...(execucao.length?[["TOTAL GERAL","",...totalExecucao]]:[]),[],["EXECUÇÃO POR MUNICÍPIO"],["ASSOCIAÇÃO","MUNICÍPIO","VISITAS","AGRICULTORES ÚNICOS","MUDAS ENTREGUES","EVENTOS"],...linhasMunicipios.map(r=>r.celulas),...(territorios.length?[["TOTAL GERAL","",...totalMunicipios]]:[]),[],["TERMOS, OBJETIVOS E METAS"],["ASSOCIAÇÃO","TERMO","INÍCIO","TÉRMINO","META","PREVISÃO","SITUAÇÃO","RESULTADO","REFERÊNCIA"],...dados.termos.flatMap(t=>t.metas.length?t.metas.map(m=>[t.associacao,t.numero,competencia(t.inicio),competencia(t.termino),m.titulo,m.meta,m.situacao,m.resultado,m.fonte]):[[t.associacao,t.numero,"","","METAS NÃO IDENTIFICADAS"]])];
   const celula=(v:unknown)=>{let s=String(v??"");if(/^[=+@\-\t\r]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';};
   const blob=new Blob(["\uFEFF"+linhas.map(l=>l.map(celula).join(';')).join('\r\n')],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`transparencia-${ano}${mes?'-'+mes:''}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
  }
@@ -104,7 +119,7 @@ export default function PainelTransparencia(){
     <section id="execucao" className="scroll-mt-5">
      <Titulo numero="03" titulo="EXECUÇÃO POR ASSOCIAÇÃO E COMPETÊNCIA" texto="Consulte os relatórios entregues e as atividades registradas em cada mês."/>
      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
-      <Tabela cabecalho={colunasExecucao} linhas={linhasExecucao.map(linha=>linha.map(v=>typeof v==="number"?numero(v):v))} vazio="NENHUMA EXECUÇÃO LOCALIZADA PARA ESTA CONSULTA."/>
+      <Tabela cabecalho={colunasExecucao} linhas={linhasExecucao.map(r=>r.celulas.map(v=>typeof v==="number"?numero(v):v))} subtotais={linhasExecucao.map(r=>r.subtotal)} totais={totalExecucao.map(numero)} rotuloTotal="TOTAL GERAL" vazio="NENHUMA EXECUÇÃO LOCALIZADA PARA ESTA CONSULTA."/>
       <p className="mt-4 text-xs text-slate-600">OS RELATÓRIOS SEM ATIVIDADES INDIVIDUALIZADAS ENTRAM NO TOTAL DE RELATÓRIOS. A CONTAGEM DE VISITAS USA OS REGISTROS INDIVIDUAIS DE ATIVIDADES EXECUTADAS.</p>
      </div>
     </section>
