@@ -31,14 +31,14 @@ export default async function RelatorioCompilado({ searchParams }: {
       </div>
       {relatorios.length === 0 ? <p>Nenhuma prestação de contas dos técnicos registrada para a competência selecionada.</p> : <>
         <p className="rounded-xl bg-emerald-50 p-4 font-semibold">
-          Relatórios consolidados {relatorios.length} · Atividades realizadas {atividades} · Carga horária consolidada {horas(minutos)} h · Durações detalhadas {horas(minutosAtividades)} h
+          Relatórios consolidados {relatorios.length} · Atividades realizadas {atividades} · Carga horária consolidada {horas(minutos)} · Durações detalhadas {horas(minutosAtividades)} h
         </p>
         {relatorios.map(relatorio => <section key={relatorio.id} className="space-y-2">
           <h3 className="text-lg font-bold">{relatorio.tecnico}</h3>
-          <p className="text-sm">Carga horária da prestação {horas(relatorio.minutos)} h · Durações detalhadas {horas(relatorio.minutosAtividades)} h</p>
+          <p className="text-sm">Carga horária da prestação {horas(relatorio.minutos)} · Durações detalhadas {horas(relatorio.minutosAtividades)}</p>
           {relatorio.grupos.length === 0 ? <p>Nenhuma atividade realizada informada.</p> :
             <table className="w-full border-collapse text-left text-sm">
-              <thead className="bg-slate-100"><tr><th className="p-2">Município</th><th className="p-2">Atividade</th><th className="p-2 text-right">Quantidade</th><th className="p-2 text-right">Horas</th></tr></thead>
+              <thead className="bg-slate-100"><tr><th className="p-2">Município</th><th className="p-2">Atividade</th><th className="p-2 text-right">Quantidade</th><th className="p-2 text-right">Horas (H:MM)</th></tr></thead>
               <tbody>{relatorio.grupos.map(grupo => <tr className="border-b" key={JSON.stringify([grupo.municipio, grupo.tipo])}>
                 <td className="p-2">{grupo.municipio}</td><td className="p-2">{grupo.tipo}</td><td className="p-2 text-right">{grupo.quantidade}</td><td className="p-2 text-right">{horas(grupo.minutos)}</td>
               </tr>)}</tbody>

@@ -24,16 +24,16 @@ export async function GET(request: Request) {
     { heading: "Resumo da execução", lines: [
       `Relatórios consolidados: ${dados.relatorios.length}`,
       `Atividades realizadas: ${dados.atividades}`,
-      `Carga horária consolidada: ${horas(dados.minutos)} horas`,
-      `Soma das durações das atividades: ${horas(dados.minutosAtividades)} horas`,
+      `Carga horária consolidada: ${horas(dados.minutos)}`,
+      `Soma das durações das atividades: ${horas(dados.minutosAtividades)}`,
     ] },
     ...dados.relatorios.flatMap(relatorio => {
       const secoes: PdfSection[] = [{
         heading: relatorio.tecnico,
         lines: [
-          `Carga horária da prestação: ${horas(relatorio.minutos)} h`,
-          `Soma das durações das atividades: ${horas(relatorio.minutosAtividades)} h`,
-          ...relatorio.grupos.map(grupo => `${grupo.municipio} | ${grupo.tipo} | ATIVIDADES: ${grupo.quantidade} | HORAS: ${horas(grupo.minutos)}`),
+          `Carga horária da prestação: ${horas(relatorio.minutos)}`,
+          `Soma das durações das atividades: ${horas(relatorio.minutosAtividades)}`,
+          ...relatorio.grupos.map(grupo => `${grupo.municipio} | ${grupo.tipo} | ATIVIDADES: ${grupo.quantidade} | DURAÇÃO: ${horas(grupo.minutos)}`),
         ],
       }, {
         heading: "Detalhamento das atividades",
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
           a.inicio || a.hora, a.municipio || relatorio.municipio, a.comunidade, a.tipoAtividade,
           a.propriedade && `Propriedade: ${a.propriedade}`,
           (a.agricultor || a.beneficiario) && `Agricultor: ${a.agricultor || a.beneficiario}`,
-          atividadeExecutada(a) ? minutosDaAtividade(a) > 0 ? `Duração: ${horas(minutosDaAtividade(a))} h` : "Duração não informada" : "Não realizada",
+          atividadeExecutada(a) ? minutosDaAtividade(a) > 0 ? `Duração: ${horas(minutosDaAtividade(a))}` : "Duração não informada" : "Não realizada",
           a.tipoMuda && `Mudas: ${a.tipoMuda}`, a.quantidadeMudas && `Quantidade de mudas: ${a.quantidadeMudas}`,
           a.resumo, a.observacao !== a.resumo ? a.observacao : undefined,
         ].filter(Boolean).join(" | ")) : ["Nenhuma atividade informada."],

@@ -3,7 +3,7 @@ import type { ChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { colaboradores, planosTrabalho, prestacoes } from "@/db/schema";
 import { associacaoAutorizadaConsultor, chaveAssociacaoConsultoria } from "@/lib/consultor-projeto";
-import { atividadeExecutada, apurarDuracoesRelatorio, minutosDaAtividade, type DuracaoAtividade } from "@/lib/duracao-relatorios";
+import { atividadeExecutada, apurarDuracoesRelatorio, formatarDuracao, minutosDaAtividade, type DuracaoAtividade } from "@/lib/duracao-relatorios";
 
 type Atividade = DuracaoAtividade & {
   municipio?: string; tipoAtividade?: string; comunidade?: string; propriedade?: string;
@@ -34,7 +34,7 @@ function resumirAtividades(atividades: Atividade[], municipioRelatorio: string) 
   return [...grupos.values()].sort((a, b) => a.municipio.localeCompare(b.municipio, "pt-BR") || a.tipo.localeCompare(b.tipo, "pt-BR"));
 }
 
-export const horas = (minutos: number) => (minutos / 60).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+export { formatarDuracao as horas };
 
 export async function dadosRelatorioCompilado(user: ChatGPTUser, competenciaSolicitada: unknown, prestacaoId?: number) {
   const db = getDb();

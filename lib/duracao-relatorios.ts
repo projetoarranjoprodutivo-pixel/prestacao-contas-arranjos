@@ -88,3 +88,15 @@ export function minutosDuracaoImportada(texto: string) {
   // Decimais menores que um sem unidade exigem a conferência da fonte.
   return minutos >= 1 && minutos <= 1440 ? Math.round(minutos) : null;
 }
+
+export function formatarDuracao(minutos: number) {
+  const total = Number.isFinite(minutos) ? Math.max(0, Math.round(minutos)) : 0;
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+export function lerDuracaoHorasMinutos(texto: string) {
+  const partes = texto.trim().match(/^(\d{1,2}):([0-5]\d)$/);
+  if (!partes) return null;
+  const minutos = Number(partes[1]) * 60 + Number(partes[2]);
+  return minutos <= 1440 ? minutos : null;
+}
