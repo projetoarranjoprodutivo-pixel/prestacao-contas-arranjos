@@ -1,5 +1,5 @@
 import { atividadeExecutada, apurarDuracoesRelatorio, formatarDuracao, minutosDaAtividade } from "@/lib/duracao-relatorios";
-import {relatorioNarrativoDouglas} from "@/lib/relatorios-narrativos";
+import {MINUTOS_DIAGNOSTICO_AGROINDUSTRIA,relatorioNarrativoDouglas} from "@/lib/relatorios-narrativos";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
@@ -26,7 +26,7 @@ function mesCompetencia(valor:string){const [ano,mes]=valor.split("-");const nom
 function dividir(texto:string,fonte:PDFFont,tamanho:number,largura:number){const palavras=String(texto||"NÃO INFORMADO").toUpperCase().split(/\s+/);const linhas:string[]=[];let atual="";for(const palavra of palavras){const teste=atual?`${atual} ${palavra}`:palavra;if(fonte.widthOfTextAtSize(teste,tamanho)<=largura)atual=teste;else{if(atual)linhas.push(atual);atual=palavra;}}if(atual)linhas.push(atual);return linhas;}
 function centralizar(pagina:PDFPage,texto:string,y:number,fonte:PDFFont,tamanho:number,largura=W-M*2){const linhas=dividir(texto,fonte,tamanho,largura);linhas.forEach((linha,i)=>pagina.drawText(linha,{x:(W-fonte.widthOfTextAtSize(linha,tamanho))/2,y:y-i*(tamanho+3),size:tamanho,font:fonte,color:PRETO}));return y-linhas.length*(tamanho+3);}
 
-async function adicionarCapa(pdf:PDFDocument,registro:typeof prestacoes.$inferSelect,colaborador:typeof colaboradores.$inferSelect|null,associacao:typeof associacoes.$inferSelect|null){
+async function adicionarCapa(pdf:PDFDocument,registro:typeof prestacoes.$inferSelect,colaborador:typeof colaboradores.$inferSelect|null,associacao:typeof associacoes.$inferSelect|null,diagnostico=false){
   const pagina=pdf.addPage([W,H]);const regular=await pdf.embedFont(StandardFonts.Helvetica);const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
   const projeto=await pdf.embedJpg(bytesBase64(PROJETO_LOGO_BASE64));
   pagina.drawImage(projeto,{x:145,y:690,width:306,height:99});
@@ -39,7 +39,11 @@ async function adicionarCapa(pdf:PDFDocument,registro:typeof prestacoes.$inferSe
   const esquerda=dividir(`CONTRATANTE: ${contratante}`,regular,8.5,200);esquerda.forEach((linha,i)=>pagina.drawText(linha,{x:92,y:460-i*11,size:8.5,font:regular,color:PRETO}));
   const dados=[`EXECUTORA: ${executor}`,`MEI/CNPJ: ${colaborador?.mei||"NÃO INFORMADO"}`,`ENDEREÇO: ${endereco||"NÃO INFORMADO"}`,`CONTATO: ${colaborador?.celular||"NÃO INFORMADO"}`,`E-MAIL: ${colaborador?.email||"NÃO INFORMADO"}`];
   let y=460;for(const dado of dados){for(const linha of dividir(dado,regular,8.5,205)){pagina.drawText(linha,{x:305,y,size:8.5,font:regular,color:PRETO});y-=11;}y-=5;}
-  y=285;y=centralizar(pagina,"RELATÓRIO DAS ATIVIDADES",y,bold,15);y=centralizar(pagina,"RELACIONADAS AO PROJETO ARRANJOS PRODUTIVOS",y-11,bold,13);y=centralizar(pagina,"NO ESTADO DO ESPÍRITO SANTO",y-7,bold,13);centralizar(pagina,mesCompetencia(registro.competencia),y-16,bold,14);
+  y=285;y=centralizar(pagina,"RELATÓRIO DAS ATIVIDADES",y,bold,15);y=centralizar(pagina,"RELACIONADAS AO PROJETO ARRANJOS PRODUTIVOS",y-11,bold,13);y=centralizar(pagina,"NO ESTADO DO ESPÍRITO SANTO",y-7,bold,13);y=centralizar(pagina,mesCompetencia(registro.competencia),y-16,bold,14);
+  if(diagnostico){
+    y=centralizar(pagina,colaborador?.nomeCompleto||executor,y-12,bold,11);
+    centralizar(pagina,`CARGA HORÁRIA DA COMPETÊNCIA: ${formatarDuracao(MINUTOS_DIAGNOSTICO_AGROINDUSTRIA)}`,y-10,bold,11);
+  }
 }
 
 async function copiarRelatorio(destino:PDFDocument,titulo:string,sections:Array<{heading?:string;lines:string[]}>){const origem=await PDFDocument.load(await createPdf(titulo,sections));const paginas=await destino.copyPages(origem,origem.getPageIndices());paginas.forEach(p=>destino.addPage(p));}
@@ -74,9 +78,18 @@ export async function GET(request:Request){
   const url=new URL(request.url);const id=Number(url.searchParams.get("id"));const competencia=url.searchParams.get("competencia")||"";if(id&&user.role!=="aderes"&&user.role!=="admin"&&!isAdminEmail(user.email))return new Response("Acesso restrito",{status:403});
   const db=getDb();const registro=await db.query.prestacoes.findFirst({where:id?eq(prestacoes.id,id):and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});if(!registro)return new Response("Prestação não encontrada",{status:404});
   const [colaborador,associacao]=await Promise.all([db.query.colaboradores.findFirst({where:eq(colaboradores.authUserId,registro.authUserId)}),db.query.associacoes.findFirst({where:eq(associacoes.nome,registro.associacao)})]);
-  const anexos=JSON.parse(registro.anexosJson||"[]") as Array<{key:string;nome:string;tipo:string}>;
-  // Toda prestação, inclusive importada, deve conter capa e atividades.
-  // O PDF histórico é evidência complementar e será incluído ao final.
+  const anexos=JSON.parse(registro.anexosJson||"[]") as Array<{key:string;nome:string;tipo:string;diagnosticoAgroindustria?:boolean}>;
+  const diagnostico=anexos.find(anexo=>anexo.diagnosticoAgroindustria);
+  if(diagnostico){
+    const bytes=await env.BUCKET?.get(diagnostico.key,"arrayBuffer");
+    if(!bytes)return new Response("Diagnóstico original indisponível",{status:503});
+    const pdf=await PDFDocument.create();
+    await adicionarCapa(pdf,registro,colaborador||null,associacao||null,true);
+    const original=await PDFDocument.load(bytes);
+    const paginas=await pdf.copyPages(original,original.getPageIndices());
+    paginas.forEach(pagina=>pdf.addPage(pagina));
+    return new Response(Uint8Array.from(await pdf.save()),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="diagnostico-agroindustria-${registro.competencia}.pdf"`}});
+  }
   const origem=JSON.parse(registro.atividadesJson) as Atividade[];
   const plano = registro.status === "importado" && origem.some(a => !a.unidadeDuracao)
     ? await db.query.planosTrabalho.findFirst({columns:{agendaJson:true},where:and(eq(planosTrabalho.authUserId,registro.authUserId),eq(planosTrabalho.competencia,registro.competencia),eq(planosTrabalho.associacao,registro.associacao),eq(planosTrabalho.status,"importado"))})

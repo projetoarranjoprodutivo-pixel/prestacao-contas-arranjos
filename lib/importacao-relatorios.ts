@@ -18,7 +18,7 @@ export function unirAtividades<T extends {data?:string;hora?:string;inicio?:stri
 }
 export {relatorioNarrativoDouglas} from "./relatorios-narrativos";
 export function totalMinutosImportados(atividades:Array<{duracao?:string;executada?:boolean}>,adotarPadrao=true){const feitas=atividades.filter(a=>a.executada!==false);const soma=feitas.reduce((t,a)=>t+(Number(a.duracao)||0),0);return soma|| (adotarPadrao&&feitas.length?9600:0);}
-export const confirmarImportacaoSchema=z.object({colaboradorId:z.number().int().positive(),competencia:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),associacao:z.string().min(1).max(200),descricao:z.string().max(60000),atividades:z.array(atividadeImportadaSchema).min(1).max(500),modo:z.enum(["complementar","substituir"]),versaoPrestacao:z.string().nullable(),versaoPlano:z.string().nullable()});
+export const confirmarImportacaoSchema=z.object({colaboradorId:z.number().int().positive(),competencia:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),associacao:z.string().min(1).max(200),descricao:z.string().max(60000),atividades:z.array(atividadeImportadaSchema).max(500),diagnosticoAgroindustria:z.boolean().optional(),modo:z.enum(["complementar","substituir"]),versaoPrestacao:z.string().nullable(),versaoPlano:z.string().nullable()});
 
 export function contarLinhasTabela(texto:string){
  const inicio=texto.search(/5\s*\.\s*1\s*\./),fim=texto.search(/5\s*\.\s*2\s*\./);

@@ -5,9 +5,10 @@ import {getDb} from "@/db";
 import {associacoes,colaboradores,planosTrabalho,prestacoes} from "@/db/schema";
 import {relatorioNarrativoDouglas,chaveTexto,confirmarImportacaoSchema,listaJson,unirAtividades,type AtividadeImportada} from "@/lib/importacao-relatorios";
 import {preencherDuracao,minutosDaAtividade,apurarDuracoesRelatorio} from "@/lib/duracao-relatorios";
+import { consultorDeAgroindustria, MINUTOS_DIAGNOSTICO_AGROINDUSTRIA } from "@/lib/relatorios-narrativos";
 export const runtime="edge";
 const hash=async(bytes:ArrayBuffer)=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)),v=>v.toString(16).padStart(2,"0")).join("");
-type Anexo={key:string;nome:string;tipo:string;importacaoHash?:string;dadosHash?:string};
+type Anexo={key:string;nome:string;tipo:string;importacaoHash?:string;dadosHash?:string;diagnosticoAgroindustria?:boolean};
 export async function POST(request:Request){
  if(!await getAdminUser())return Response.json({message:"ACESSO RESTRITO."},{status:403});
  try{
@@ -16,6 +17,13 @@ export async function POST(request:Request){
  if(!(arquivo instanceof File)||arquivo.type!=="application/pdf"||!arquivo.size||arquivo.size>20*1024*1024)return Response.json({message:"ENVIE O PDF ORIGINAL DE ATÉ 20 MB."},{status:400});
  const bytes=await arquivo.arrayBuffer();if(new TextDecoder().decode(bytes.slice(0,5))!=="%PDF-")return Response.json({message:"O ARQUIVO NÃO É UM PDF VÁLIDO."},{status:400});
  const db=getDb(),pessoa=await db.query.colaboradores.findFirst({where:eq(colaboradores.id,dados.colaboradorId)});if(!pessoa)return Response.json({message:"COLABORADOR NÃO ENCONTRADO."},{status:404});
+ const diagnostico = dados.diagnosticoAgroindustria === true;
+ if(diagnostico && (!consultorDeAgroindustria(pessoa.cargo) || dados.atividades.length)){
+  return Response.json({message:"SELECIONE O CADASTRO DO CONSULTOR DE AGROINDÚSTRIA PARA IMPORTAR O DIAGNÓSTICO INTEGRAL."},{status:400});
+ }
+ if(!diagnostico && !dados.atividades.length){
+  return Response.json({message:"CONFIRA AS ATIVIDADES ANTES DE SALVAR."},{status:400});
+ }
  const narrativo=relatorioNarrativoDouglas(pessoa);
  if(!narrativo&&dados.atividades.some(a=>!a.data))return Response.json({message:"CONFIRA AS DATAS DAS ATIVIDADES ANTES DE SALVAR."},{status:400});
  const associacao=await db.query.associacoes.findFirst({where:and(eq(associacoes.nome,dados.associacao),eq(associacoes.ativo,true))});if(!associacao)return Response.json({message:"SELECIONE UMA ASSOCIAÇÃO ATIVA."},{status:400});
@@ -23,8 +31,37 @@ export async function POST(request:Request){
  const condicaoPlano=and(eq(planosTrabalho.authUserId,pessoa.authUserId),eq(planosTrabalho.competencia,dados.competencia));
  const [existente,plano]=await Promise.all([db.query.prestacoes.findFirst({where:condicao}),db.query.planosTrabalho.findFirst({where:condicaoPlano})]);
  if((existente?.atualizadoEm??null)!==dados.versaoPrestacao||(plano?.atualizadoEm??null)!==dados.versaoPlano)return Response.json({message:"OS REGISTROS DESTE MÊS FORAM ALTERADOS. ATUALIZE A CONFERÊNCIA DO DESTINO ANTES DE SALVAR."},{status:409});
- const digest=await hash(bytes),dadosHash=await hash(new TextEncoder().encode(JSON.stringify({atividades:dados.atividades,descricao:dados.descricao,associacao:dados.associacao,modo:dados.modo})).buffer);
+ const digest=await hash(bytes);
  const anexos=listaJson<Anexo>(existente?.anexosJson);
+ if(diagnostico){
+  const vinculos = [pessoa.associacao, ...listaJson<string>(pessoa.associacoesJson)];
+  if(!vinculos.some(v => v && chaveTexto(v) === chaveTexto(associacao.nome)) ||
+     (existente && chaveTexto(existente.associacao) !== chaveTexto(associacao.nome))){
+   return Response.json({message:"CONFIRA O VÍNCULO DO CONSULTOR COM A ASSOCIAÇÃO DESTA PRESTAÇÃO."},{status:409});
+  }
+  const key = `prestacoes/${pessoa.authUserId}/${dados.competencia}/diagnostico-${digest}.pdf`;
+  const anexo = {key,nome:arquivo.name,tipo:"application/pdf",importacaoHash:digest,diagnosticoAgroindustria:true};
+  const values = {
+   authUserId:pessoa.authUserId, competencia:dados.competencia, associacao:associacao.nome,
+   municipio:existente?.municipio || "", atividadesJson:existente?.atividadesJson || "[]",
+   totalMinutos:MINUTOS_DIAGNOSTICO_AGROINDUSTRIA, observacoes:existente?.observacoes || "",
+   anexosJson:JSON.stringify([...anexos.filter(a => a.key !== key && !a.diagnosticoAgroindustria), anexo]),
+   status:"importado", atualizadoEm:new Date().toISOString(),
+  };
+  if(anexos.some(a => a.key === key && a.diagnosticoAgroindustria) && existente?.totalMinutos === values.totalMinutos){
+   return Response.json({message:"ESTE DIAGNÓSTICO JÁ CONSTA NA PRESTAÇÃO COM CARGA HORÁRIA DE 160:00.",jaImportado:true});
+  }
+  await env.BUCKET.put(key,bytes,{metadata:{contentType:"application/pdf"}});
+  const registro = existente
+   ? await db.update(prestacoes).set(values).where(and(condicao,eq(prestacoes.atualizadoEm,existente.atualizadoEm))).returning({id:prestacoes.id})
+   : await db.insert(prestacoes).values(values).onConflictDoNothing({target:[prestacoes.authUserId,prestacoes.competencia]}).returning({id:prestacoes.id});
+  if(!registro.length)return Response.json({message:"A PRESTAÇÃO FOI ALTERADA. ATUALIZE A CONFERÊNCIA ANTES DE SALVAR."},{status:409});
+  return Response.json({message:`DIAGNÓSTICO INTEGRAL SALVO NA PRESTAÇÃO: ${pessoa.nomeCompleto} · ${dados.competencia} · 160:00.`});
+ }
+ if(anexos.some(a => a.diagnosticoAgroindustria)){
+  return Response.json({message:"ESTA PRESTAÇÃO UTILIZA DIAGNÓSTICO INTEGRAL. IMPORTE O DIAGNÓSTICO PARA ATUALIZÁ-LA."},{status:409});
+ }
+ const dadosHash=await hash(new TextEncoder().encode(JSON.stringify({atividades:dados.atividades,descricao:dados.descricao,associacao:dados.associacao,modo:dados.modo})).buffer);
  if(anexos.some(a=>a.importacaoHash===digest&&a.dadosHash===dadosHash))return Response.json({message:"ESTE PDF E ESTAS ATIVIDADES JÁ FORAM IMPORTADOS. NENHUM REGISTRO DUPLICADO.",atividades:listaJson(existente?.atividadesJson).length,jaImportado:true});
  const key=`prestacoes/${pessoa.authUserId}/${dados.competencia}/importacao-${digest}.pdf`;
  await env.BUCKET.put(key,bytes,{metadata:{contentType:"application/pdf"}});

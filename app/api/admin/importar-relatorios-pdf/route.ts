@@ -5,6 +5,7 @@ import {getAdminUser} from "@/lib/admin";
 import {getDb} from "@/db";
 import {colaboradores,prestacoes,planosTrabalho} from "@/db/schema";
 import {identificarColaborador,listaJson,contarLinhasTabela,tipoAtividadeImportada,descricaoDetalhadaOriginal,type AtividadeImportada} from "@/lib/importacao-relatorios";
+import { consultorDeAgroindustria, identificarDiagnosticoAgroindustria } from "@/lib/relatorios-narrativos";
 export const runtime="edge";
 type Ai={toMarkdown:(file:{name:string;blob:Blob},options?:unknown)=>Promise<{data?:string;error?:string}|Array<{data?:string;error?:string}>>;run:(model:string,input:unknown)=>Promise<unknown>};
 export async function GET(request:Request){
@@ -20,14 +21,33 @@ export async function POST(request:Request){
  try{
  const form=await request.formData(),arquivo=form.get("arquivo");
  if(!(arquivo instanceof File)||arquivo.type!=="application/pdf"||!arquivo.size||arquivo.size>20*1024*1024)return Response.json({message:"ENVIE UM PDF DE ATÉ 20 MB."},{status:400});
- const ai=(env as unknown as {AI?:Ai}).AI;if(!ai)throw new Error("A LEITURA AUTOMÁTICA NÃO ESTÁ DISPONÍVEL AGORA.");
+ const ai=(env as unknown as {AI?:Ai}).AI;
  let conteudo=typeof form.get("texto")==="string"?String(form.get("texto")):"";
  if(conteudo.trim().length<150){
+  if(!ai)throw new Error("A LEITURA AUTOMÁTICA NÃO ESTÁ DISPONÍVEL AGORA.");
   const conversao=await ai.toMarkdown({name:arquivo.name,blob:arquivo},{conversionOptions:{pdf:{metadata:false},output:{format:"text"}}});
   const paginas=Array.isArray(conversao)?conversao:[conversao];if(paginas.some(p=>p.error))throw new Error("NÃO FOI POSSÍVEL LER O PDF. CONFIRA SE O DOCUMENTO ESTÁ LEGÍVEL.");
   conteudo=paginas.map(p=>p.data||"").join("\n");
  }
  if(conteudo.trim().length<150)throw new Error("O PDF NÃO POSSUI TEXTO LEGÍVEL SUFICIENTE PARA IDENTIFICAR AS ATIVIDADES.");
+ const diagnostico = identificarDiagnosticoAgroindustria(conteudo, arquivo.name);
+ if(diagnostico){
+  const pessoas = await getDb().select({
+   id: colaboradores.id, cargo: colaboradores.cargo, nomeCompleto: colaboradores.nomeCompleto,
+   mei: colaboradores.mei, associacao: colaboradores.associacao,
+  }).from(colaboradores);
+  const candidatos = pessoas.filter(p => consultorDeAgroindustria(p.cargo));
+  const porCnpj = diagnostico.cnpj ? candidatos.filter(p => p.mei?.replace(/\D/g, "") === diagnostico.cnpj) : [];
+  const porNome = candidatos.filter(p => diagnostico.nomeCompleto && p.nomeCompleto.toLowerCase() === diagnostico.nomeCompleto.toLowerCase());
+  const correspondencias = porCnpj.length ? porCnpj : porNome;
+  const pessoa = correspondencias.length === 1 ? correspondencias[0] : null;
+  return Response.json({
+   diagnosticoAgroindustria: true, colaboradorId: pessoa?.id ?? null,
+   nomeCompleto: diagnostico.nomeCompleto, competencia: diagnostico.competencia,
+   associacao: pessoa?.associacao || "", descricao: "", atividades: [], avisos: diagnostico.aviso ? [diagnostico.aviso] : [],
+  });
+ }
+ if(!ai)throw new Error("A LEITURA AUTOMÁTICA NÃO ESTÁ DISPONÍVEL AGORA.");
  if(conteudo.length>120000)throw new Error("O RELATÓRIO É MUITO EXTENSO. ENVIE UM ARQUIVO POR COMPETÊNCIA.");
  const narrativoDouglas=/doglasgasparetto86@gmail\.com|Gasparetto Consultoria e Servi[cç]os|dria\.sic1302@gmail\.com|ANDREIA HABERLY SIQUEIRA/i.test(conteudo);
  const regraNarrativa=narrativoDouglas?" REGRA NARRATIVA DE DOUGLAS GASPARETTO E ANDREIA HABERLY SIQUEIRA: extraia as ações exclusivamente da seção Descrição detalhada das atividades realizadas durante o mês, mesmo sem datas explícitas ou tabela. Preserve data, hora, duração e quantidade vazias quando não informadas. Nunca atribua o primeiro dia do mês. Não extraia novas atividades apenas das legendas das fotos. Agrupe a mesma ação e local, sem duplicá-los.":"";
@@ -35,7 +55,7 @@ export async function POST(request:Request){
  if(resposta.choices?.some(c=>c.finish_reason==="length"))throw new Error("A LEITURA FICOU INCOMPLETA. DIVIDA O RELATÓRIO E TENTE NOVAMENTE.");
  const raw=resposta.response??resposta.choices?.[0]?.message?.content??"";const dados=typeof raw==="string"?JSON.parse(raw.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"")):raw;
  if(!Array.isArray(dados.atividades)||!dados.atividades.length||dados.atividades.length>500)throw new Error("NÃO FORAM IDENTIFICADAS ATIVIDADES INDIVIDUAIS. CONFIRA A LEGIBILIDADE DA TABELA DO RELATÓRIO.");
- const avisos=Array.isArray(dados.avisos)?dados.avisos.map(String):[];
+ const avisos:string[]=Array.isArray(dados.avisos)?dados.avisos.map(String):[];
  const competenciaIdentificada=String(dados.competencia||"");
  const atividades:AtividadeImportada[]=dados.atividades.map((a:Record<string,unknown>,index:number)=>{
   const campos=["data","hora","duracao","municipio","comunidade","propriedade","agricultor","telefone","tipoAtividade","tipoMuda","quantidadeMudas","observacao","resumo"] as const;
