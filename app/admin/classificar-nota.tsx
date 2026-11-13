@@ -7,6 +7,8 @@ type Prestador = {id:number;nomeCompleto:string};
 
 type Props = {
  arquivoKey: string;
+ documentoId?: number;
+ nomeArquivo?: string;
  compraMudas?: boolean;
  categoria?: string;
  competenciaInicial?: string;
@@ -16,13 +18,32 @@ type Props = {
  destinos?: Record<string,Prestador[]>;
 };
 
-export default function ClassificarNota({arquivoKey,categoria,competenciaInicial,vinculo,prestadores,origem,destinos,compraMudas=false}:Props){
+export default function ClassificarNota({arquivoKey,documentoId,nomeArquivo,categoria,competenciaInicial,vinculo,prestadores,origem,destinos,compraMudas=false}:Props){
  const router=useRouter();const [valor,setValor]=useState(categoria||"automatico"),[ocupado,setOcupado]=useState(false),[mensagem,setMensagem]=useState("");
  const [prestadorId,setPrestadorId]=useState(vinculo ? String(vinculo.colaboradorId) : "");
  const [competencia,setCompetencia]=useState(vinculo?.competencia || competenciaInicial || "");
  const [destino,setDestino]=useState("");
  const [prestadorDestino,setPrestadorDestino]=useState("");
  const [mesDestino,setMesDestino]=useState(vinculo?.competencia || competenciaInicial || "");
+ async function excluirNota(){
+  if(!documentoId||!window.confirm(`Excluir a nota "${nomeArquivo||"sem nome"}" da associação ${origem}? Ela deixará de contar nas consultas e na prestação de contas.`))return;
+  setOcupado(true);
+  setMensagem("");
+  try{
+   const resposta=await fetch("/api/coordenacao/mudas/notas",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({acao:"excluir",documentoId,key:arquivoKey}),
+   });
+   const dados=await resposta.json() as {message?:string};
+   if(!resposta.ok)throw new Error(dados.message||"NÃO FOI POSSÍVEL EXCLUIR A NOTA.");
+   setMensagem(dados.message||"NOTA EXCLUÍDA.");
+   router.refresh();
+  }catch(erro){
+   setMensagem(erro instanceof Error?erro.message:"NÃO FOI POSSÍVEL EXCLUIR A NOTA.");
+   setOcupado(false);
+  }
+ }
  async function transferir() {
   setOcupado(true);
   setMensagem("");
@@ -90,5 +111,5 @@ export default function ClassificarNota({arquivoKey,categoria,competenciaInicial
   </label>
   <button type="submit" disabled={ocupado||!destino||(!compraMudas&&!prestadorDestino)||!mesDestino} className="rounded-lg bg-emerald-800 px-3 py-2 text-xs font-black text-white disabled:opacity-50">TRANSFERIR NOTA</button>
  </form>
- </details>}{mensagem&&<p role="status" className="mt-2 text-xs font-bold">{mensagem}</p>}</div>;
+ </details>}{documentoId&&<button type="button" disabled={ocupado} onClick={()=>void excluirNota()} className="mt-3 rounded-lg border border-red-700 px-3 py-2 text-xs font-black text-red-800 hover:bg-red-50 disabled:opacity-50">EXCLUIR NOTA</button>}{mensagem&&<p role="status" className="mt-2 text-xs font-bold">{mensagem}</p>}</div>;
 }
