@@ -262,7 +262,7 @@ function PercentuaisDocumentos({itens}:{itens:PercentualDocumento[]}){
 }
 
 type SituacaoColaborador={id:number;nomeCompleto:string;cargo:string;associacao:string|null;email:string;competencia:string};
-function PendentesUnificados({prestacoesPendentes,notasPendentes,esperados,associacoes,associacaoSelecionada,colaboradorSelecionado,cadastroColaboradores,pendenciasEmail,queryCompetencias}:{prestacoesPendentes:SituacaoColaborador[];notasPendentes:SituacaoColaborador[];esperados:SituacaoColaborador[];associacoes:string[];associacaoSelecionada?:string;colaboradorSelecionado?:string;cadastroColaboradores:Pick<SituacaoColaborador,"id"|"nomeCompleto"|"email">[];pendenciasEmail:PendenciaEmail[];queryCompetencias:string}){
+function PendentesUnificados({prestacoesPendentes,notasPendentes,esperados,associacoes,associacaoSelecionada,colaboradorSelecionado,cadastroColaboradores,pendenciasEmail,queryCompetencias}:{prestacoesPendentes:SituacaoColaborador[];notasPendentes:SituacaoColaborador[];esperados:SituacaoColaborador[];associacoes:string[];associacaoSelecionada?:string;colaboradorSelecionado?:string;cadastroColaboradores:Array<Pick<SituacaoColaborador,"id"|"nomeCompleto"|"email"> & {municipiosAtendidosJson:string|null}>;pendenciasEmail:PendenciaEmail[];queryCompetencias:string}){
  const comparar=new Intl.Collator("pt-BR").compare;
  const chave=(u:SituacaoColaborador)=>`${normalizarNomeAssociacao(u.associacao)}|${u.id}`;
  const faltantesPrestacao=new Set(prestacoesPendentes.map(u=>`${chave(u)}|${u.competencia}`));
@@ -273,6 +273,12 @@ function PendentesUnificados({prestacoesPendentes,notasPendentes,esperados,assoc
  const listaCompleta=[...grupos.values()].sort((a,b)=>comparar(a.associacao||"",b.associacao||"")||comparar(a.nomeCompleto,b.nomeCompleto));
  const nomesAssociacoes=[...new Set([...associacoes.map(normalizarNomeAssociacao),...listaCompleta.map(u=>u.associacao||"")])].sort(comparar);
  const filtro=nomesAssociacoes.find(nome=>nome===associacaoSelecionada)||"";
+ const municipiosPorColaborador=new Map(cadastroColaboradores.map(u=>{
+  let municipios:unknown;
+  try{municipios=JSON.parse(u.municipiosAtendidosJson||"[]");}catch{municipios=[];}
+  const nomes=Array.isArray(municipios)?municipios.flatMap(item=>typeof item==="string"&&item.trim()?[item.trim()]:[]):[];
+  return [u.id,[...new Set(nomes)].join(", ")] as const;
+ }));
  const opcoesColaboradores=[...cadastroColaboradores].sort((a,b)=>comparar(a.nomeCompleto,b.nomeCompleto)||comparar(a.email,b.email));
  const filtroColaborador=opcoesColaboradores.find(u=>String(u.id)===colaboradorSelecionado);
  const lista=listaCompleta.filter(u=>(!filtro||u.associacao===filtro)&&(!filtroColaborador||u.id===filtroColaborador.id));
@@ -313,7 +319,7 @@ function PendentesUnificados({prestacoesPendentes,notasPendentes,esperados,assoc
     {semAtivos?<p className="mt-3 rounded-lg bg-white p-3 text-sm font-bold text-red-800">NENHUM COLABORADOR ATIVO CADASTRADO NAS COMPETÊNCIAS SELECIONADAS. NÃO FOI POSSÍVEL VALIDAR A ENTREGA DOS DOCUMENTOS.</p>:<div className="mt-3 space-y-3">{colaboradores.map(u=>{
      const meses=[...u.competencias].sort();const pendente=meses.some(m=>temPendencia(u,m));const emailPendente=pendente?emailDePendencias(u,pendenciasEmail):null;
      return <article aria-label={`Situação de ${u.nomeCompleto}`} key={chave(u)} className={`rounded-lg border p-3 text-sm ${pendente?"border-slate-100 bg-slate-50":"border-emerald-200 bg-emerald-50"}`}>
-      <div className="flex flex-wrap items-start justify-between gap-2"><p className="font-bold">{u.nomeCompleto}</p><span className={`rounded-full px-2 py-1 text-[10px] font-black ${pendente?"bg-amber-100 text-amber-950":"bg-emerald-100 text-emerald-900"}`}>{pendente?"COM PENDÊNCIAS":"DOCUMENTAÇÃO EM DIA"}</span></div>
+      <div className="flex flex-wrap items-start justify-between gap-2"><p className="font-bold">{u.nomeCompleto}{municipiosPorColaborador.get(u.id)&&<span className="font-medium text-slate-600"> · {municipiosPorColaborador.get(u.id)}</span>}</p><span className={`rounded-full px-2 py-1 text-[10px] font-black ${pendente?"bg-amber-100 text-amber-950":"bg-emerald-100 text-emerald-900"}`}>{pendente?"COM PENDÊNCIAS":"DOCUMENTAÇÃO EM DIA"}</span></div>
       <p className="mt-1 break-words text-slate-500">{u.cargo} · {u.email}</p>
       {pendente&&pendenciasEmail.length>0&&(emailPendente?<div className="mt-3"><div className="flex flex-wrap gap-2"><a href={emailPendente.gmailHref} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-800 px-3 py-2 text-xs font-bold text-white" aria-label={`Escolher conta do Gmail para enviar as pendências de ${u.nomeCompleto}`}>ESCOLHER CONTA DO GMAIL</a><a href={emailPendente.href} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-emerald-800 px-3 py-2 text-xs font-bold text-emerald-900" aria-label={`Abrir no aplicativo de e-mail as pendências de ${u.nomeCompleto}`}>APLICATIVO DE E-MAIL</a></div><p className="mt-1 text-xs text-slate-500">Escolha a conta do Gmail que fará o envio. O destinatário, o assunto e a mensagem com o nome do colaborador já estarão preenchidos.</p></div>:<p className="mt-2 text-xs font-bold text-amber-900">ATUALIZE O E-MAIL DO COLABORADOR PARA PREPARAR A MENSAGEM.</p>)}
       {!pendente&&<p className="mt-2 text-xs font-bold text-emerald-800">SEM PENDÊNCIAS NAS COMPETÊNCIAS SELECIONADAS.</p>}
