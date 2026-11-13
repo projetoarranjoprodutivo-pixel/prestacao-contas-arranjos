@@ -23,14 +23,13 @@ const evento = /^(DIAS? DE CAMPO|SEMINARIOS?|CAPACITACOES|CAPACITACAO|TREINAMENT
 
 const indicioVisita=/\b(?:VISITAS?\s+TECNICAS?|(?:ATENDIMENTO|ASSISTENCIA|ACOMPANHAMENTO|ORIENTACAO)\s+TECNIC[AO]|VISITAS?\s+(?:(?:A|AS|AO|AOS|EM|NA|NAS|NO|NOS)\s+)?(?:PROPRIEDADES?|AGRICULTORES?|PRODUTOR(?:ES)?|CAMPO))\b/;
 
-function tipoDaAtividade(a:AtividadeTransparencia) {
- const tipo=chaveMunicipio(a.tipoAtividade).replace(/[()]/g," ").replace(/\s+/g," ").trim();
+function tipoDaAtividade(a:AtividadeTransparencia,normalizarTexto:typeof chaveMunicipio,normalizarTipo:(tipo:string)=>string) {
+ const tipo=normalizarTipo(a.tipoAtividade);
  if(visita.test(tipo))return "VISITA TECNICA";
  if(evento.test(tipo)||ehEntregaMudas(a)||/^(?:REUNIAO|REUNIOES|PLANEJAMENTO)\b/.test(tipo))return tipo;
- const temAtendido=[a.agricultor,a.beneficiario,a.propriedade].some(valido);
- const resumo=chaveMunicipio(a.resumo);
+ const resumo=normalizarTexto(a.resumo);
  if(indicioVisita.test(tipo)||(!/\b(?:PLANEJAMENTO|AGENDAMENTO|PROGRAMACAO)\s+(?:D[AEOS]+\s+)?VISITAS?\b/.test(resumo)&&indicioVisita.test(resumo))||
-    (!tipo&&temAtendido))return "VISITA TECNICA";
+    (!tipo&&[a.agricultor,a.beneficiario,a.propriedade].some(valido)))return "VISITA TECNICA";
  return tipo;
 }
 
@@ -100,6 +99,18 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
  const produtores=new Set<string>(),propriedades=new Set<string>(),eventos=new Set<string>();
  const municipios=new Map<string,{associacao:string;municipio:string;visitas:number;produtores:Set<string>;mudas:number;eventos:Set<string>}>();
  let visitas=0,mudas=0;
+ const cacheTexto=new Map<string,string>();
+ const cacheTipo=new Map<string,string>();
+ function normalizarComCache(cache:Map<string,string>,texto:string,transformar:(texto:string)=>string){
+  const existente=cache.get(texto);
+  if(existente!==undefined)return existente;
+  const resultado=transformar(texto);
+  cache.set(texto,resultado);
+  return resultado;
+ }
+ const normalizarTexto=(texto:string)=>normalizarComCache(cacheTexto,texto,chaveMunicipio);
+ const normalizarTipo=(texto:string)=>normalizarComCache(cacheTipo,texto,
+  valor=>normalizarTexto(valor).replace(/[()]/g," ").replace(/\s+/g," ").trim());
  for(const a of atividadesPeriodo){
   const assoc=destino(a),informado=municipioNormal(a.municipio);
   const m=municipiosConhecidos.has(informado)?informado:"";
@@ -108,11 +119,11 @@ export function consolidarTransparencia(grupos:GrupoTransparencia[],pessoas:Pess
   const incluirMunicipio=noFiltro(assocMunicipio),incluirRelatorio=noFiltro(assoc);
   if(!incluirMunicipio&&!incluirRelatorio)continue;
 
-  const tipo=tipoDaAtividade(a),visita=tipo==="VISITA TECNICA";
+  const tipo=tipoDaAtividade(a,normalizarTexto,normalizarTipo),visita=tipo==="VISITA TECNICA";
   const produtor=visita?[a.agricultor,a.beneficiario].map(chaveMunicipio).find(valido):undefined;
   const entrega=ehEntregaOficialDeMudas(a.authUserId,a);
   const quantidade=entrega?quantidadeEntregue(a):0;
-  const e=evento.test(tipo)?[a.competencia,a.data,m,chaveMunicipio(a.comunidade),tipo,chaveMunicipio(a.resumo)].join("|"):"";
+  const e=evento.test(tipo)?[a.competencia,a.data,m,chaveMunicipio(a.comunidade),tipo,normalizarTexto(a.resumo)].join("|"):"";
 
   if(incluirMunicipio){
    const k=assocMunicipio+"|"+m;

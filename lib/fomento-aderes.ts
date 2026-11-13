@@ -121,7 +121,14 @@ export function avaliarFomento(base:BaseFomento,meses:string[],registros:Registr
    const alvo=limite||160;const grupos=new Map<string,number|null>();const informados=gruposEsperados(consultor);for(const k of informados.keys())grupos.set(k,null);
    for(const r of relatorios)if(consultor(pessoas.get(r.authUserId)?.cargo||'')){const total=Number(r.totalMinutos);grupos.set(chave(r),total>0?total/60:null);}
    for(const x of validos.filter(x=>consultor(x.u?.cargo||pessoas.get(x.r.authUserId)?.cargo||''))){const k=chave(x.r);if(Number(x.r.totalMinutos)>0){grupos.set(k,Number(x.r.totalMinutos)/60);continue;}if(!grupos.has(k))grupos.set(k,null);}
-   for(const k of grupos.keys())if(grupos.get(k)===null&&informados.get(k)){const minutos=validos.filter(x=>chave(x.r)===k).reduce((n,x)=>n+Math.max(0,Number(String(x.a.duracao||'').replace(',','.'))||0),0);if(minutos>0)grupos.set(k,minutos/60);}
+   const minutosPorGrupo=new Map<string,number>();
+   for(const x of validos){
+    const k=chave(x.r);
+    if(grupos.get(k)!==null||!informados.get(k))continue;
+    const minutos=Math.max(0,Number(String(x.a.duracao||'').replace(',','.'))||0);
+    minutosPorGrupo.set(k,(minutosPorGrupo.get(k)||0)+minutos);
+   }
+   for(const [k,minutos] of minutosPorGrupo)if(minutos>0)grupos.set(k,minutos/60);
    const cumpridos=[...grupos.values()].filter(h=>h!==null&&h>=alvo).length;atingida=grupos.size>0&&cumpridos===grupos.size;
    situacaoQuantitativa=atingida?'META MENSAL DE HORAS ATINGIDA EM TODOS OS CONSULTORES E MESES ANALISADOS':cumpridos?`META MENSAL DE HORAS ATINGIDA EM ${cumpridos} DE ${grupos.size} COMBINAÇÕES CONSULTOR/MÊS`:grupos.size?'META MENSAL DE HORAS A CONFERIR NOS REGISTROS':'SEM PRESTAÇÕES DE CONSULTORIA LOCALIZADAS NO PERÍODO';situacao=situacaoQuantitativa;
    resultado=grupos.size?[`Meta: ${qtd(alvo)} horas por consultor/mês.`,...Array.from(grupos,([k,h])=>`${rotulo(k)}: ${h===null?'HORAS NÃO INFORMADAS':qtd(h)+'/'+qtd(alvo)+' horas registradas · '+(h>=alvo?'META ATINGIDA':'QUANTIDADE REGISTRADA ABAIXO DA META')}`)].join('; '):'Nenhuma prestação vinculada a consultor foi localizada no período selecionado.';
