@@ -24,7 +24,7 @@ import ColaboradorAcoes from "./colaborador-acoes";
 import PrestacaoAcoes from "./prestacao-acoes";
 import { associacoesDoColaborador, listarNotasServicoPendentes, type VinculoNotaServico } from "@/lib/notas-servico";
 import { ehEntregaMudas, quantidadeEntregue, tipoMudaEntregue } from "@/lib/entregas-mudas";
-import {eq,inArray,or} from "drizzle-orm";
+import {and,eq,inArray,or} from "drizzle-orm";
 import { vinculoNotaNasCompetencias } from "@/db/vinculo-nota";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { chaveMunicipio, mapaAssociacoesPorMunicipio } from "@/lib/associacoes-municipios";
@@ -83,6 +83,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const db=getDb();
   // Cada módulo consulta apenas os dados que realmente utiliza. Isso mantém a
   // página dentro do limite de CPU do Cloudflare Worker, inclusive no celular.
+  const filtroAssociacaoDocumentos=aba==="documentos-associacoes"?String(params.associacaoDocumentos||"").trim():"";
   const usaPlanos=aba==="planos";
   const usaPrestacoes=new Set(["resumo","prestacoes","pendencias","pdfs","documentos-associacoes"]).has(aba);
   const usaDocumentos=new Set(["documentos-associacoes","pendencias"]).has(aba);
@@ -93,7 +94,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
     usaPrestacoes?db.select({id:prestacoes.id,authUserId:prestacoes.authUserId,competencia:prestacoes.competencia,associacao:prestacoes.associacao,status:prestacoes.status,atualizadoEm:prestacoes.atualizadoEm}).from(prestacoes).where(inArray(prestacoes.competencia,competenciasSelecionadas)):Promise.resolve([]),
     db.select().from(associacoes),
     aba==="acessos"?db.select().from(usuariosAcesso):Promise.resolve([]),
-    usaDocumentos?db.select().from(documentosAssociacao).where(aba==="pendencias"?undefined:or(inArray(documentosAssociacao.competencia,competenciasSelecionadas),vinculoNotaNasCompetencias(competenciasSelecionadas))):Promise.resolve([]),
+    usaDocumentos?db.select().from(documentosAssociacao).where(aba==="pendencias"?undefined:and(filtroAssociacaoDocumentos?eq(documentosAssociacao.associacao,filtroAssociacaoDocumentos):undefined,or(inArray(documentosAssociacao.competencia,competenciasSelecionadas),vinculoNotaNasCompetencias(competenciasSelecionadas)))):Promise.resolve([]),
     usaCompetencias?db.select({competencia:planosTrabalho.competencia}).from(planosTrabalho).groupBy(planosTrabalho.competencia):Promise.resolve([]),
     usaCompetencias?db.select({competencia:prestacoes.competencia}).from(prestacoes).groupBy(prestacoes.competencia):Promise.resolve([]),
     usaCompetencias?db.select({competencia:documentosAssociacao.competencia}).from(documentosAssociacao).groupBy(documentosAssociacao.competencia):Promise.resolve([]),
@@ -154,7 +155,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
     }
     mudasPorMunicipio.set(municipio, atual);
   }
-  const associacoesPorMunicipio=mapaAssociacoesPorMunicipio(listaAssociacoes.filter(a=>a.ativo));
+  const associacoesPorMunicipio=mapaAssociacoesPorMunicipio(aba==="resumo"?listaAssociacoes.filter(a=>a.ativo):[]);
   const resumoMudas=[...mudasPorMunicipio.entries()].map(([municipio,dados])=>({municipio,dados,associacao:associacoesPorMunicipio.get(chaveMunicipio(municipio))||"ASSOCIAÇÃO NÃO IDENTIFICADA"})).sort((a,b)=>a.associacao.localeCompare(b.associacao,"pt-BR")||a.municipio.localeCompare(b.municipio,"pt-BR"));
   const totalMudas=resumoMudas.reduce((total,item)=>total+item.dados.quantidade,0);
   const associacoesAtivas=listaAssociacoes.filter(a=>a.ativo).sort((a,b)=>a.nome.localeCompare(b.nome)).map(a=>a.nome);
@@ -191,7 +192,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const chaveAssociacaoPercentual=(valor:string)=>{const chave=normalizarNomeAssociacao(valor).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Z0-9]/gi,"").toUpperCase();return chave==="APROVIPA"?"APPROVIPA":chave;};
   const associacoesDoUsuario=associacoesVinculadas;
   const prestacoesPorVinculo=new Set(aba==="documentos-associacoes"?relatorios.map(item=>`${item.authUserId}|${item.competencia}|${chaveAssociacaoPercentual(item.associacao)}`):[]);
-  const pendenciasServicoPercentual=aba==="documentos-associacoes"?listarNotasServicoPendentes(usuarios,documentosDasAssociacoes,competenciasSelecionadas):[];
+  const pendenciasServicoPercentual=aba==="documentos-associacoes"?listarNotasServicoPendentes(associacaoDocumentos?usuarios.filter(usuario=>associacoesDoUsuario(usuario).some(nome=>chaveAssociacaoPercentual(nome)===chaveAssociacaoPercentual(associacaoDocumentos))):usuarios,documentosDasAssociacoes,competenciasSelecionadas):[];
   const percentuaisDocumentos=(aba!=="documentos-associacoes"?[]:associacaoDocumentos?[associacaoDocumentos]:associacoesAtivas).map(associacao=>{
     const chave=chaveAssociacaoPercentual(associacao);
     const registros=documentosDasAssociacoes.filter(item=>chaveAssociacaoPercentual(item.associacao)===chave&&competenciasSelecionadas.includes(item.competencia));
