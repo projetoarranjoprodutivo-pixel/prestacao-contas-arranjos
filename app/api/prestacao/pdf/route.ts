@@ -5,7 +5,7 @@ import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { associacoes, colaboradores, planosTrabalho, prestacoes } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
-import { createPdf } from "@/lib/pdf";
+import { adicionarSecoesPdf } from "@/lib/pdf";
 import { isAdminEmail } from "@/lib/admin";
 import { PROJETO_LOGO_BASE64 } from "@/lib/pdf-assets";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
@@ -26,8 +26,16 @@ function mesCompetencia(valor:string){const [ano,mes]=valor.split("-");const nom
 function dividir(texto:string,fonte:PDFFont,tamanho:number,largura:number){const palavras=String(texto||"NÃO INFORMADO").toUpperCase().split(/\s+/);const linhas:string[]=[];let atual="";for(const palavra of palavras){const teste=atual?`${atual} ${palavra}`:palavra;if(fonte.widthOfTextAtSize(teste,tamanho)<=largura)atual=teste;else{if(atual)linhas.push(atual);atual=palavra;}}if(atual)linhas.push(atual);return linhas;}
 function centralizar(pagina:PDFPage,texto:string,y:number,fonte:PDFFont,tamanho:number,largura=W-M*2){const linhas=dividir(texto,fonte,tamanho,largura);linhas.forEach((linha,i)=>pagina.drawText(linha,{x:(W-fonte.widthOfTextAtSize(linha,tamanho))/2,y:y-i*(tamanho+3),size:tamanho,font:fonte,color:PRETO}));return y-linhas.length*(tamanho+3);}
 
-async function adicionarCapa(pdf:PDFDocument,registro:typeof prestacoes.$inferSelect,colaborador:typeof colaboradores.$inferSelect|null,associacao:typeof associacoes.$inferSelect|null,diagnostico=false){
-  const pagina=pdf.addPage([W,H]);const regular=await pdf.embedFont(StandardFonts.Helvetica);const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
+type Fontes = {regular:PDFFont;bold:PDFFont};
+
+async function carregarFontes(pdf:PDFDocument):Promise<Fontes>{
+  const regular=await pdf.embedFont(StandardFonts.Helvetica);
+  const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
+  return {regular,bold};
+}
+
+async function adicionarCapa(pdf:PDFDocument,{regular,bold}:Fontes,registro:typeof prestacoes.$inferSelect,colaborador:typeof colaboradores.$inferSelect|null,associacao:typeof associacoes.$inferSelect|null,diagnostico=false){
+  const pagina=pdf.addPage([W,H]);
   const projeto=await pdf.embedJpg(bytesBase64(PROJETO_LOGO_BASE64));
   pagina.drawImage(projeto,{x:145,y:690,width:306,height:99});
   pagina.drawRectangle({x:70,y:522,width:455,height:86,color:rgb(0.85,0.88,0.89)});
@@ -46,10 +54,9 @@ async function adicionarCapa(pdf:PDFDocument,registro:typeof prestacoes.$inferSe
   }
 }
 
-async function copiarRelatorio(destino:PDFDocument,titulo:string,sections:Array<{heading?:string;lines:string[]}>){const origem=await PDFDocument.load(await createPdf(titulo,sections));const paginas=await destino.copyPages(origem,origem.getPageIndices());paginas.forEach(p=>destino.addPage(p));}
 
-async function adicionarAtividadeComAssinaturas(pdf:PDFDocument,atividade:Atividade,indice:number){
-  const pagina=pdf.addPage([W,H]);const regular=await pdf.embedFont(StandardFonts.Helvetica);const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
+async function adicionarAtividadeComAssinaturas(pdf:PDFDocument,{regular,bold}:Fontes,atividade:Atividade,indice:number){
+  const pagina=pdf.addPage([W,H]);
   pagina.drawRectangle({x:0,y:H-92,width:W,height:92,color:VERDE});pagina.drawText("ARRANJOS PRODUTIVOS",{x:M,y:H-30,size:8,font:bold,color:rgb(0.69,0.9,0.79)});pagina.drawText(`ATIVIDADE EXECUTADA ${indice+1}`,{x:M,y:H-58,size:14,font:bold,color:rgb(1,1,1)});
   const informacoes=[`${!atividadeExecutada(atividade)?"NÃO EXECUTADA":"EXECUTADA"} | DATA: ${atividade.data||"SEM DATA"} | HORA: ${atividade.inicio||"SEM HORÁRIO"}`,`TIPO DE ATIVIDADE: ${atividade.tipoAtividade||"VISITA TÉCNICA"}`,`MUNICÍPIO: ${atividade.municipio||"NÃO INFORMADO"} | COMUNIDADE: ${atividade.comunidade||"NÃO INFORMADA"}`];
   if(atividade.tipoAtividade==="Entrega de mudas")informacoes.push(`TIPO DE MUDAS: ${atividade.tipoMuda||"NÃO INFORMADO"} | QUANTIDADE: ${atividade.quantidadeMudas||"0"}`);else informacoes.push(`AGRICULTOR: ${atividade.agricultor||atividade.beneficiario||"NÃO INFORMADO"}`,`PROPRIEDADE: ${atividade.propriedade||"NÃO INFORMADA"} | TELEFONE: ${atividade.telefone||"NÃO INFORMADO"}`);
@@ -64,9 +71,9 @@ async function adicionarAtividadeComAssinaturas(pdf:PDFDocument,atividade:Ativid
   }
 }
 
-async function adicionarTabelaAssociacoes(pdf:PDFDocument){
+function adicionarTabelaAssociacoes(pdf:PDFDocument,{regular,bold}:Fontes){
   const dados:Array<[string,string[]]>=[["MUNIZ CAF",["MUNIZ FREIRE","IÚNA","IBITIRAMA","DIVINO DE SÃO LOURENÇO"]],["AAFARSCRUZ",["GUAÇUÍ","ALEGRE","JERÔNIMO MONTEIRO"]],["APRVG",["BREJETUBA","CONCEIÇÃO DO CASTELO","IBATIBA"]],["APEAGRI",["ITAPEMIRIM","PIÚMA","RIO NOVO DO SUL","ICONHA"]],["APRUVAB",["ANCHIETA","GUARAPARI","ALFREDO CHAVES"]],["NEEMIAS",["ATÍLIO VIVÁCQUA"]],["AAFATRIM",["PEDRO CANÁRIO","MONTANHA"]],["ARQSCD",["CONCEIÇÃO DA BARRA","BOA ESPERANÇA","JAGUARÉ"]],["CAF COLATINA",["VILA VALÉRIO","SÃO DOMINGOS DO NORTE","COLATINA","MARILÂNDIA"]],["APPROVIPA",["VILA PAVÃO","ECOPORANGA","NOVA VENÉCIA"]],["AAFAMA",["PANCAS","ÁGUIA BRANCA"]],["AAFAIAR",["ALTO RIO NOVO","MANTENÓPOLIS"]],["APROFASAUNA",["IBIRAÇU","JOÃO NEIVA"]]];
-  const pagina=pdf.addPage([W,H]);const regular=await pdf.embedFont(StandardFonts.Helvetica);const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
+  const pagina=pdf.addPage([W,H]);
   centralizar(pagina,"TABELA 1 - MUNICÍPIOS PARTICIPANTES DO PROJETO ARRANJOS PRODUTIVOS",780,bold,9,W-M*2);
   const x=108,w1=142,w2=238,row=15;let y=710;pagina.drawRectangle({x,y:y-row,width:w1+w2,height:row,color:rgb(0.86,0.87,0.87),borderColor:PRETO,borderWidth:0.8});pagina.drawText("ASSOCIAÇÃO",{x:x+39,y:y-11,size:8,font:bold});pagina.drawText("MUNICÍPIOS",{x:x+w1+80,y:y-11,size:8,font:bold});y-=row;
   for(const [nome,municipios] of dados){const altura=row*municipios.length;pagina.drawRectangle({x,y:y-altura,width:w1,height:altura,color:rgb(0.95,0.95,0.95),borderColor:PRETO,borderWidth:0.6});pagina.drawText(nome,{x:x+8,y:y-altura/2-3,size:7.5,font:bold,color:PRETO});municipios.forEach((municipio,i)=>{pagina.drawRectangle({x:x+w1,y:y-row*(i+1),width:w2,height:row,color:i%2?rgb(0.97,0.97,0.97):rgb(0.91,0.91,0.91),borderColor:PRETO,borderWidth:0.5});pagina.drawText(municipio,{x:x+w1+6,y:y-row*i-11,size:7.4,font:regular,color:PRETO});});y-=altura;}
@@ -85,7 +92,7 @@ export async function GET(request:Request){
     const bytes=await env.BUCKET?.get(diagnostico.key,"arrayBuffer");
     if(!bytes)return new Response("Diagnóstico original indisponível",{status:503});
     const pdf=await PDFDocument.create();
-    await adicionarCapa(pdf,registro,colaborador||null,associacao||null,true);
+    await adicionarCapa(pdf,await carregarFontes(pdf),registro,colaborador||null,associacao||null,true);
     const original=await PDFDocument.load(bytes);
     const paginas=await pdf.copyPages(original,original.getPageIndices());
     paginas.forEach(pagina=>pdf.addPage(pagina));
@@ -96,25 +103,27 @@ export async function GET(request:Request){
     ? await db.query.planosTrabalho.findFirst({columns:{agendaJson:true},where:and(eq(planosTrabalho.authUserId,registro.authUserId),eq(planosTrabalho.competencia,registro.competencia),eq(planosTrabalho.associacao,registro.associacao),eq(planosTrabalho.status,"importado"))})
     : undefined;
   const apuracao = apurarDuracoesRelatorio(origem, registro.totalMinutos, plano?.agendaJson, registro.status === "importado");
-  const atividades = apuracao.itens;const pdf=await PDFDocument.create();await adicionarCapa(pdf,registro,colaborador||null,associacao||null);
+  const atividades = apuracao.itens;const pdf=await PDFDocument.create();
+  const fontes=await carregarFontes(pdf);
+  await adicionarCapa(pdf,fontes,registro,colaborador||null,associacao||null);
   const executor=colaborador?.nomeEmpresarial||colaborador?.nomeCompleto||"NÃO INFORMADO",cnpj=colaborador?.mei||"NÃO INFORMADO",municipiosAtendidos=(()=>{try{return (JSON.parse(colaborador?.municipiosAtendidosJson||"[]") as string[]).join(", ")||registro.municipio;}catch{return registro.municipio;}})();
-  await copiarRelatorio(pdf,"APRESENTAÇÃO DO PROJETO ARRANJOS PRODUTIVOS",[
+  await adicionarSecoesPdf(pdf,"APRESENTAÇÃO DO PROJETO ARRANJOS PRODUTIVOS",[
     {heading:"APRESENTAÇÃO DO PROJETO ARRANJOS PRODUTIVOS",lines:["O Projeto Arranjos Produtivos ‘Somar Conhecimento, Semear Desenvolvimento com Sustentabilidade’, promovido pela Casa dos Municípios da Assembleia Legislativa (ALES), é realizado em parceria com o Governo do Estado e com o apoio direto das prefeituras. O projeto constitui um compromisso com o desenvolvimento sustentável e a promoção econômica, incentivando a formação do agricultor, a assistência técnica, a aquisição de insumos agrícolas, a regularização e formalização das agroindústrias, associações e cooperativas, além do desenvolvimento local e da geração de renda para as famílias em seus empreendimentos rurais. A diversificação de culturas na agricultura familiar amplia a oferta de alimentos e contribui para a segurança alimentar local e regional."]},
     {heading:"1. OBJETO DA CONTRATAÇÃO",lines:[`Prestação de serviços de assistência técnica para agricultores e empreendedores familiares rurais pela empresa ${executor}, MEI/CNPJ ${cnpj}, compreendendo planejamento, organização, capacitação, orientação, controle, manutenção e apoio técnico aos agricultores e empreendedores familiares rurais. Inclui acompanhamento das etapas da cadeia produtiva, desde preparação e adubação do solo, definição do espaçamento, plantio, calagem, irrigação e poda até manutenção, colheita, armazenamento e comercialização.`]},
     {heading:"2. OBJETIVO",lines:["Fortalecer a agricultura capixaba e criar novas opções para os produtores rurais, impulsionando a agricultura familiar por meio de uma rede de cooperação com foco na capacitação, diversificação e desenvolvimento das cadeias produtivas, gerando renda e melhorando a qualidade de vida no campo."]},
     {heading:"3. ÁREA DE ABRANGÊNCIA",lines:[`A tabela seguinte apresenta os 36 municípios participantes e suas respectivas associações. O atendimento do colaborador ${colaborador?.nomeCompleto||executor} abrange: ${municipiosAtendidos||"NÃO INFORMADO"}.`]},
-  ]);
-  await adicionarTabelaAssociacoes(pdf);
-  await copiarRelatorio(pdf,"ATIVIDADES DE ASSISTÊNCIA TÉCNICA",[{heading:"4. PÚBLICO-ALVO",lines:["Agricultores e/ou empreendedores familiares rurais participantes do Projeto, registrados na ficha cadastral dos municípios atendidos."]},{heading:"5. ATIVIDADES DE ASSISTÊNCIA TÉCNICA",lines:[`As atividades de assistência técnica para agricultores e empreendedores familiares rurais descritas neste relatório correspondem à competência ${mesCompetencia(registro.competencia)}.`]}]);
-  await copiarRelatorio(pdf,"DADOS DA PRESTAÇÃO DE CONTAS",[{heading:"IDENTIFICAÇÃO",lines:[`Colaborador: ${colaborador?.nomeCompleto||"Não informado"}`,`Cargo: ${colaborador?.cargo||"Não informado"}`,`Competência: ${mesCompetencia(registro.competencia)}`,`Associação: ${associacao?.razaoSocial||registro.associacao}`,`Carga horária executada: ${apuracao.minutos===0&&colaborador&&relatorioNarrativoDouglas(colaborador)?"NÃO INFORMADO":formatarDuracao(apuracao.minutos)}`,`Quantidade de atividades: ${atividades.length}`,...(Math.abs(apuracao.minutos-apuracao.minutosAtividades)>=1?[`Soma das durações das atividades: ${formatarDuracao(apuracao.minutosAtividades)}`]:[])]}]);
+  ],fontes);
+  adicionarTabelaAssociacoes(pdf,fontes);
+  await adicionarSecoesPdf(pdf,"ATIVIDADES DE ASSISTÊNCIA TÉCNICA",[{heading:"4. PÚBLICO-ALVO",lines:["Agricultores e/ou empreendedores familiares rurais participantes do Projeto, registrados na ficha cadastral dos municípios atendidos."]},{heading:"5. ATIVIDADES DE ASSISTÊNCIA TÉCNICA",lines:[`As atividades de assistência técnica para agricultores e empreendedores familiares rurais descritas neste relatório correspondem à competência ${mesCompetencia(registro.competencia)}.`]}],fontes);
+  await adicionarSecoesPdf(pdf,"DADOS DA PRESTAÇÃO DE CONTAS",[{heading:"IDENTIFICAÇÃO",lines:[`Colaborador: ${colaborador?.nomeCompleto||"Não informado"}`,`Cargo: ${colaborador?.cargo||"Não informado"}`,`Competência: ${mesCompetencia(registro.competencia)}`,`Associação: ${associacao?.razaoSocial||registro.associacao}`,`Carga horária executada: ${apuracao.minutos===0&&colaborador&&relatorioNarrativoDouglas(colaborador)?"NÃO INFORMADO":formatarDuracao(apuracao.minutos)}`,`Quantidade de atividades: ${atividades.length}`,...(Math.abs(apuracao.minutos-apuracao.minutosAtividades)>=1?[`Soma das durações das atividades: ${formatarDuracao(apuracao.minutosAtividades)}`]:[])]}],fontes);
   for(const [i,a] of atividades.entries()){
-    await adicionarAtividadeComAssinaturas(pdf,a,i);
+    await adicionarAtividadeComAssinaturas(pdf,fontes,a,i);
   }
-  await copiarRelatorio(pdf,"OBSERVAÇÕES DA PRESTAÇÃO",[{heading:"OBSERVAÇÕES GERAIS",lines:[registro.observacoes||"Sem observações."]}]);
-  const fonte=await pdf.embedFont(StandardFonts.Helvetica);
+  await adicionarSecoesPdf(pdf,"OBSERVAÇÕES DA PRESTAÇÃO",[{heading:"OBSERVAÇÕES GERAIS",lines:[registro.observacoes||"Sem observações."]}],fontes);
+  const fonte=fontes.regular;
   for(const [indice,anexo] of anexos.entries()){
     const objeto=await env.BUCKET.get(anexo.key,"arrayBuffer");if(!objeto)continue;const bytes=new Uint8Array(objeto);
     try{if(anexo.tipo==="application/pdf"){const documento=await PDFDocument.load(bytes);const paginas=await pdf.copyPages(documento,documento.getPageIndices());paginas.forEach(p=>pdf.addPage(p));}else if(anexo.tipo==="image/jpeg"||anexo.tipo==="image/png"){const imagem=anexo.tipo==="image/png"?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);const pagina=pdf.addPage([W,H]);pagina.drawText(`ANEXO ${indice+1}: ${anexo.nome}`,{x:40,y:806,size:11,font:fonte,color:VERDE});const escala=Math.min(515/imagem.width,730/imagem.height,1);pagina.drawImage(imagem,{x:(W-imagem.width*escala)/2,y:45+(730-imagem.height*escala)/2,width:imagem.width*escala,height:imagem.height*escala});}else await pdf.attach(bytes,anexo.nome,{mimeType:anexo.tipo||"application/octet-stream",description:`Anexo da prestação ${registro.competencia}`});}catch{await pdf.attach(bytes,anexo.nome,{mimeType:anexo.tipo||"application/octet-stream",description:`Anexo da prestação ${registro.competencia}`});}
   }
-  const resultado=await pdf.save();return new Response(resultado.buffer.slice(resultado.byteOffset,resultado.byteOffset+resultado.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`${disposition}; filename="prestacao-contas-${registro.competencia}.pdf"`}});
+  const resultado=await pdf.save({useObjectStreams:false});return new Response(resultado,{headers:{"content-type":"application/pdf","content-disposition":`${disposition}; filename="prestacao-contas-${registro.competencia}.pdf"`}});
 }

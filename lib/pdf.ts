@@ -11,7 +11,7 @@ const CINZA=rgb(0.34,0.39,0.43),CINZA_CLARO=rgb(0.96,0.97,0.98),BORDA=rgb(0.82,0
 function caixaAlta(valor:unknown){return String(valor??"").trim().toLocaleUpperCase("pt-BR");}
 function quebrar(texto:string,fonte:PDFFont,tamanho:number,largura:number){const palavras=caixaAlta(texto).split(/\s+/).filter(Boolean);const linhas:string[]=[];let linha="";for(const original of palavras){let palavra=original;if(fonte.widthOfTextAtSize(palavra,tamanho)>largura){if(linha){linhas.push(linha);linha="";}while(fonte.widthOfTextAtSize(palavra,tamanho)>largura&&palavra.length>1){let corte=palavra.length-1;while(corte>1&&fonte.widthOfTextAtSize(`${palavra.slice(0,corte)}-`,tamanho)>largura)corte--;linhas.push(`${palavra.slice(0,corte)}-`);palavra=palavra.slice(corte);}}const candidata=linha?`${linha} ${palavra}`:palavra;if(fonte.widthOfTextAtSize(candidata,tamanho)<=largura)linha=candidata;else{if(linha)linhas.push(linha);linha=palavra;}}if(linha)linhas.push(linha);return linhas.length?linhas:["NÃO INFORMADO"];}
 
-export async function createPdf(title:string,sections:PdfSection[],capa?:CapaProjeto){const pdf=await PDFDocument.create();pdf.setTitle(caixaAlta(title));pdf.setAuthor("PROJETO ARRANJOS PRODUTIVOS");pdf.setSubject("RELATÓRIO DO PORTAL DE PRESTAÇÃO DE CONTAS");const regular=await pdf.embedFont(StandardFonts.Helvetica);const bold=await pdf.embedFont(StandardFonts.HelveticaBold);let page:PDFPage;let y=0;
+export async function createPdf(title:string,sections:PdfSection[],capa?:CapaProjeto){const pdf=await PDFDocument.create();pdf.setTitle(caixaAlta(title));pdf.setAuthor("PROJETO ARRANJOS PRODUTIVOS");pdf.setSubject("RELATÓRIO DO PORTAL DE PRESTAÇÃO DE CONTAS");const regular=await pdf.embedFont(StandardFonts.Helvetica);const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
  if (capa) {
    const folha = pdf.addPage([LARGURA, ALTURA]);
    const logo = await pdf.embedJpg(Uint8Array.from(atob(capa.logoBase64), caractere => caractere.charCodeAt(0)));
@@ -43,6 +43,13 @@ export async function createPdf(title:string,sections:PdfSection[],capa?:CapaPro
    centro(capa.periodo, 175, 14, CONTEUDO);
  }
 
+ await adicionarSecoesPdf(pdf,title,sections,{regular,bold});
+ return pdf.save();
+}
+
+export async function adicionarSecoesPdf(pdf:PDFDocument,title:string,sections:PdfSection[],{regular,bold}:{regular:PDFFont;bold:PDFFont}){
+ const inicio=pdf.getPageCount();
+ let page:PDFPage;let y=0;
  function novaPagina(){page=pdf.addPage([LARGURA,ALTURA]);page.drawRectangle({x:0,y:ALTURA-92,width:LARGURA,height:92,color:VERDE});page.drawRectangle({x:0,y:ALTURA-97,width:LARGURA,height:5,color:VERDE_MEDIO});page.drawText("ARRANJOS PRODUTIVOS",{x:MARGEM,y:ALTURA-29,size:8,font:bold,color:rgb(0.69,0.9,0.79)});page.drawText("PORTAL DE PRESTAÇÃO DE CONTAS",{x:MARGEM,y:ALTURA-48,size:9,font:bold,color:rgb(1,1,1)});quebrar(title,bold,12,CONTEUDO).slice(0,2).forEach((linha,indice)=>page.drawText(linha,{x:MARGEM,y:ALTURA-68-indice*12,size:11,font:bold,color:rgb(1,1,1)}));y=ALTURA-119;}
  function garantirEspaco(altura:number){if(y-altura<66)novaPagina();}
  function tituloSecao(titulo:string){garantirEspaco(29);page.drawRectangle({x:MARGEM,y:y-17,width:CONTEUDO,height:20,color:VERDE_CLARO});page.drawRectangle({x:MARGEM,y:y-17,width:4,height:20,color:VERDE_MEDIO});page.drawText(caixaAlta(titulo),{x:MARGEM+12,y:y-11.5,size:8.3,font:bold,color:VERDE});y-=25;}
@@ -61,4 +68,5 @@ export async function createPdf(title:string,sections:PdfSection[],capa?:CapaPro
    if (section.depois) await section.depois(pdf);
    iniciarPagina = pdf.getPageCount() > paginasAntes;
  }
- const paginas=pdf.getPages().slice(capa ? 1 : 0);const data=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date());paginas.forEach((pagina,indice)=>{pagina.drawLine({start:{x:MARGEM,y:48},end:{x:LARGURA-MARGEM,y:48},color:BORDA,thickness:0.7});pagina.drawText(`EMITIDO EM ${data}`,{x:MARGEM,y:31,size:7.5,font:regular,color:CINZA});const textoPagina=`PÁGINA ${indice+1} DE ${paginas.length}`;pagina.drawText(textoPagina,{x:LARGURA-MARGEM-bold.widthOfTextAtSize(textoPagina,7.5),y:31,size:7.5,font:bold,color:VERDE});});return pdf.save();}
+ const paginas=pdf.getPages().slice(inicio);const data=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date());paginas.forEach((pagina,indice)=>{pagina.drawLine({start:{x:MARGEM,y:48},end:{x:LARGURA-MARGEM,y:48},color:BORDA,thickness:0.7});pagina.drawText(`EMITIDO EM ${data}`,{x:MARGEM,y:31,size:7.5,font:regular,color:CINZA});const textoPagina=`PÁGINA ${indice+1} DE ${paginas.length}`;pagina.drawText(textoPagina,{x:LARGURA-MARGEM-bold.widthOfTextAtSize(textoPagina,7.5),y:31,size:7.5,font:bold,color:VERDE});});
+}
