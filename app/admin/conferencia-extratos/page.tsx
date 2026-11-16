@@ -5,6 +5,7 @@ import { getDb } from "@/db";
 import { associacoes, documentosAssociacao } from "@/db/schema";
 import { competenciaDaNota } from "@/lib/notas-servico";
 import { numeroMonetario } from "@/lib/moeda";
+import type { NotaConciliacao } from "@/lib/conferencia-extratos";
 import Conferencia from "./conferencia";
 
 type Arquivo = NonNullable<Parameters<typeof competenciaDaNota>[0]> & {
@@ -31,7 +32,7 @@ export default async function Page({searchParams}: {searchParams: Promise<{assoc
   const nome = grupos.find(grupo => grupo.nome === params.associacao)?.nome;
   const registros = nome && periodoValido ? await db.select().from(documentosAssociacao).where(eq(documentosAssociacao.associacao, nome)) : [];
   const extratos = new Map<string, {key: string; nome: string}>();
-  const notas = new Map<string, {key: string; nome: string; numero: string; prestador: string; centavos: number | null}>();
+  const notas = new Map<string, NotaConciliacao & {numero: string}>();
   for (const registro of registros) {
     for (const extrato of arquivos(registro.extratosJson)) {
       const coberturaInicio = extrato.competenciaInicio || registro.competencia;
@@ -42,7 +43,7 @@ export default async function Page({searchParams}: {searchParams: Promise<{assoc
       const mesNota = competenciaDaNota(nota, registro.competencia);
       if (!nota.key || mesNota < inicio || mesNota > fim) continue;
       const valor = numeroMonetario(nota.valor);
-      notas.set(nota.key, {key: nota.key, nome: nota.nome || "Nota fiscal", numero: nota.numeroNota || "", prestador: nota.prestador || nota.fornecedor || "", centavos: valor > 0 ? Math.round(valor * 100) : null});
+      notas.set(nota.key, {key: nota.key, nome: nota.nome || "Nota fiscal", numero: nota.numeroNota || "", prestador: nota.prestador || nota.fornecedor || "", cnpjPrestador: nota.cnpjPrestador, competencia: mesNota, centavos: valor > 0 ? Math.round(valor * 100) : null});
     }
   }
   return <main className="min-h-screen bg-slate-100 p-4 text-slate-950 sm:p-8">

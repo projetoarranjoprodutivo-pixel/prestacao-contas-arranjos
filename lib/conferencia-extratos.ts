@@ -58,3 +58,83 @@ export function lerSaidas(texto: string, inicio: string, fim = inicio) {
   }
   return { saidas, linhasSemIndicador };
 }
+
+export type NotaConciliacao = {
+  key: string;
+  nome: string;
+  prestador: string;
+  cnpjPrestador?: string;
+  competencia: string;
+  centavos: number | null;
+};
+
+type Situacao = "vinculada" | "revisar" | "sem-identificacao" | "sem-valor";
+
+const termosIgnorados = new Set([
+  "DA", "DAS", "DE", "DO", "DOS", "E", "LTDA", "MEI", "ME", "EPP", "PDF",
+  "NOTA", "FISCAL", "NF", "NFE", "NFSE", "SERVICO", "SERVICOS", "COMPETENCIA",
+  "JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO",
+  "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO",
+]);
+
+function termosIdentidade(texto: string) {
+  return texto.replace(/\S+@\S+/g, " ").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase().match(/[A-Z]+/g)?.filter(termo => termo.length > 1 && !termosIgnorados.has(termo)) ?? [];
+}
+
+function temNome(termos: string[], historico: string) {
+  return termos.length >= 2 && historico.includes(` ${termos.join(" ")} `);
+}
+
+export function conciliarSaidas<T extends NotaConciliacao>(saidas: Saida[], notas: T[]) {
+  const porValor = new Map<number, Array<{ nota: T; nome: string[]; arquivo: string[]; documento: string }>>();
+  for (const nota of notas) {
+    if (nota.centavos === null) continue;
+    const grupo = porValor.get(nota.centavos) ?? [];
+    grupo.push({
+      nota,
+      nome: termosIdentidade(nota.prestador),
+      arquivo: termosIdentidade(nota.nome),
+      documento: (nota.cnpjPrestador || "").replace(/\D/g, ""),
+    });
+    porValor.set(nota.centavos, grupo);
+  }
+
+  const pedidos = new Map<string, number>();
+  const sugestoes = saidas.map(saida => {
+    const grupo = porValor.get(saida.centavos) ?? [];
+    const historico = ` ${termosIdentidade(saida.descricao).join(" ")} `;
+    const documentos = [...saida.descricao.matchAll(/\b(?:\d{2}\.\d{3}\.\d{3}(?:\/\d{4}-\d{2})?|\d{3}\.\d{3}\.\d{3}-\d{2})\b/g)]
+      .map(([valor]) => valor.replace(/\D/g, ""));
+    const temIdentidade = grupo.flatMap(({nota, nome, arquivo, documento}) => {
+      const identificador = documentos.some(valor => documento === valor || (valor.length === 8 && documento.length === 14 && documento.startsWith(valor)));
+      const documentoConflitante = documento.length === 14 && documentos.some(valor => valor.length === 8 || valor.length === 14) && !identificador;
+      if (documentoConflitante) return [];
+      const pontos = identificador ? 3 : temNome(nome, historico) ? 2 : !nome.length && temNome(arquivo, historico) ? 1 : 0;
+      return pontos ? [{nota, pontos}] : [];
+    });
+    const competencia = saida.data.slice(0, 7);
+    const doMes = temIdentidade.filter(({nota}) => nota.competencia === competencia);
+    const opcoes = doMes.length ? doMes : temIdentidade;
+    const melhor = Math.max(0, ...opcoes.map(({pontos}) => pontos));
+    const candidatas = opcoes.filter(({pontos}) => pontos === melhor).map(({nota}) => nota);
+    for (const nota of candidatas) pedidos.set(nota.key, (pedidos.get(nota.key) ?? 0) + 1);
+    return {candidatas, mesmoMes: doMes.length > 0, temMesmoValor: grupo.length > 0};
+  });
+
+  const vinculadas = new Set<string>();
+  const paraRevisar = new Set<string>();
+  const lancamentos = sugestoes.map(({candidatas, mesmoMes, temMesmoValor}) => {
+    const primeira = candidatas[0];
+    let situacao: Situacao = temMesmoValor ? "sem-identificacao" : "sem-valor";
+    if (primeira && candidatas.length === 1 && mesmoMes && pedidos.get(primeira.key) === 1) {
+      situacao = "vinculada";
+      vinculadas.add(primeira.key);
+    } else if (primeira) {
+      situacao = "revisar";
+      for (const nota of candidatas) paraRevisar.add(nota.key);
+    }
+    return {situacao, candidatas, mesmoMes};
+  });
+  return {lancamentos, vinculadas, paraRevisar};
+}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { lerSaidas, type Saida } from "@/lib/conferencia-extratos";
+import { useMemo, useState } from "react";
+import { conciliarSaidas, lerSaidas, type NotaConciliacao, type Saida } from "@/lib/conferencia-extratos";
 
 type Documento = {key: string; nome: string};
-type Nota = Documento & {numero: string; prestador: string; centavos: number | null};
+type Nota = NotaConciliacao & {numero: string};
 const moeda = new Intl.NumberFormat("pt-BR", {style: "currency", currency: "BRL"});
 const reais = (centavos: number) => moeda.format(centavos / 100);
 const href = (key: string) => "/api/admin/documentos-associacao/arquivo?key=" + encodeURIComponent(key);
@@ -44,6 +44,7 @@ export default function Conferencia({inicio, fim, extratos, notas}: {inicio: str
   }
 
   const debitos = saidas || [];
+  const conciliacao = useMemo(() => conciliarSaidas(saidas ?? [], notas), [saidas, notas]);
   const totalDebitos = debitos.reduce((total, saida) => total + saida.centavos, 0);
   const totalNotas = notas.reduce((total, nota) => total + (nota.centavos ?? 0), 0);
   const cabecalho = "bg-slate-100 text-left";
@@ -60,14 +61,17 @@ export default function Conferencia({inicio, fim, extratos, notas}: {inicio: str
     <dl className="grid gap-3 sm:grid-cols-3">
       {[["Saídas identificadas", debitos.length ? reais(totalDebitos) : "—"], ["Valor das notas cadastradas", reais(totalNotas)], ["Diferença (saídas − notas)", debitos.length ? reais(totalDebitos - totalNotas) : "—"]].map(([titulo, valor]) => <div key={titulo} className="rounded-lg bg-emerald-50 p-3"><dt className="text-sm">{titulo}</dt><dd className="text-xl font-black">{valor}</dd></div>)}
     </dl>
-    <p className="text-sm text-slate-700">A comparação usa os valores do extrato selecionado e das notas do período. Valores iguais são sugestões para conferência. Tarifas, transferências e pagamentos agrupados podem exigir revisão.</p>
-    {lido && debitos.length > 0 && <div className="overflow-x-auto"><h2 className="mb-2 font-bold">SAÍDAS DO EXTRATO</h2><table className="w-full text-sm"><thead className={cabecalho}><tr><th className="p-2">Data</th><th className="p-2">Lançamento</th><th className="p-2">Valor</th><th className="p-2">Notas com o mesmo valor</th></tr></thead><tbody>
+    <p className="text-sm text-slate-700">A conferência cruza favorecido, valor e competência. Pagamentos em outro mês e casos com mais de uma correspondência ficam para revisão.</p>
+    {lido && debitos.length > 0 && <div className="overflow-x-auto"><h2 className="mb-2 font-bold">SAÍDAS DO EXTRATO</h2><table className="w-full text-sm"><thead className={cabecalho}><tr><th className="p-2">Data</th><th className="p-2">Lançamento</th><th className="p-2">Valor</th><th className="p-2">Nota correspondente</th></tr></thead><tbody>
       {debitos.map((saida, indice) => {
-        const iguais = notas.filter(nota => nota.centavos === saida.centavos);
-        const ambigua = iguais.length > 1 || debitos.filter(item => item.centavos === saida.centavos).length > 1;
-        return <tr key={indice} className="border-b"><td className="whitespace-nowrap p-2">{saida.data.split("-").reverse().join("/")}</td><td className="p-2">{saida.descricao || "—"}</td><td className="whitespace-nowrap p-2">{reais(saida.centavos)}</td><td className="p-2">{iguais.length ? <>{ambigua && <span className="block font-bold">Mais de um lançamento ou nota com esse valor</span>}{iguais.map(nota => <a key={nota.key} href={href(nota.key)} target="_blank" rel="noreferrer" className="block text-emerald-900 underline">{nota.numero || nota.nome} {nota.prestador}</a>)}</> : "Nenhuma nota com esse valor"}</td></tr>;
+        const {situacao, candidatas, mesmoMes} = conciliacao.lancamentos[indice];
+        const rotulo = situacao === "vinculada" ? "Favorecido, valor e competência conferem"
+          : situacao === "revisar" ? mesmoMes ? "Mais de uma correspondência possível" : "Competência diferente. Conferir"
+          : situacao === "sem-identificacao" ? "Mesmo valor, favorecido sem correspondência"
+          : "Nenhuma nota com esse valor";
+        return <tr key={indice} className="border-b"><td className="whitespace-nowrap p-2">{saida.data.split("-").reverse().join("/")}</td><td className="p-2">{saida.descricao || "—"}</td><td className="whitespace-nowrap p-2">{reais(saida.centavos)}</td><td className="p-2"><span className="block font-semibold">{rotulo}</span>{candidatas.map(nota => <a key={nota.key} href={href(nota.key)} target="_blank" rel="noreferrer" className="block text-emerald-900 underline">{nota.numero || nota.nome} {nota.prestador} · {nota.competencia}</a>)}</td></tr>;
       })}
     </tbody></table></div>}
-    <div className="overflow-x-auto"><h2 className="mb-2 font-bold">NOTAS FISCAIS DO PERÍODO</h2>{notas.length ? <table className="w-full text-sm"><thead className={cabecalho}><tr><th className="p-2">Nota</th><th className="p-2">Prestador</th><th className="p-2">Valor registrado</th><th className="p-2">Conferência</th></tr></thead><tbody>{notas.map(nota => <tr className="border-b" key={nota.key}><td className="p-2"><a className="text-emerald-900 underline" href={href(nota.key)} target="_blank" rel="noreferrer">{nota.numero || nota.nome}</a></td><td className="p-2">{nota.prestador || "—"}</td><td className="p-2">{nota.centavos === null ? "Não informado" : reais(nota.centavos)}</td><td className="p-2">{!lido ? "Aguardando leitura" : nota.centavos === null ? "Conferir valor da nota" : debitos.some(saida => saida.centavos === nota.centavos) ? "Valor localizado" : "Valor não localizado"}</td></tr>)}</tbody></table> : <p className="text-sm">Nenhuma nota cadastrada neste período.</p>}</div>
+    <div className="overflow-x-auto"><h2 className="mb-2 font-bold">NOTAS FISCAIS DO PERÍODO</h2>{notas.length ? <table className="w-full text-sm"><thead className={cabecalho}><tr><th className="p-2">Nota</th><th className="p-2">Prestador</th><th className="p-2">Valor registrado</th><th className="p-2">Conferência</th></tr></thead><tbody>{notas.map(nota => <tr className="border-b" key={nota.key}><td className="p-2"><a className="text-emerald-900 underline" href={href(nota.key)} target="_blank" rel="noreferrer">{nota.numero || nota.nome}</a></td><td className="p-2">{nota.prestador || "—"}</td><td className="p-2">{nota.centavos === null ? "Não informado" : reais(nota.centavos)}</td><td className="p-2">{!lido ? "Aguardando leitura" : nota.centavos === null ? "Conferir valor da nota" : conciliacao.vinculadas.has(nota.key) ? "Vinculada ao extrato" : conciliacao.paraRevisar.has(nota.key) ? "Revisar correspondência" : "Sem lançamento identificado"}</td></tr>)}</tbody></table> : <p className="text-sm">Nenhuma nota cadastrada neste período.</p>}</div>
   </section>;
 }
