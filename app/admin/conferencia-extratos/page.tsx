@@ -57,7 +57,7 @@ export default async function Page({searchParams}: {searchParams: Promise<{assoc
         <button className="rounded-lg bg-emerald-800 px-4 py-2 font-bold text-white">CONSULTAR</button>
       </form>
       {!periodoValido && <p role="alert">A competência final deve ser igual ou posterior à inicial.</p>}
-      {nome && periodoValido && <Conferencia key={nome + inicio + fim} inicio={inicio} fim={fim} extratos={[...extratos.values()]} notas={[...notas.values()]}/>}
+      {nome && periodoValido && <Conferencia key={nome + inicio + fim} associacao={nome} inicio={inicio} fim={fim} extratos={[...extratos.values()]} notas={[...notas.values()]}/>}
     </div>
   </main>;
 }
