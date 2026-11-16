@@ -53,7 +53,7 @@ export default function Conferencia({associacao, inicio, fim, extratos, notas}: 
         body: JSON.stringify({associacao, extrato, lancamento, nota, centavos}),
       });
       if (!resposta.ok) {
-        const dados = await resposta.json().catch(() => null);
+        const dados = await resposta.json().catch(() => null) as {message?: string} | null;
         throw new Error(dados?.message || "Não foi possível salvar o vínculo.");
       }
       setVinculos(await carregarVinculos());

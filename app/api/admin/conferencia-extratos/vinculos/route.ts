@@ -20,10 +20,12 @@ function erro(message: string, status: number) {
 
 export async function GET(request: Request) {
   if (!await getAdminUser()) return erro("Acesso restrito.", 403);
+  const banco = env.DB;
+  if (!banco) return erro("Banco de dados indisponível.", 503);
   const associacao = new URL(request.url).searchParams.get("associacao");
   if (!associacao) return erro("Selecione a associação.", 400);
-  await env.DB.prepare(tabela).run();
-  const dados = await env.DB.prepare("SELECT extrato, lancamento, nota, centavos FROM vinculos_extrato_nota WHERE associacao = ?").bind(associacao).all();
+  await banco.prepare(tabela).run();
+  const dados = await banco.prepare("SELECT extrato, lancamento, nota, centavos FROM vinculos_extrato_nota WHERE associacao = ?").bind(associacao).all();
   return Response.json(dados.results, {headers: {"Cache-Control": "private, no-store"}});
 }
 
@@ -37,6 +39,8 @@ function arquivos(json: string): Arquivo[] {
 
 export async function POST(request: Request) {
   if (!await getAdminUser()) return erro("Acesso restrito.", 403);
+  const banco = env.DB;
+  if (!banco) return erro("Banco de dados indisponível.", 503);
   const dados = await request.json().catch(() => null) as {
     associacao?: string; extrato?: string; lancamento?: string; nota?: string | null; centavos?: number;
   } | null;
@@ -52,9 +56,9 @@ export async function POST(request: Request) {
     return erro("Extrato não encontrado na associação.", 404);
   }
 
-  await env.DB.prepare(tabela).run();
+  await banco.prepare(tabela).run();
   if (nota === null) {
-    await env.DB.prepare("DELETE FROM vinculos_extrato_nota WHERE associacao = ? AND extrato = ? AND lancamento = ?")
+    await banco.prepare("DELETE FROM vinculos_extrato_nota WHERE associacao = ? AND extrato = ? AND lancamento = ?")
       .bind(associacao, extrato, lancamento).run();
     return Response.json({ok: true});
   }
@@ -66,7 +70,7 @@ export async function POST(request: Request) {
   const limite = Math.round(numeroMonetario(documento.valor) * 100);
   if (!Number.isSafeInteger(limite) || limite <= 0) return erro("A nota precisa ter um valor cadastrado.", 400);
 
-  const gravacao = await env.DB.prepare(`
+  const gravacao = await banco.prepare(`
     INSERT INTO vinculos_extrato_nota (associacao, extrato, lancamento, nota, centavos)
     SELECT ?, ?, ?, ?, ?
     WHERE ? >= ? + COALESCE((
