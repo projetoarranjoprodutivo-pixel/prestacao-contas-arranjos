@@ -86,6 +86,11 @@ function temNome(termos: string[], historico: string) {
   return termos.length >= 2 && historico.includes(` ${termos.join(" ")} `);
 }
 
+function melhores<T>(opcoes: Array<{nota: T; pontos: number}>) {
+  const melhor = Math.max(0, ...opcoes.map(({pontos}) => pontos));
+  return opcoes.filter(({pontos}) => pontos === melhor).map(({nota}) => nota);
+}
+
 export function conciliarSaidas<T extends NotaConciliacao>(saidas: Saida[], notas: T[]) {
   const porValor = new Map<number, Array<{ nota: T; nome: string[]; arquivo: string[]; documento: string }>>();
   for (const nota of notas) {
@@ -115,16 +120,16 @@ export function conciliarSaidas<T extends NotaConciliacao>(saidas: Saida[], nota
     });
     const competencia = saida.data.slice(0, 7);
     const doMes = temIdentidade.filter(({nota}) => nota.competencia === competencia);
-    const opcoes = doMes.length ? doMes : temIdentidade;
-    const melhor = Math.max(0, ...opcoes.map(({pontos}) => pontos));
-    const candidatas = opcoes.filter(({pontos}) => pontos === melhor).map(({nota}) => nota);
-    for (const nota of candidatas) pedidos.set(nota.key, (pedidos.get(nota.key) ?? 0) + 1);
-    return {candidatas, mesmoMes: doMes.length > 0, temMesmoValor: grupo.length > 0};
+    const candidatasDoMes = melhores(doMes);
+    for (const nota of candidatasDoMes) pedidos.set(nota.key, (pedidos.get(nota.key) ?? 0) + 1);
+    return {candidatasDoMes, temIdentidade, temMesmoValor: grupo.length > 0};
   });
 
   const vinculadas = new Set<string>();
   const paraRevisar = new Set<string>();
-  const lancamentos = sugestoes.map(({candidatas, mesmoMes, temMesmoValor}) => {
+  const lancamentos = sugestoes.map(({candidatasDoMes, temIdentidade, temMesmoValor}) => {
+    const mesmoMes = candidatasDoMes.length > 0;
+    const candidatas = mesmoMes ? candidatasDoMes : melhores(temIdentidade.filter(({nota}) => !pedidos.has(nota.key)));
     const primeira = candidatas[0];
     let situacao: Situacao = temMesmoValor ? "sem-identificacao" : "sem-valor";
     if (primeira && candidatas.length === 1 && mesmoMes && pedidos.get(primeira.key) === 1) {
