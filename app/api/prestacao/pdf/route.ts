@@ -76,6 +76,7 @@ async function adicionarTabelaAssociacoes(pdf:PDFDocument){
 export async function GET(request:Request){
   const user=await getChatGPTUser();if(!user)return new Response("Não autorizado",{status:401});
   const url=new URL(request.url);const id=Number(url.searchParams.get("id"));const competencia=url.searchParams.get("competencia")||"";if(id&&user.role!=="aderes"&&user.role!=="admin"&&!isAdminEmail(user.email))return new Response("Acesso restrito",{status:403});
+  const disposition = url.searchParams.get("visualizar") === "1" ? "inline" : "attachment";
   const db=getDb();const registro=await db.query.prestacoes.findFirst({where:id?eq(prestacoes.id,id):and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});if(!registro)return new Response("Prestação não encontrada",{status:404});
   const [colaborador,associacao]=await Promise.all([db.query.colaboradores.findFirst({where:eq(colaboradores.authUserId,registro.authUserId)}),db.query.associacoes.findFirst({where:eq(associacoes.nome,registro.associacao)})]);
   const anexos=JSON.parse(registro.anexosJson||"[]") as Array<{key:string;nome:string;tipo:string;diagnosticoAgroindustria?:boolean}>;
@@ -88,7 +89,7 @@ export async function GET(request:Request){
     const original=await PDFDocument.load(bytes);
     const paginas=await pdf.copyPages(original,original.getPageIndices());
     paginas.forEach(pagina=>pdf.addPage(pagina));
-    return new Response(Uint8Array.from(await pdf.save()),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="diagnostico-agroindustria-${registro.competencia}.pdf"`}});
+    return new Response(Uint8Array.from(await pdf.save()),{headers:{"content-type":"application/pdf","content-disposition":`${disposition}; filename="diagnostico-agroindustria-${registro.competencia}.pdf"`}});
   }
   const origem=JSON.parse(registro.atividadesJson) as Atividade[];
   const plano = registro.status === "importado" && origem.some(a => !a.unidadeDuracao)
@@ -115,5 +116,5 @@ export async function GET(request:Request){
     const objeto=await env.BUCKET.get(anexo.key,"arrayBuffer");if(!objeto)continue;const bytes=new Uint8Array(objeto);
     try{if(anexo.tipo==="application/pdf"){const documento=await PDFDocument.load(bytes);const paginas=await pdf.copyPages(documento,documento.getPageIndices());paginas.forEach(p=>pdf.addPage(p));}else if(anexo.tipo==="image/jpeg"||anexo.tipo==="image/png"){const imagem=anexo.tipo==="image/png"?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);const pagina=pdf.addPage([W,H]);pagina.drawText(`ANEXO ${indice+1}: ${anexo.nome}`,{x:40,y:806,size:11,font:fonte,color:VERDE});const escala=Math.min(515/imagem.width,730/imagem.height,1);pagina.drawImage(imagem,{x:(W-imagem.width*escala)/2,y:45+(730-imagem.height*escala)/2,width:imagem.width*escala,height:imagem.height*escala});}else await pdf.attach(bytes,anexo.nome,{mimeType:anexo.tipo||"application/octet-stream",description:`Anexo da prestação ${registro.competencia}`});}catch{await pdf.attach(bytes,anexo.nome,{mimeType:anexo.tipo||"application/octet-stream",description:`Anexo da prestação ${registro.competencia}`});}
   }
-  const resultado=await pdf.save();return new Response(resultado.buffer.slice(resultado.byteOffset,resultado.byteOffset+resultado.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="prestacao-contas-${registro.competencia}.pdf"`}});
+  const resultado=await pdf.save();return new Response(resultado.buffer.slice(resultado.byteOffset,resultado.byteOffset+resultado.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`${disposition}; filename="prestacao-contas-${registro.competencia}.pdf"`}});
 }
