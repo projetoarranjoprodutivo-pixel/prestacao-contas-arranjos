@@ -90,7 +90,7 @@ function formularioCopiaRevisada(id: number, publicada: boolean) {
     <title>Cópia revisada da prestação</title>
     <main><h1>Cópia revisada da prestação nº ${id}</h1>
     ${publicada ? '<p role="status">Cópia revisada publicada.</p>' : ''}
-    <p>O PDF enviado será exibido em Visualizar. Os documentos originais continuam disponíveis para conferência.</p>
+    <p>O PDF enviado será usado em Visualizar e Baixar PDF. Os documentos originais continuam disponíveis para conferência.</p>
     <form method="post" enctype="multipart/form-data" action="?id=${id}">
       <label>PDF revisado <input type="file" name="pdf" accept="application/pdf,.pdf" required></label>
       <button type="submit">Publicar cópia revisada</button>
@@ -139,11 +139,11 @@ export async function GET(request:Request){
     if (!id || (user.role !== "admin" && !isAdminEmail(user.email))) return new Response("Acesso restrito",{status:403});
     return formularioCopiaRevisada(registro.id,url.searchParams.get("publicada") === "1");
   }
-  if (disposition === "inline" && env.BUCKET) {
+  if (id && env.BUCKET) {
     const copia = await env.BUCKET.get(chaveCopiaRevisada(registro),"stream");
     if (copia) return new Response(copia,{headers:{
       "content-type":"application/pdf",
-      "content-disposition":`inline; filename="prestacao-contas-${registro.competencia}.pdf"`,
+      "content-disposition":`${disposition}; filename="prestacao-contas-${registro.competencia}.pdf"`,
       "cache-control":"private, no-store",
       "x-content-type-options":"nosniff"
     }});
