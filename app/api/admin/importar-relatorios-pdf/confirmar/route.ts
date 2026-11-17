@@ -8,7 +8,7 @@ import {preencherDuracao,minutosDaAtividade,apurarDuracoesRelatorio} from "@/lib
 import { consultorDeAgroindustria, MINUTOS_DIAGNOSTICO_AGROINDUSTRIA } from "@/lib/relatorios-narrativos";
 export const runtime="edge";
 const hash=async(bytes:ArrayBuffer)=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)),v=>v.toString(16).padStart(2,"0")).join("");
-type Anexo={key:string;nome:string;tipo:string;importacaoHash?:string;dadosHash?:string;diagnosticoAgroindustria?:boolean};
+type Anexo={key:string;nome:string;tipo:string;importacaoHash?:string;dadosHash?:string;diagnosticoAgroindustria?:boolean;diagnosticoIntegral?:boolean};
 export async function POST(request:Request){
  if(!await getAdminUser())return Response.json({message:"ACESSO RESTRITO."},{status:403});
  try{
@@ -17,10 +17,12 @@ export async function POST(request:Request){
  if(!(arquivo instanceof File)||arquivo.type!=="application/pdf"||!arquivo.size||arquivo.size>20*1024*1024)return Response.json({message:"ENVIE O PDF ORIGINAL DE ATÉ 20 MB."},{status:400});
  const bytes=await arquivo.arrayBuffer();if(new TextDecoder().decode(bytes.slice(0,5))!=="%PDF-")return Response.json({message:"O ARQUIVO NÃO É UM PDF VÁLIDO."},{status:400});
  const db=getDb(),pessoa=await db.query.colaboradores.findFirst({where:eq(colaboradores.id,dados.colaboradorId)});if(!pessoa)return Response.json({message:"COLABORADOR NÃO ENCONTRADO."},{status:404});
- const diagnostico = dados.diagnosticoAgroindustria === true;
- if(diagnostico && (!consultorDeAgroindustria(pessoa.cargo) || dados.atividades.length)){
+ const agroindustria = dados.diagnosticoAgroindustria === true;
+ const diagnostico = agroindustria || dados.diagnosticoIntegral === true;
+ if(agroindustria && !consultorDeAgroindustria(pessoa.cargo)){
   return Response.json({message:"SELECIONE O CADASTRO DO CONSULTOR DE AGROINDÚSTRIA PARA IMPORTAR O DIAGNÓSTICO INTEGRAL."},{status:400});
  }
+ if(diagnostico && dados.atividades.length)return Response.json({message:"O DIAGNÓSTICO INTEGRAL DEVE SER IMPORTADO COMO PDF."},{status:400});
  if(!diagnostico && !dados.atividades.length){
   return Response.json({message:"CONFIRA AS ATIVIDADES ANTES DE SALVAR."},{status:400});
  }
@@ -37,28 +39,28 @@ export async function POST(request:Request){
   const vinculos = [pessoa.associacao, ...listaJson<string>(pessoa.associacoesJson)];
   if(!vinculos.some(v => v && chaveTexto(v) === chaveTexto(associacao.nome)) ||
      (existente && chaveTexto(existente.associacao) !== chaveTexto(associacao.nome))){
-   return Response.json({message:"CONFIRA O VÍNCULO DO CONSULTOR COM A ASSOCIAÇÃO DESTA PRESTAÇÃO."},{status:409});
+   return Response.json({message:"CONFIRA O VÍNCULO DO COLABORADOR COM A ASSOCIAÇÃO DESTA PRESTAÇÃO."},{status:409});
   }
   const key = `prestacoes/${pessoa.authUserId}/${dados.competencia}/diagnostico-${digest}.pdf`;
-  const anexo = {key,nome:arquivo.name,tipo:"application/pdf",importacaoHash:digest,diagnosticoAgroindustria:true};
+  const anexo = {key,nome:arquivo.name,tipo:"application/pdf",importacaoHash:digest,...(agroindustria ? {diagnosticoAgroindustria:true} : {diagnosticoIntegral:true})};
   const values = {
    authUserId:pessoa.authUserId, competencia:dados.competencia, associacao:associacao.nome,
    municipio:existente?.municipio || "", atividadesJson:existente?.atividadesJson || "[]",
-   totalMinutos:MINUTOS_DIAGNOSTICO_AGROINDUSTRIA, observacoes:existente?.observacoes || "",
-   anexosJson:JSON.stringify([...anexos.filter(a => a.key !== key && !a.diagnosticoAgroindustria), anexo]),
+   totalMinutos:agroindustria ? MINUTOS_DIAGNOSTICO_AGROINDUSTRIA : (existente?.totalMinutos ?? 0), observacoes:existente?.observacoes || "",
+   anexosJson:JSON.stringify([...anexos.filter(a => a.key !== key && !a.diagnosticoAgroindustria && !a.diagnosticoIntegral), anexo]),
    status:"importado", atualizadoEm:new Date().toISOString(),
   };
-  if(anexos.some(a => a.key === key && a.diagnosticoAgroindustria) && existente?.totalMinutos === values.totalMinutos){
-   return Response.json({message:"ESTE DIAGNÓSTICO JÁ CONSTA NA PRESTAÇÃO COM CARGA HORÁRIA DE 160:00.",jaImportado:true});
+  if(anexos.some(a => a.key === key && (agroindustria ? a.diagnosticoAgroindustria : a.diagnosticoIntegral)) && existente?.totalMinutos === values.totalMinutos){
+   return Response.json({message:"ESTE DIAGNÓSTICO JÁ CONSTA NA PRESTAÇÃO.",jaImportado:true});
   }
   await env.BUCKET.put(key,bytes,{metadata:{contentType:"application/pdf"}});
   const registro = existente
    ? await db.update(prestacoes).set(values).where(and(condicao,eq(prestacoes.atualizadoEm,existente.atualizadoEm))).returning({id:prestacoes.id})
    : await db.insert(prestacoes).values(values).onConflictDoNothing({target:[prestacoes.authUserId,prestacoes.competencia]}).returning({id:prestacoes.id});
   if(!registro.length)return Response.json({message:"A PRESTAÇÃO FOI ALTERADA. ATUALIZE A CONFERÊNCIA ANTES DE SALVAR."},{status:409});
-  return Response.json({message:`DIAGNÓSTICO INTEGRAL SALVO NA PRESTAÇÃO: ${pessoa.nomeCompleto} · ${dados.competencia} · 160:00.`});
+  return Response.json({message:`DIAGNÓSTICO INTEGRAL SALVO NA PRESTAÇÃO: ${pessoa.nomeCompleto} · ${dados.competencia}${agroindustria ? " · 160:00" : ""}.`});
  }
- if(anexos.some(a => a.diagnosticoAgroindustria)){
+ if(anexos.some(a => a.diagnosticoAgroindustria || a.diagnosticoIntegral)){
   return Response.json({message:"ESTA PRESTAÇÃO UTILIZA DIAGNÓSTICO INTEGRAL. IMPORTE O DIAGNÓSTICO PARA ATUALIZÁ-LA."},{status:409});
  }
  const dadosHash=await hash(new TextEncoder().encode(JSON.stringify({atividades:dados.atividades,descricao:dados.descricao,associacao:dados.associacao,modo:dados.modo})).buffer);

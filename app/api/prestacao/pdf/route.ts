@@ -34,7 +34,7 @@ async function carregarFontes(pdf:PDFDocument):Promise<Fontes>{
   return {regular,bold};
 }
 
-async function adicionarCapa(pdf:PDFDocument,{regular,bold}:Fontes,registro:typeof prestacoes.$inferSelect,colaborador:typeof colaboradores.$inferSelect|null,associacao:typeof associacoes.$inferSelect|null,diagnostico=false){
+async function adicionarCapa(pdf:PDFDocument,{regular,bold}:Fontes,registro:typeof prestacoes.$inferSelect,colaborador:typeof colaboradores.$inferSelect|null,associacao:typeof associacoes.$inferSelect|null,diagnostico=false,mostrarHoras=true){
   const pagina=pdf.addPage([W,H]);
   const projeto=await pdf.embedJpg(bytesBase64(PROJETO_LOGO_BASE64));
   pagina.drawImage(projeto,{x:145,y:690,width:306,height:99});
@@ -50,7 +50,7 @@ async function adicionarCapa(pdf:PDFDocument,{regular,bold}:Fontes,registro:type
   y=285;y=centralizar(pagina,"RELATÓRIO DAS ATIVIDADES",y,bold,15);y=centralizar(pagina,"RELACIONADAS AO PROJETO ARRANJOS PRODUTIVOS",y-11,bold,13);y=centralizar(pagina,"NO ESTADO DO ESPÍRITO SANTO",y-7,bold,13);y=centralizar(pagina,mesCompetencia(registro.competencia),y-16,bold,14);
   if(diagnostico){
     y=centralizar(pagina,colaborador?.nomeCompleto||executor,y-12,bold,11);
-    centralizar(pagina,`CARGA HORÁRIA DA COMPETÊNCIA: ${formatarDuracao(MINUTOS_DIAGNOSTICO_AGROINDUSTRIA)}`,y-10,bold,11);
+    if(mostrarHoras)centralizar(pagina,`CARGA HORÁRIA DA COMPETÊNCIA: ${formatarDuracao(registro.totalMinutos || MINUTOS_DIAGNOSTICO_AGROINDUSTRIA)}`,y-10,bold,11);
   }
 }
 
@@ -86,17 +86,17 @@ export async function GET(request:Request){
   const disposition = url.searchParams.get("visualizar") === "1" ? "inline" : "attachment";
   const db=getDb();const registro=await db.query.prestacoes.findFirst({where:id?eq(prestacoes.id,id):and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});if(!registro)return new Response("Prestação não encontrada",{status:404});
   const [colaborador,associacao]=await Promise.all([db.query.colaboradores.findFirst({where:eq(colaboradores.authUserId,registro.authUserId)}),db.query.associacoes.findFirst({where:eq(associacoes.nome,registro.associacao)})]);
-  const anexos=JSON.parse(registro.anexosJson||"[]") as Array<{key:string;nome:string;tipo:string;diagnosticoAgroindustria?:boolean}>;
-  const diagnostico=anexos.find(anexo=>anexo.diagnosticoAgroindustria);
+  const anexos=JSON.parse(registro.anexosJson||"[]") as Array<{key:string;nome:string;tipo:string;diagnosticoAgroindustria?:boolean;diagnosticoIntegral?:boolean}>;
+  const diagnostico=anexos.find(anexo=>anexo.diagnosticoAgroindustria||anexo.diagnosticoIntegral);
   if(diagnostico){
     const bytes=await env.BUCKET?.get(diagnostico.key,"arrayBuffer");
     if(!bytes)return new Response("Diagnóstico original indisponível",{status:503});
     const pdf=await PDFDocument.create();
-    await adicionarCapa(pdf,await carregarFontes(pdf),registro,colaborador||null,associacao||null,true);
+    await adicionarCapa(pdf,await carregarFontes(pdf),registro,colaborador||null,associacao||null,true,!!diagnostico.diagnosticoAgroindustria||registro.totalMinutos>0);
     const original=await PDFDocument.load(bytes);
     const paginas=await pdf.copyPages(original,original.getPageIndices());
     paginas.forEach(pagina=>pdf.addPage(pagina));
-    return new Response(Uint8Array.from(await pdf.save()),{headers:{"content-type":"application/pdf","content-disposition":`${disposition}; filename="diagnostico-agroindustria-${registro.competencia}.pdf"`}});
+    return new Response(await pdf.save({useObjectStreams:false}),{headers:{"content-type":"application/pdf","content-disposition":`${disposition}; filename="diagnostico${diagnostico.diagnosticoAgroindustria ? "-agroindustria" : ""}-${registro.competencia}.pdf"`}});
   }
   const origem=JSON.parse(registro.atividadesJson) as Atividade[];
   const plano = registro.status === "importado" && origem.some(a => !a.unidadeDuracao)
