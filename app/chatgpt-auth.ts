@@ -8,6 +8,11 @@ import { colaboradores,sessoesAcesso,usuariosAcesso } from "@/db/schema";
 
 export type ChatGPTUser={userId:string;displayName:string;email:string;fullName:string|null;role:string;associacao:string|null};
 const COOKIE="ap_session";
+
+// Hint for public navigation only. Protected pages still validate the session.
+export async function hasSessionCookie() {
+  return Boolean((await cookies()).get(COOKIE)?.value);
+}
 const bytes=(n:number)=>{const a=new Uint8Array(n);crypto.getRandomValues(a);return a;};
 const hex=(a:ArrayBuffer|Uint8Array)=>[...new Uint8Array(a instanceof Uint8Array?a.buffer:a)].map(x=>x.toString(16).padStart(2,"0")).join("");
 const hash=async(v:string)=>hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)));
