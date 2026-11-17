@@ -1,19 +1,19 @@
 import MapaProjeto from "./mapa-carregamento";
-import { ArrowRight, Building2, ClipboardCheck, Landmark, LockKeyhole, ShieldCheck, UserPlus } from "lucide-react";
-import { chatGPTSignInPath, getChatGPTUser } from "./chatgpt-auth";
+import { ArrowRight, Building2, Landmark, LockKeyhole, ShieldCheck, UserPlus } from "lucide-react";
+import { chatGPTSignInPath, hasSessionCookie } from "./chatgpt-auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const user = await getChatGPTUser();
-  const entrar = user ? "/painel" : chatGPTSignInPath("/painel");
-  const cadastrar = user ? "/cadastro" : "/criar-conta";
+  const hasSession = await hasSessionCookie();
+  const entrar = hasSession ? "/painel" : chatGPTSignInPath("/painel");
+  const cadastrar = hasSession ? "/cadastro" : "/criar-conta";
   const administrar = "/entrar-administracao";
   const portalAssociacao = "/entrar-associacao";
   const portalAderes = "/entrar-aderes";
   const acessos=[
-    {titulo:"Entrar no portal",descricao:"Colaboradores",href:entrar,icon:LockKeyhole,cor:"bg-emerald-800",top:!user},
-    {titulo:"Criar cadastro",descricao:"Primeiro acesso",href:cadastrar,icon:UserPlus,cor:"bg-amber-700",top:!user},
+    {titulo:"Entrar no portal",descricao:"Colaboradores",href:entrar,icon:LockKeyhole,cor:"bg-emerald-800",top:!hasSession},
+    {titulo:"Criar cadastro",descricao:"Primeiro acesso",href:cadastrar,icon:UserPlus,cor:"bg-amber-700",top:!hasSession},
     {titulo:"Administração",descricao:"Gestão do projeto",href:administrar,icon:ShieldCheck,cor:"bg-blue-800",top:true},
     {titulo:"Associações",descricao:"Documentos financeiros",href:portalAssociacao,icon:Building2,cor:"bg-violet-800",top:true},
     {titulo:"ADERES",descricao:"Análise e prestação",href:portalAderes,icon:Landmark,cor:"bg-teal-800",top:true},
