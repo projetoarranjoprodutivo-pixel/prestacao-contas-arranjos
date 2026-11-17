@@ -80,11 +80,74 @@ function adicionarTabelaAssociacoes(pdf:PDFDocument,{regular,bold}:Fontes){
   pagina.drawText("PÚBLICO-ALVO",{x:M,y:120,size:9,font:bold,color:VERDE});for(const [i,linha] of dividir("Agricultores e/ou empreendedores familiares rurais participantes do Projeto, registrados na ficha cadastral dos municípios acima citados.",regular,8.4,W-M*2).entries())pagina.drawText(linha,{x:M,y:103-i*11,size:8.4,font:regular,color:PRETO});
 }
 
+function chaveCopiaRevisada(registro: typeof prestacoes.$inferSelect) {
+  return `prestacao:copia-revisada:${registro.id}:${registro.authUserId}:${registro.competencia}`;
+}
+
+function formularioCopiaRevisada(id: number, publicada: boolean) {
+  return new Response(`<!doctype html><html lang="pt-BR"><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Cópia revisada da prestação</title>
+    <main><h1>Cópia revisada da prestação nº ${id}</h1>
+    ${publicada ? '<p role="status">Cópia revisada publicada.</p>' : ''}
+    <p>O PDF enviado será exibido em Visualizar. Os documentos originais continuam disponíveis para conferência.</p>
+    <form method="post" enctype="multipart/form-data" action="?id=${id}">
+      <label>PDF revisado <input type="file" name="pdf" accept="application/pdf,.pdf" required></label>
+      <button type="submit">Publicar cópia revisada</button>
+    </form>
+    <p><a href="?id=${id}&amp;visualizar=1">Visualizar PDF</a></p></main></html>`,
+    {headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store","content-security-policy":"default-src 'none'; form-action 'self'; frame-ancestors 'none'"}});
+}
+
+export async function POST(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user) return new Response("Não autorizado", {status:401});
+  const url = new URL(request.url);
+  if (request.headers.get("origin") !== url.origin || (user.role !== "admin" && !isAdminEmail(user.email))) {
+    return new Response("Acesso restrito", {status:403});
+  }
+
+  const id = Number(url.searchParams.get("id"));
+  if (!Number.isSafeInteger(id) || id < 1) return new Response("Prestação inválida", {status:400});
+  const registro = await getDb().query.prestacoes.findFirst({where:eq(prestacoes.id,id)});
+  if (!registro) return new Response("Prestação não encontrada", {status:404});
+  if (!env.BUCKET) return new Response("Armazenamento indisponível", {status:503});
+
+  const limite = 20 * 1024 * 1024;
+  if (Number(request.headers.get("content-length")) > limite + 65536) {
+    return new Response("O PDF deve ter até 20 MB", {status:413});
+  }
+  const dados = await request.formData().catch(() => null);
+  const arquivo = dados?.get("pdf");
+  if (!(arquivo instanceof File) || !arquivo.size || arquivo.size > limite) {
+    return new Response("Selecione um PDF de até 20 MB", {status:400});
+  }
+  if (await arquivo.slice(0,5).text() !== "%PDF-") {
+    return new Response("Arquivo PDF inválido", {status:400});
+  }
+
+  await env.BUCKET.put(chaveCopiaRevisada(registro), arquivo.stream());
+  return Response.redirect(new URL(`?id=${id}&editarCopiaRevisada=1&publicada=1`,url),303);
+}
+
 export async function GET(request:Request){
   const user=await getChatGPTUser();if(!user)return new Response("Não autorizado",{status:401});
   const url=new URL(request.url);const id=Number(url.searchParams.get("id"));const competencia=url.searchParams.get("competencia")||"";if(id&&user.role!=="aderes"&&user.role!=="admin"&&!isAdminEmail(user.email))return new Response("Acesso restrito",{status:403});
   const disposition = url.searchParams.get("visualizar") === "1" ? "inline" : "attachment";
   const db=getDb();const registro=await db.query.prestacoes.findFirst({where:id?eq(prestacoes.id,id):and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});if(!registro)return new Response("Prestação não encontrada",{status:404});
+  if (url.searchParams.get("editarCopiaRevisada") === "1") {
+    if (!id || (user.role !== "admin" && !isAdminEmail(user.email))) return new Response("Acesso restrito",{status:403});
+    return formularioCopiaRevisada(registro.id,url.searchParams.get("publicada") === "1");
+  }
+  if (disposition === "inline" && env.BUCKET) {
+    const copia = await env.BUCKET.get(chaveCopiaRevisada(registro),"stream");
+    if (copia) return new Response(copia,{headers:{
+      "content-type":"application/pdf",
+      "content-disposition":`inline; filename="prestacao-contas-${registro.competencia}.pdf"`,
+      "cache-control":"private, no-store",
+      "x-content-type-options":"nosniff"
+    }});
+  }
   const [colaborador,associacao]=await Promise.all([db.query.colaboradores.findFirst({where:eq(colaboradores.authUserId,registro.authUserId)}),db.query.associacoes.findFirst({where:eq(associacoes.nome,registro.associacao)})]);
   const anexos=JSON.parse(registro.anexosJson||"[]") as Array<{key:string;nome:string;tipo:string;diagnosticoAgroindustria?:boolean;diagnosticoIntegral?:boolean}>;
   const diagnostico=anexos.find(anexo=>anexo.diagnosticoAgroindustria||anexo.diagnosticoIntegral);
