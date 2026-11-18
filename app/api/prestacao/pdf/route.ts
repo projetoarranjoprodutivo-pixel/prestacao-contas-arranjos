@@ -1,6 +1,6 @@
 import { atividadeExecutada, apurarDuracoesRelatorio, formatarDuracao, minutosDaAtividade } from "@/lib/duracao-relatorios";
 import {MINUTOS_DIAGNOSTICO_AGROINDUSTRIA,relatorioNarrativoDouglas} from "@/lib/relatorios-narrativos";
-import { env } from "cloudflare:workers";
+import { env, waitUntil } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { associacoes, colaboradores, planosTrabalho, prestacoes } from "@/db/schema";
@@ -130,6 +130,45 @@ export async function POST(request: Request) {
   return Response.redirect(new URL(`?id=${id}&editarCopiaRevisada=1&publicada=1`,url),303);
 }
 
+const TTL_PDF = 7 * 24 * 60 * 60;
+const LIMITE_PDF_KV = 25 * 1024 * 1024;
+
+function respostaPdf(body: ReadableStream | Uint8Array, disposition: string, nome: string, cache: string) {
+  return new Response(body, {headers:{
+    "content-type":"application/pdf",
+    "content-disposition":`${disposition}; filename="${nome}"`,
+    "cache-control":"private, no-store",
+    "x-content-type-options":"nosniff",
+    "x-pdf-cache":cache,
+  }});
+}
+
+async function chavePdfGerado(
+  registro: typeof prestacoes.$inferSelect,
+  colaborador: typeof colaboradores.$inferSelect | undefined,
+  associacao: typeof associacoes.$inferSelect | undefined,
+  versaoPlano: string | undefined,
+) {
+  const dados = JSON.stringify([
+    registro.id, registro.authUserId, registro.competencia, registro.associacao, registro.atualizadoEm,
+    registro.status, registro.totalMinutos, registro.municipio, registro.anexosJson, versaoPlano,
+    colaborador?.nomeCompleto, colaborador?.nomeEmpresarial, colaborador?.mei, colaborador?.endereco,
+    colaborador?.numero, colaborador?.bairro, colaborador?.cidade, colaborador?.uf, colaborador?.celular,
+    colaborador?.email, colaborador?.cargo, colaborador?.municipiosAtendidosJson,
+    associacao?.nome, associacao?.razaoSocial,
+  ]);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(dados)));
+  const hash = Array.from(digest, n=>n.toString(16).padStart(2,"0")).join("");
+  return `prestacao:pdf-gerado:v1:${hash}`;
+}
+
+function guardarPdfGerado(chave: string, bytes: Uint8Array) {
+  if (!env.BUCKET || bytes.byteLength > LIMITE_PDF_KV) return;
+  waitUntil(env.BUCKET.put(chave, bytes, {expirationTtl:TTL_PDF}).catch(error=>{
+    console.warn("prestacao_pdf_cache_write",error);
+  }));
+}
+
 export async function GET(request:Request){
   const user=await getChatGPTUser();if(!user)return new Response("Não autorizado",{status:401});
   const url=new URL(request.url);const id=Number(url.searchParams.get("id"));const competencia=url.searchParams.get("competencia")||"";if(id&&user.role!=="aderes"&&user.role!=="admin"&&!isAdminEmail(user.email))return new Response("Acesso restrito",{status:403});
@@ -151,6 +190,19 @@ export async function GET(request:Request){
   const [colaborador,associacao]=await Promise.all([db.query.colaboradores.findFirst({where:eq(colaboradores.authUserId,registro.authUserId)}),db.query.associacoes.findFirst({where:eq(associacoes.nome,registro.associacao)})]);
   const anexos=JSON.parse(registro.anexosJson||"[]") as Array<{key:string;nome:string;tipo:string;diagnosticoAgroindustria?:boolean;diagnosticoIntegral?:boolean}>;
   const diagnostico=anexos.find(anexo=>anexo.diagnosticoAgroindustria||anexo.diagnosticoIntegral);
+  const origem=diagnostico ? [] : JSON.parse(registro.atividadesJson) as Atividade[];
+  const plano = registro.status === "importado" && origem.some(a => !a.unidadeDuracao)
+    ? await db.query.planosTrabalho.findFirst({columns:{agendaJson:true,atualizadoEm:true},where:and(eq(planosTrabalho.authUserId,registro.authUserId),eq(planosTrabalho.competencia,registro.competencia),eq(planosTrabalho.associacao,registro.associacao),eq(planosTrabalho.status,"importado"))})
+    : undefined;
+  const chave = await chavePdfGerado(registro,colaborador,associacao,plano?.atualizadoEm);
+  const nome = diagnostico
+    ? `diagnostico${diagnostico.diagnosticoAgroindustria ? "-agroindustria" : ""}-${registro.competencia}.pdf`
+    : `prestacao-contas-${registro.competencia}.pdf`;
+  const pronto = await env.BUCKET?.get(chave,"stream").catch(error=>{
+    console.warn("prestacao_pdf_cache_read",error);
+    return null;
+  });
+  if (pronto) return respostaPdf(pronto,disposition,nome,"HIT");
   if(diagnostico){
     const bytes=await env.BUCKET?.get(diagnostico.key,"arrayBuffer");
     if(!bytes)return new Response("Diagnóstico original indisponível",{status:503});
@@ -159,12 +211,10 @@ export async function GET(request:Request){
     const original=await PDFDocument.load(bytes);
     const paginas=await pdf.copyPages(original,original.getPageIndices());
     paginas.forEach(pagina=>pdf.addPage(pagina));
-    return new Response(await pdf.save({useObjectStreams:false}),{headers:{"content-type":"application/pdf","content-disposition":`${disposition}; filename="diagnostico${diagnostico.diagnosticoAgroindustria ? "-agroindustria" : ""}-${registro.competencia}.pdf"`}});
+    const resultado = await pdf.save({useObjectStreams:false});
+    guardarPdfGerado(chave,resultado);
+    return respostaPdf(resultado,disposition,nome,"MISS");
   }
-  const origem=JSON.parse(registro.atividadesJson) as Atividade[];
-  const plano = registro.status === "importado" && origem.some(a => !a.unidadeDuracao)
-    ? await db.query.planosTrabalho.findFirst({columns:{agendaJson:true},where:and(eq(planosTrabalho.authUserId,registro.authUserId),eq(planosTrabalho.competencia,registro.competencia),eq(planosTrabalho.associacao,registro.associacao),eq(planosTrabalho.status,"importado"))})
-    : undefined;
   const apuracao = apurarDuracoesRelatorio(origem, registro.totalMinutos, plano?.agendaJson, registro.status === "importado");
   const atividades = apuracao.itens;const pdf=await PDFDocument.create();
   const fontes=await carregarFontes(pdf);
@@ -184,9 +234,12 @@ export async function GET(request:Request){
   }
   await adicionarSecoesPdf(pdf,"OBSERVAÇÕES DA PRESTAÇÃO",[{heading:"OBSERVAÇÕES GERAIS",lines:[registro.observacoes||"Sem observações."]}],fontes);
   const fonte=fontes.regular;
+  let anexosCompletos = true;
   for(const [indice,anexo] of anexos.entries()){
-    const objeto=await env.BUCKET.get(anexo.key,"arrayBuffer");if(!objeto)continue;const bytes=new Uint8Array(objeto);
+    const objeto=await env.BUCKET.get(anexo.key,"arrayBuffer");if(!objeto){anexosCompletos=false;continue;}const bytes=new Uint8Array(objeto);
     try{if(anexo.tipo==="application/pdf"){const documento=await PDFDocument.load(bytes);const paginas=await pdf.copyPages(documento,documento.getPageIndices());paginas.forEach(p=>pdf.addPage(p));}else if(anexo.tipo==="image/jpeg"||anexo.tipo==="image/png"){const imagem=anexo.tipo==="image/png"?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);const pagina=pdf.addPage([W,H]);pagina.drawText(`ANEXO ${indice+1}: ${anexo.nome}`,{x:40,y:806,size:11,font:fonte,color:VERDE});const escala=Math.min(515/imagem.width,730/imagem.height,1);pagina.drawImage(imagem,{x:(W-imagem.width*escala)/2,y:45+(730-imagem.height*escala)/2,width:imagem.width*escala,height:imagem.height*escala});}else await pdf.attach(bytes,anexo.nome,{mimeType:anexo.tipo||"application/octet-stream",description:`Anexo da prestação ${registro.competencia}`});}catch{await pdf.attach(bytes,anexo.nome,{mimeType:anexo.tipo||"application/octet-stream",description:`Anexo da prestação ${registro.competencia}`});}
   }
-  const resultado=await pdf.save({useObjectStreams:false});return new Response(resultado,{headers:{"content-type":"application/pdf","content-disposition":`${disposition}; filename="prestacao-contas-${registro.competencia}.pdf"`}});
+  const resultado = await pdf.save({useObjectStreams:false});
+  if (anexosCompletos) guardarPdfGerado(chave,resultado);
+  return respostaPdf(resultado,disposition,nome,"MISS");
 }
