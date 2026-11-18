@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 export const runtime="edge";
 type Item={data:string;hora:string;duracaoEstimada?:string;municipio:string;comunidade:string;propriedade:string;agricultor:string;telefone:string;tipoAtividade:string;tipoMuda:string;quantidadeMudas:string;observacao:string};
 const tipos=new Set(["Visita Técnica","Dias de Campo","Seminário","Entrega de mudas"]);
-export async function GET(request:Request){const user=await getChatGPTUser();if(!user)return Response.json({message:"Sessão expirada."},{status:401});const competencia=new URL(request.url).searchParams.get("competencia")||"";if(!/^\d{4}-\d{2}$/.test(competencia))return Response.json({message:"Competência inválida."},{status:400});const plano=await getDb().query.planosTrabalho.findFirst({where:and(eq(planosTrabalho.authUserId,user.userId),eq(planosTrabalho.competencia,competencia))});return plano?Response.json({encontrado:true,agenda:JSON.parse(plano.agendaJson)}):Response.json({encontrado:false,agenda:[]});}
+export async function GET(request:Request){const user=await getChatGPTUser();if(!user)return Response.json({message:"Sessão expirada."},{status:401});const competencia=new URL(request.url).searchParams.get("competencia")||"";if(!/^\d{4}-\d{2}$/.test(competencia))return Response.json({message:"Competência inválida."},{status:400});const plano=await getDb().query.planosTrabalho.findFirst({where:and(eq(planosTrabalho.authUserId,user.userId),eq(planosTrabalho.competencia,competencia))});return plano?Response.json({encontrado:true,versao:plano.atualizadoEm,agenda:JSON.parse(plano.agendaJson)}):Response.json({encontrado:false,agenda:[]});}
 export async function POST(request:Request){
   const user=await getChatGPTUser();if(!user)return Response.json({message:"Sessão expirada."},{status:401});
   try{
@@ -16,8 +16,16 @@ export async function POST(request:Request){
     if(!/^\d{4}-\d{2}$/.test(competencia)||!agenda.length||agenda.some(i=>!i.data||!i.hora||!i.municipio||!tipos.has(i.tipoAtividade)||(i.tipoAtividade==="Visita Técnica"&&!i.agricultor)||(i.tipoAtividade==="Entrega de mudas"&&(!i.tipoMuda||Number(i.quantidadeMudas)<=0))))return Response.json({message:"Preencha a competência e todos os campos obrigatórios da agenda."},{status:400});
     if(agenda.some(i=>i.duracaoEstimada && (!Number.isFinite(Number(i.duracaoEstimada.replace(",","."))) || Number(i.duracaoEstimada.replace(",","."))<0)))return Response.json({message:"Informe uma duração estimada válida em horas."},{status:400});
     agenda=agenda.map(i=>({...i,duracaoEstimada:i.duracaoEstimada?i.duracaoEstimada.replace(",","."):""}));
-    const values={authUserId:user.userId,competencia,associacao:cadastro.associacao,agendaJson:JSON.stringify(agenda),status:"enviado",atualizadoEm:new Date().toISOString()};
-    await db.insert(planosTrabalho).values(values).onConflictDoUpdate({target:[planosTrabalho.authUserId,planosTrabalho.competencia],set:values});
-    return Response.json({message:"Plano de trabalho salvo com sucesso."});
+    const agora = Date.now();
+    const atualizadoEm = new Date(agora + (Date.parse(String(form.get("versao") || "")) === agora ? 1 : 0)).toISOString();
+    const values={authUserId:user.userId,competencia,associacao:cadastro.associacao,agendaJson:JSON.stringify(agenda),status:"enviado",atualizadoEm};
+    const condicao = and(eq(planosTrabalho.authUserId, user.userId), eq(planosTrabalho.competencia, competencia));
+    const versao = String(form.get("versao") || "");
+    const conflito = () => Response.json({message:"Este registro foi atualizado em outra sessão. Suas alterações continuam no formulário. Confira a versão atual em outra aba antes de tentar salvar novamente."},{status:409});
+    const gravados = versao
+      ? await db.update(planosTrabalho).set(values).where(and(condicao, eq(planosTrabalho.atualizadoEm, versao))).returning({id:planosTrabalho.id})
+      : await db.insert(planosTrabalho).values(values).onConflictDoNothing({target:[planosTrabalho.authUserId,planosTrabalho.competencia]}).returning({id:planosTrabalho.id});
+    if (!gravados.length) return conflito();
+    return Response.json({message:"Plano de trabalho salvo com sucesso.",versao:values.atualizadoEm});
   }catch(error){console.error("plano_error",error);return Response.json({message:"Não foi possível salvar o plano. Tente novamente."},{status:500});}
 }

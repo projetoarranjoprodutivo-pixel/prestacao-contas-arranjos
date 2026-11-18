@@ -1,5 +1,5 @@
 import {env} from "cloudflare:workers";
-import {and,eq} from "drizzle-orm";
+import {and,eq,sql} from "drizzle-orm";
 import {getAdminUser} from "@/lib/admin";
 import {getDb} from "@/db";
 import {associacoes,colaboradores,planosTrabalho,prestacoes} from "@/db/schema";
@@ -83,7 +83,21 @@ export async function POST(request:Request){
  const atualizadoEm=new Date().toISOString();
  const values={authUserId:pessoa.authUserId,competencia:dados.competencia,municipio:atividades.find(a=>a.municipio)?.municipio||"",associacao:dados.associacao,atividadesJson:JSON.stringify(atividades),totalMinutos:Math.round(atividades.reduce((soma,a)=>soma+minutosDaAtividade(a),0)),anexosJson:JSON.stringify(anexosFinais),observacoes:descricao,status:"importado",atualizadoEm};
  const planoValues={authUserId:pessoa.authUserId,competencia:dados.competencia,associacao:dados.associacao,agendaJson:JSON.stringify(agenda),status:"importado",atualizadoEm};
- await db.batch([db.insert(prestacoes).values(values).onConflictDoUpdate({target:[prestacoes.authUserId,prestacoes.competencia],set:values}),db.insert(planosTrabalho).values(planoValues).onConflictDoUpdate({target:[planosTrabalho.authUserId,planosTrabalho.competencia],set:planoValues}),db.update(colaboradores).set({atendimentosJson:JSON.stringify([...porNome.values()]),atualizadoEm}).where(eq(colaboradores.id,pessoa.id))]);
+ // The NOT NULL constraint aborts the entire batch if one of the snapshots is stale.
+ const usuarioComVersoesAtuais = sql<string>`CASE WHEN
+   (SELECT ${prestacoes.atualizadoEm} FROM ${prestacoes} WHERE ${condicao}) IS ${dados.versaoPrestacao}
+   AND (SELECT ${planosTrabalho.atualizadoEm} FROM ${planosTrabalho} WHERE ${condicaoPlano}) IS ${dados.versaoPlano}
+   AND EXISTS (SELECT 1 FROM ${colaboradores} WHERE ${eq(colaboradores.id,pessoa.id)}
+     AND ${eq(colaboradores.atualizadoEm,pessoa.atualizadoEm)})
+   THEN ${pessoa.authUserId} ELSE NULL END`;
+ await db.batch([db.insert(prestacoes).values({...values,authUserId:usuarioComVersoesAtuais}).onConflictDoUpdate({target:[prestacoes.authUserId,prestacoes.competencia],set:values}),db.insert(planosTrabalho).values(planoValues).onConflictDoUpdate({target:[planosTrabalho.authUserId,planosTrabalho.competencia],set:planoValues}),db.update(colaboradores).set({atendimentosJson:JSON.stringify([...porNome.values()]),atualizadoEm}).where(eq(colaboradores.id,pessoa.id))]);
  return Response.json({message:`IMPORTAÇÃO CONCLUÍDA: ${pessoa.nomeCompleto} · ${dados.competencia} · ${atividades.length} ATIVIDADES. PLANO, PRESTAÇÃO E PDF ORIGINAL SALVOS.`,atividades:atividades.length});
- }catch(error){console.error("confirmar_importacao_pdf",error);return Response.json({message:error instanceof Error&&error.name==="ZodError"?"CONFIRA OS CAMPOS DAS ATIVIDADES, DATAS E DURAÇÕES ANTES DE SALVAR.":"NÃO FOI POSSÍVEL SALVAR A IMPORTAÇÃO. CONFIRA OS DADOS E TENTE NOVAMENTE."},{status:400});}
+ }catch(error){
+  let causa:unknown=error;
+  while(causa instanceof Error){
+   if(causa.message.includes("NOT NULL constraint failed: prestacoes.auth_user_id"))
+    return Response.json({message:"OS REGISTROS FORAM ALTERADOS. ATUALIZE A CONFERÊNCIA ANTES DE SALVAR."},{status:409});
+   causa=causa.cause;
+  }
+  console.error("confirmar_importacao_pdf",error);return Response.json({message:error instanceof Error&&error.name==="ZodError"?"CONFIRA OS CAMPOS DAS ATIVIDADES, DATAS E DURAÇÕES ANTES DE SALVAR.":"NÃO FOI POSSÍVEL SALVAR A IMPORTAÇÃO. CONFIRA OS DADOS E TENTE NOVAMENTE."},{status:400});}
 }

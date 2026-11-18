@@ -66,6 +66,7 @@ export default function PrestacaoForm({
   const [competencia, setCompetencia] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [origem, setOrigem] = useState("");
+  const [revisao, setRevisao] = useState({competencia:"", versao:""});
   const [carregando, setCarregando] = useState(false);
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
@@ -87,8 +88,10 @@ export default function PrestacaoForm({
     fetch(`/api/prestacao?competencia=${competencia}`, {
       signal: controller.signal,
     })
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => {
+        if (controller.signal.aborted) return;
+        setRevisao({competencia,versao:d.versao||""});
         const novaEntrega = new URLSearchParams(window.location.search).get("novaEntrega") === "1";
         if (d.atividades?.length) {
           const carregadas = d.atividades.map(
@@ -161,6 +164,7 @@ export default function PrestacaoForm({
     setStatus("loading");
     setMsg("");
     const fd = new FormData(formulario);
+    fd.set("versao",revisao.competencia===competencia?revisao.versao:"");
     fd.delete("anexos");
     fd.delete("seletor-anexos");
     fd.set("modo", "individual");
@@ -171,6 +175,7 @@ export default function PrestacaoForm({
     setStatus(resultado.ok ? "success" : "error");
     setMsg(b.message || (resultado.ok ? `Atividade ${indice + 1} salva.` : "Não foi possível salvar a atividade."));
     if (resultado.ok && !resultado.pendente) {
+      if(typeof b.versao==="string")setRevisao({competencia,versao:b.versao});
       setOrigem("prestacao");
       setAnexosSalvos(b.anexos || anexosSalvos);
     }
@@ -181,6 +186,7 @@ export default function PrestacaoForm({
     setStatus("loading");
     setMsg("");
     const fd = new FormData(e.currentTarget);
+    fd.set("versao",revisao.competencia===competencia?revisao.versao:"");
     fd.delete("anexos");
     fd.delete("seletor-anexos");
     fd.set("atividades", JSON.stringify(atividades));
@@ -192,6 +198,7 @@ export default function PrestacaoForm({
       b.message || (resultado.ok ? "Prestação salva." : "Não foi possível salvar."),
     );
     if (resultado.ok && !resultado.pendente) {
+      if(typeof b.versao==="string")setRevisao({competencia,versao:b.versao});
       setOrigem("prestacao");
       setAnexosSalvos(b.anexos || []);
       setAnexos([]);

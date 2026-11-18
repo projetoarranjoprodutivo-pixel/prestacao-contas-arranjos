@@ -30,7 +30,7 @@ export async function GET(request:Request){
     for(const a of atividades){const prevista=previstas.get(chave(a));if(!a.duracao?.trim() && prevista?.duracao){a.duracao=prevista.duracao;a.unidadeDuracao="horas";}}
     const existentes=new Set(atividades.map(chave));
     const novas=agenda.map(converter).filter(a=>!existentes.has(chave(a)));
-    return Response.json({origem:"prestacao",municipio:existente.municipio,atividades:[...apurarDuracoesRelatorio(atividades,existente.totalMinutos,plano?.status==="importado"&&plano.associacao===existente.associacao?plano.agendaJson:undefined).itens.map(paraHoras),...novas],atividadesNovas:novas.length,observacoes:existente.observacoes||"",anexos:JSON.parse(existente.anexosJson||"[]")});
+    return Response.json({versao:existente.atualizadoEm,origem:"prestacao",municipio:existente.municipio,atividades:[...apurarDuracoesRelatorio(atividades,existente.totalMinutos,plano?.status==="importado"&&plano.associacao===existente.associacao?plano.agendaJson:undefined).itens.map(paraHoras),...novas],atividadesNovas:novas.length,observacoes:existente.observacoes||"",anexos:JSON.parse(existente.anexosJson||"[]")});
   }
   if(!plano)return Response.json({origem:"vazio",municipio:"",atividades:[],observacoes:"",anexos:[]});
   const agenda=JSON.parse(plano.agendaJson) as Array<Record<string,string>>;
@@ -51,7 +51,11 @@ export async function POST(request:Request){
     if(!/^\d{4}-\d{2}$/.test(competencia)||!recebidas.length)return Response.json({message:"Preencha a competência e pelo menos uma atividade."},{status:400});
     const atividadeInvalida=recebidas.findIndex(a=>!a.municipio||!a.tipoAtividade||!a.data||!a.inicio||(a.tipoAtividade==="Visita Técnica"&&!a.agricultor)||(a.tipoAtividade==="Entrega de mudas"&&(!a.tipoMuda||Number(a.quantidadeMudas)<=0))||(a.executada&&(minutosDaAtividade(a)<=0||!a.resumo))||(!a.executada&&!a.resumo));
     if(atividadeInvalida>=0){const numero=modoIndividual?indiceExibicao+1:atividadeInvalida+1;return Response.json({message:`Revise a atividade ${numero}: preencha todos os campos obrigatórios, a duração e o resumo da execução.`},{status:400});}
-    const existente=await db.query.prestacoes.findFirst({where:and(eq(prestacoes.authUserId,user.userId),eq(prestacoes.competencia,competencia))});
+    const condicao = and(eq(prestacoes.authUserId, user.userId), eq(prestacoes.competencia, competencia));
+    const versao = String(form.get("versao") || "");
+    const conflito = () => Response.json({message:"Este registro foi atualizado em outra sessão. Suas alterações continuam no formulário. Confira a versão atual em outra aba antes de tentar salvar novamente."},{status:409});
+    const existente = await db.query.prestacoes.findFirst({where:condicao});
+    if ((existente?.atualizadoEm || "") !== versao) return conflito();
     let atividades=recebidas;
     if(modoIndividual){
       let anteriores:Atividade[]=[];try{anteriores=existente?JSON.parse(existente.atividadesJson||"[]"):[];}catch{anteriores=[];}
@@ -80,15 +84,20 @@ export async function POST(request:Request){
       if(item.size>20*1024*1024)return Response.json({message:`O arquivo ${item.name} ultrapassa 20 MB.`},{status:400});
       if(!permitidos.has(item.type))return Response.json({message:`Formato não permitido: ${item.name}. Use PDF, JPG, PNG, Word ou Excel.`},{status:400});
       const key=`prestacoes/${user.userId}/${competencia}/${crypto.randomUUID()}-${item.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;
-      await env.BUCKET.put(key,await item.arrayBuffer(),{metadata:{contentType:item.type}});
+      await env.BUCKET.put(key,item.stream(),{metadata:{contentType:item.type}});
       anexos.push({key,nome:item.name,tipo:item.type});
     }
     const observacoes=modoIndividual?(existente?.observacoes||String(form.get("observacoes")||"").trim()||null):(String(form.get("observacoes")||"").trim()||null);
     atividades=atividades.map(paraHoras);
     const atividadesNormalizadas=JSON.stringify(atividades);
-    const values={authUserId:user.userId,competencia,municipio,associacao,atividadesJson:atividadesNormalizadas,totalMinutos:Math.round(atividades.reduce((s,a)=>s+minutosDaAtividade(a),0)),anexosJson:JSON.stringify(anexos),observacoes,status:"enviado",atualizadoEm:new Date().toISOString()};
-    await db.insert(prestacoes).values(values).onConflictDoUpdate({target:[prestacoes.authUserId,prestacoes.competencia],set:values});
+    const agora = Date.now();
+    const atualizadoEm = new Date(agora + (Date.parse(String(form.get("versao") || "")) === agora ? 1 : 0)).toISOString();
+    const values={authUserId:user.userId,competencia,municipio,associacao,atividadesJson:atividadesNormalizadas,totalMinutos:Math.round(atividades.reduce((s,a)=>s+minutosDaAtividade(a),0)),anexosJson:JSON.stringify(anexos),observacoes,status:"enviado",atualizadoEm};
+    const gravados = versao
+      ? await db.update(prestacoes).set(values).where(and(condicao, eq(prestacoes.atualizadoEm, versao))).returning({id:prestacoes.id})
+      : await db.insert(prestacoes).values(values).onConflictDoNothing({target:[prestacoes.authUserId,prestacoes.competencia]}).returning({id:prestacoes.id});
+    if (!gravados.length) return conflito();
     const message=modoIndividual?`Atividade ${indiceExibicao+1} salva individualmente.`:`Todas as atividades foram salvas com ${anexos.length} anexo(s).`;
-    return Response.json({message,anexos});
+    return Response.json({message,anexos,versao:values.atualizadoEm});
   }catch(error){console.error("prestacao_error",error);const detalhe=error instanceof Error?error.message:String(error||"ERRO DESCONHECIDO");return Response.json({message:`NÃO FOI POSSÍVEL SALVAR A PRESTAÇÃO. DETALHE: ${detalhe}`},{status:500});}
 }
