@@ -24,7 +24,7 @@ import ColaboradorAcoes from "./colaborador-acoes";
 import PrestacaoAcoes from "./prestacao-acoes";
 import { associacoesDoColaborador, listarNotasServicoPendentes, type VinculoNotaServico } from "@/lib/notas-servico";
 import { ehEntregaMudas, quantidadeEntregue, tipoMudaEntregue } from "@/lib/entregas-mudas";
-import {and,eq,inArray,or} from "drizzle-orm";
+import {and,count,eq,inArray,or,sql} from "drizzle-orm";
 import { vinculoNotaNasCompetencias } from "@/db/vinculo-nota";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { chaveMunicipio, mapaAssociacoesPorMunicipio } from "@/lib/associacoes-municipios";
@@ -85,7 +85,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   // página dentro do limite de CPU do Cloudflare Worker, inclusive no celular.
   const filtroAssociacaoDocumentos=aba==="documentos-associacoes"?String(params.associacaoDocumentos||"").trim():"";
   const usaPlanos=aba==="planos";
-  const usaPrestacoes=new Set(["resumo","prestacoes","pendencias","pdfs","documentos-associacoes"]).has(aba);
+  const usaPrestacoes=new Set(["resumo","pendencias","pdfs","documentos-associacoes"]).has(aba);
   const usaDocumentos=new Set(["documentos-associacoes","pendencias"]).has(aba);
   const usaCompetencias=new Set(["resumo","pdfs","prestacoes","planos","documentos-associacoes","pendencias"]).has(aba);
   const [usuarios,todosPlanos,todasPrestacoes,listaAssociacoes,acessos,documentosDasAssociacoes,competenciasPlanos,competenciasPrestacoes,competenciasDocumentos,atividadesMudasOficiais,notasParaResumo]=await Promise.all([
@@ -118,28 +118,57 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const colaboradorPrestacoes=typeof params.colaboradorPrestacoes==="string"?params.colaboradorPrestacoes.trim():"";
   const normalizarPesquisa=(texto:string)=>texto.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").replace(/\s+/g," ");
   const termoColaborador=normalizarPesquisa(colaboradorPrestacoes);
-  const opcoesAssociacaoPrestacoes=aba==="prestacoes"
-    ? [...new Set(relatorios.map(r=>normalizarNomeAssociacao(r.associacao)))].sort((a,b)=>a.localeCompare(b,"pt-BR"))
+  const porCompetencia = inArray(prestacoes.competencia, competenciasSelecionadas);
+  const contarPorAssociacao = (filtro: ReturnType<typeof and>) => db.select({
+    associacao:prestacoes.associacao,total:count(),
+  }).from(prestacoes).where(filtro).groupBy(prestacoes.associacao);
+  const associacoesComPrestacoes = aba === "prestacoes" ? await contarPorAssociacao(porCompetencia) : [];
+  const opcoesAssociacaoPrestacoes = [...new Set(associacoesComPrestacoes.map(r=>normalizarNomeAssociacao(r.associacao)))]
+    .sort((a,b)=>a.localeCompare(b,"pt-BR"));
+  const totalPrestacoesDoPeriodo = associacoesComPrestacoes.reduce((soma,r)=>soma+r.total,0);
+  const idsCorrespondentes = termoColaborador
+    ? usuarios.filter(u=>normalizarPesquisa(u.nomeCompleto || u.authUserId).includes(termoColaborador)).map(u=>u.authUserId)
     : [];
-  const relatoriosListados=aba==="prestacoes" ? relatorios.filter(r=>
-    (!associacaoPrestacoes||normalizarNomeAssociacao(r.associacao)===associacaoPrestacoes) &&
-    (!termoColaborador||normalizarPesquisa(nomes.get(r.authUserId)?.nomeCompleto||r.authUserId).includes(termoColaborador))
-  ) : [];
-  const tamanhoPaginaPrestacoes=25;
-  const totalPaginasPrestacoes=Math.max(1,Math.ceil(relatoriosListados.length/tamanhoPaginaPrestacoes));
-  const paginaPrestacoesPedida=Number(params.paginaPrestacoes);
-  const paginaPrestacoes=Number.isSafeInteger(paginaPrestacoesPedida)
+  const associacoesCorrespondentes = associacoesComPrestacoes
+    .filter(r=>normalizarNomeAssociacao(r.associacao)===associacaoPrestacoes).map(r=>r.associacao);
+  const filtroPrestacoes = and(
+    porCompetencia,
+    associacaoPrestacoes ? sql`${prestacoes.associacao} in (select value from json_each(${JSON.stringify(associacoesCorrespondentes)}))` : undefined,
+    termoColaborador ? sql`(
+      ${prestacoes.authUserId} in (select value from json_each(${JSON.stringify(idsCorrespondentes)}))
+      or (not exists (select 1 from ${colaboradores} where ${colaboradores.authUserId} = ${prestacoes.authUserId})
+        and instr(lower(${prestacoes.authUserId}), ${termoColaborador}) > 0)
+    )` : undefined,
+  );
+  const gruposFiltrados = aba === "prestacoes" && (associacaoPrestacoes || termoColaborador)
+    ? await contarPorAssociacao(filtroPrestacoes) : associacoesComPrestacoes;
+  const contagemPorAssociacao = new Map<string,number>();
+  for (const grupo of gruposFiltrados) {
+    const nome = normalizarNomeAssociacao(grupo.associacao);
+    contagemPorAssociacao.set(nome,(contagemPorAssociacao.get(nome) ?? 0)+grupo.total);
+  }
+  const totalPrestacoesListadas = gruposFiltrados.reduce((soma,r)=>soma+r.total,0);
+  const tamanhoPaginaPrestacoes = 25;
+  const totalPaginasPrestacoes = Math.max(1,Math.ceil(totalPrestacoesListadas/tamanhoPaginaPrestacoes));
+  const paginaPrestacoesPedida = Number(params.paginaPrestacoes);
+  const paginaPrestacoes = Number.isSafeInteger(paginaPrestacoesPedida)
     ? Math.max(1,Math.min(totalPaginasPrestacoes,paginaPrestacoesPedida)) : 1;
-  const inicioPrestacoes=(paginaPrestacoes-1)*tamanhoPaginaPrestacoes;
-  const fimPrestacoes=Math.min(inicioPrestacoes+tamanhoPaginaPrestacoes,relatoriosListados.length);
-  let inicioGrupoPrestacoes=0;
-  const prestacoesPorAssociacao=aba==="prestacoes"?agruparPorAssociacao(relatoriosListados).flatMap(grupo=>{
-    const inicioGrupo=inicioGrupoPrestacoes;
-    inicioGrupoPrestacoes+=grupo.registros.length;
-    if(inicioGrupoPrestacoes<=inicioPrestacoes||inicioGrupo>=fimPrestacoes)return [];
-    const registros=grupo.registros.slice(Math.max(0,inicioPrestacoes-inicioGrupo),fimPrestacoes-inicioGrupo);
-    return [{...grupo,registros,total:grupo.registros.length}];
-  }):[];
+  const inicioPrestacoes = (paginaPrestacoes-1)*tamanhoPaginaPrestacoes;
+  const fimPrestacoes = Math.min(inicioPrestacoes+tamanhoPaginaPrestacoes,totalPrestacoesListadas);
+  const ordemAssociacoes = JSON.stringify(Object.fromEntries(associacoesComPrestacoes
+    .map(r=>[r.associacao,opcoesAssociacaoPrestacoes.indexOf(normalizarNomeAssociacao(r.associacao))])));
+  const registrosPagina = aba === "prestacoes" && totalPrestacoesListadas > 0
+    ? await db.select({id:prestacoes.id,authUserId:prestacoes.authUserId,competencia:prestacoes.competencia,
+        associacao:prestacoes.associacao,status:prestacoes.status,atualizadoEm:prestacoes.atualizadoEm})
+      .from(prestacoes).leftJoin(colaboradores,eq(colaboradores.authUserId,prestacoes.authUserId))
+      .where(filtroPrestacoes)
+      .orderBy(sql`(select value from json_each(${ordemAssociacoes}) where key = ${prestacoes.associacao})`,
+        sql`coalesce(${colaboradores.nomeCompleto},${prestacoes.authUserId}) collate nocase`,prestacoes.competencia,prestacoes.id)
+      .limit(tamanhoPaginaPrestacoes).offset(inicioPrestacoes)
+    : [];
+  const prestacoesPorAssociacao = agruparPorAssociacao(registrosPagina).map(grupo=>({
+    ...grupo,total:contagemPorAssociacao.get(grupo.associacao) ?? grupo.registros.length,
+  }));
   const hrefPrestacoes=(pagina:number)=>`/admin?aba=prestacoes&${queryCompetencias}&paginaPrestacoes=${pagina}&associacaoPrestacoes=${encodeURIComponent(associacaoPrestacoes)}&colaboradorPrestacoes=${encodeURIComponent(colaboradorPrestacoes)}`;
   const pesquisaPdf=String(params.pesquisaPdf||"").trim();const termoPdf=pesquisaPdf.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleUpperCase("pt-BR");
   const relatoriosPdf=termoPdf?relatorios.filter(r=>{const u=nomes.get(r.authUserId);return [u?.nomeCompleto,u?.email,u?.cargo,r.associacao,r.competencia].some(valor=>String(valor||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleUpperCase("pt-BR").includes(termoPdf));}):relatorios;
@@ -253,7 +282,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
   const totalNotasServicoPendentes=aba==="resumo"?listarNotasServicoPendentes(usuarios,notasParaResumo,competenciasSelecionadas).length:0;
   const indicadores=[
     {rotulo:"Usuários",valor:usuarios.length,Icon:Users},
-    {rotulo:"Prestações",valor:relatorios.length,Icon:FileCheck2},
+    {rotulo:"Prestações",valor:aba==="prestacoes"?totalPrestacoesDoPeriodo:relatorios.length,Icon:FileCheck2},
     {rotulo:"Pendências de prestação",valor:pendentesPrestacao.length,Icon:FileClock},
     {rotulo:"Pendências de notas fiscais de serviço",valor:totalNotasServicoPendentes,Icon:FileClock},
     {rotulo:"Docs. vencidos",valor:vencidos.length,Icon:FileClock},
@@ -282,8 +311,8 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
       <button className="h-10 rounded-lg bg-emerald-800 px-4 text-sm font-bold text-white">Pesquisar prestações</button>
       {(associacaoPrestacoes||colaboradorPrestacoes)&&<a href={`/admin?aba=prestacoes&${queryCompetencias}`} className="rounded-lg px-3 py-2 text-sm font-bold text-emerald-800 underline">Limpar filtros</a>}
     </form>
-    {relatoriosListados.length>0&&<nav aria-label="Paginação de prestações" className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-      <span>Exibindo {inicioPrestacoes+1}–{fimPrestacoes} de {relatoriosListados.length} prestações</span>
+    {totalPrestacoesListadas>0&&<nav aria-label="Paginação de prestações" className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+      <span>Exibindo {inicioPrestacoes+1}–{fimPrestacoes} de {totalPrestacoesListadas} prestações</span>
       {paginaPrestacoes>1&&<a href={hrefPrestacoes(paginaPrestacoes-1)} className="rounded-lg border px-3 py-2 font-semibold text-emerald-800">Anterior</a>}
       {totalPaginasPrestacoes>1&&<span>Página {paginaPrestacoes} de {totalPaginasPrestacoes}</span>}
       {paginaPrestacoes<totalPaginasPrestacoes&&<a href={hrefPrestacoes(paginaPrestacoes+1)} className="rounded-lg border px-3 py-2 font-semibold text-emerald-800">Próxima</a>}
@@ -291,7 +320,7 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<{co
     <div className="mt-4 space-y-4">{prestacoesPorAssociacao.map(grupo=><ModuloRecolhivel key={grupo.associacao} className="rounded-xl border border-emerald-100 p-4" titulo={grupo.associacao} memoria={`associacao-14-${grupo.associacao}`}><div className="flex items-center justify-between gap-3 border-b pb-3"><h3 className="font-black text-emerald-900">{grupo.associacao}</h3><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">{grupo.total} PRESTAÇÃO(ÕES)</span></div><div className="mt-3 overflow-x-auto"><table className="w-full min-w-[900px] table-auto text-left text-sm [&_th]:whitespace-nowrap [&_th]:px-3 [&_td]:px-3 [&_td]:align-top [&_th:last-child]:sticky [&_th:last-child]:right-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-white [&_td:last-child]:sticky [&_td:last-child]:right-0 [&_td:last-child]:bg-white"><thead><tr className="border-b text-slate-500"><th className="py-2">Usuário</th><th>Competência</th><th>Cargo</th><th>Associação</th><th>Atualização</th><th scope="col">PDF</th></tr></thead><tbody>{grupo.registros.map(r=>{const u=nomes.get(r.authUserId);return <tr key={r.id} className="border-b"><td className="py-3 font-semibold">{u?.nomeCompleto||r.authUserId}</td><td className="font-bold text-emerald-800">{r.competencia}</td><td>{u?.cargo||"-"}</td><td>{r.associacao}</td><td>{r.atualizadoEm.slice(0,10)}</td><td><div className="flex flex-wrap gap-x-3 gap-y-1">
       <a href={`/api/prestacao/pdf?id=${r.id}&visualizar=1`} target="_blank" rel="noopener" className="font-bold text-emerald-800 hover:underline">Visualizar</a>
       <a href={`/api/prestacao/pdf?id=${r.id}`} className="font-bold text-blue-800 hover:underline">Baixar PDF</a>
-    </div></td></tr>})}</tbody></table></div></ModuloRecolhivel>)}{!relatoriosListados.length&&<p className="py-8 text-center text-slate-500">Nenhuma prestação encontrada para os filtros selecionados.</p>}</div></ModuloRecolhivel></div>}
+    </div></td></tr>})}</tbody></table></div></ModuloRecolhivel>)}{!totalPrestacoesListadas&&<p className="py-8 text-center text-slate-500">Nenhuma prestação encontrada para os filtros selecionados.</p>}</div></ModuloRecolhivel></div>}
     {aba==="associacoes"&&<AssociacoesClient itens={listaAssociacoes.filter(a=>a.ativo)}/>}
     {aba==="envio-doc-associacao"&&<section id="envio-documentos" className="scroll-mt-5 mt-6"><DocumentosAssociacaoAdmin associacoes={associacoesAtivas}/></section>}
     {aba==="documentos-associacoes"&&<ModuloRecolhivel className="scroll-mt-5 mt-6 rounded-2xl border bg-white p-5 shadow-sm" titulo="DOCUMENTOS DAS ASSOCIAÇÕES" memoria={`modulo-8`}><div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-lg font-bold">DOCUMENTOS DAS ASSOCIAÇÕES · {rotuloCompetencias}</h2><p className="text-sm text-slate-600">EXTRATOS, NOTAS FISCAIS E PRESTAÇÃO OFICIAL PARA A ADERES.</p></div><div className="w-full sm:max-w-3xl"><AderesPdfForm associacoes={associacoesAtivas} competenciaInicial={competencia} competenciasDisponiveis={competenciasDisponiveis} compacto/></div></div><form className="mt-5 flex flex-col gap-2 rounded-xl border bg-slate-50 p-4 sm:flex-row sm:items-end"><input type="hidden" name="aba" value="documentos-associacoes"/>{competenciasSelecionadas.map(valor=><input key={valor} type="hidden" name="competencias" value={valor}/>)}<label className="flex-1 text-sm font-bold">FILTRAR DOCUMENTOS POR ASSOCIAÇÃO<select name="associacaoDocumentos" defaultValue={associacaoDocumentos} className="mt-2 h-11 w-full rounded-lg border bg-white px-3"><option value="">TODAS AS ASSOCIAÇÕES</option>{associacoesAtivas.map(nome=><option key={nome} value={nome}>{nome}</option>)}</select></label><button className="h-11 rounded-lg bg-emerald-800 px-5 font-bold text-white">MOSTRAR DOCUMENTOS</button></form><PercentuaisDocumentos itens={percentuaisDocumentos}/><section id="resumo-documentos" className="scroll-mt-5 mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-bold text-emerald-800">LEITURA E RESUMO DOS DOCUMENTOS</p><h3 className="mt-1 text-xl font-black">{associacaoDocumentos||"TODAS AS ASSOCIAÇÕES"}</h3><p className="mt-1 text-sm text-slate-600">INFORMAÇÕES IDENTIFICADAS NOS ARQUIVOS DAS COMPETÊNCIAS SELECIONADAS.</p></div><div className="rounded-xl bg-emerald-900 px-5 py-3 text-center text-white"><p className="text-xs font-bold">TOTAL DE ARQUIVOS</p><p className="text-3xl font-black">{totalDocumentosResumo}</p></div></div><div className="mt-5 grid gap-4 lg:grid-cols-2">{resumoDocumentos.map(item=><article key={item.associacao} className="rounded-xl border bg-white p-4 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-2"><div><h4 className="text-lg font-black text-emerald-900">{item.associacao}</h4><p className="mt-1 text-sm"><strong>COMPETÊNCIAS:</strong> {[...item.competencias].sort().join(" · ")}</p></div><p className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold">ATUALIZADO EM {formatarData(item.atualizadoEm.slice(0,10))}</p></div><div className="mt-4 grid gap-3 sm:grid-cols-2">{categoriasDocumentos.map(categoria=>{
