@@ -184,3 +184,59 @@ export function addXlsxDetailSheet(bytes: Uint8Array, name: string, rows: CellVa
   files[path] = strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${widths.slice(0, columnNumber(lastColumn)).map((width,i)=>`<col min="${i+1}" max="${i+1}" width="${width}" customWidth="1"/>`).join('')}</cols><sheetData>${data}</sheetData><autoFilter ref="A1:${lastColumn}${rows.length-1}"/><pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/></worksheet>`);
   return zipSync(files, {level:6});
 }
+
+export function criarPlanilhaXlsx(nome: string, linhas: CellValue[][], larguras: number[]) {
+  const ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+  const relacionamentos = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+  const nsPacote = "http://schemas.openxmlformats.org/package/2006";
+  const mime = "application/vnd.openxmlformats-officedocument.spreadsheetml";
+  const ultimaColuna = columnLetters(larguras.length);
+  const colunas = larguras.map((largura, i) =>
+    `<col min="${i + 1}" max="${i + 1}" width="${largura}" customWidth="1"/>`,
+  ).join("");
+  const dados = linhas.map((linha, i) =>
+    `<row r="${i + 1}">${linha.map((valor, j) => cellXml(
+      `${columnLetters(j + 1)}${i + 1}`, valor, i === 0 ? '<c s="1">' : "",
+    )).join("")}</row>`,
+  ).join("");
+
+  const arquivos = {
+    "[Content_Types].xml": `<Types xmlns="${nsPacote}/content-types">
+      <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+      <Default Extension="xml" ContentType="application/xml"/>
+      <Override PartName="/xl/workbook.xml" ContentType="${mime}.sheet.main+xml"/>
+      <Override PartName="/xl/worksheets/sheet1.xml" ContentType="${mime}.worksheet+xml"/>
+      <Override PartName="/xl/styles.xml" ContentType="${mime}.styles+xml"/>
+    </Types>`,
+    "_rels/.rels": `<Relationships xmlns="${nsPacote}/relationships">
+      <Relationship Id="rId1" Type="${relacionamentos}/officeDocument" Target="xl/workbook.xml"/>
+    </Relationships>`,
+    "xl/workbook.xml": `<workbook xmlns="${ns}" xmlns:r="${relacionamentos}">
+      <bookViews><workbookView/></bookViews>
+      <sheets><sheet name="${escapeXml(nome)}" sheetId="1" r:id="rId1"/></sheets>
+      <definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'${escapeXml(nome.replaceAll("'", "''"))}'!$1:$1</definedName></definedNames>
+    </workbook>`,
+    "xl/_rels/workbook.xml.rels": `<Relationships xmlns="${nsPacote}/relationships">
+      <Relationship Id="rId1" Type="${relacionamentos}/worksheet" Target="worksheets/sheet1.xml"/>
+      <Relationship Id="rId2" Type="${relacionamentos}/styles" Target="styles.xml"/>
+    </Relationships>`,
+    "xl/styles.xml": `<styleSheet xmlns="${ns}">
+      <fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
+      <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+      <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+      <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+      <cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>
+      <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+    </styleSheet>`,
+    "xl/worksheets/sheet1.xml": `<worksheet xmlns="${ns}">
+      <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+      <sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+      <cols>${colunas}</cols>
+      <sheetData>${dados}</sheetData>
+      <autoFilter ref="A1:${ultimaColuna}${linhas.length}"/>
+      <pageMargins left="0.35" right="0.35" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>
+      <pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/>
+    </worksheet>`,
+  };
+  return zipSync(Object.fromEntries(Object.entries(arquivos).map(([path, xml]) => [path, strToU8(xml)])), { level: 3 });
+}

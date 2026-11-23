@@ -1,7 +1,6 @@
 import { getAdminUser } from "@/lib/admin";
 import { createPdf, PdfSection } from "@/lib/pdf";
-import { listarAgricultores } from "@/db/agricultores";
-import { normalizarNomeAssociacao } from "@/lib/nome-associacao";
+import { filtrarAgricultores, filtrosCadastroAgricultores, listarAgricultores } from "@/db/agricultores";
 
 export const runtime = "edge";
 
@@ -11,14 +10,12 @@ export async function GET(request: Request) {
   if (!await getAdminUser()) return new Response("ACESSO RESTRITO", { status: 403 });
 
   const url = new URL(request.url);
-  const filtroAssociacao = url.searchParams.get("associacao")?.trim() || "";
-  const todos = await listarAgricultores();
-  const registros = filtroAssociacao
-    ? todos.filter((item) => item.associacao === normalizarNomeAssociacao(filtroAssociacao))
-    : todos;
+  const filtros = filtrosCadastroAgricultores(url.searchParams.get("associacao"), url.searchParams.get("municipio"));
+  const registros = filtrarAgricultores(await listarAgricultores(), filtros);
+  const nomeDoMunicipio = filtros.municipio ? registros[0]?.municipio : undefined;
 
   if (!registros.length) {
-    return new Response("NENHUM AGRICULTOR ENCONTRADO PARA A ASSOCIAÇÃO SELECIONADA.", { status: 404 });
+    return new Response("NENHUM AGRICULTOR ENCONTRADO PARA OS FILTROS SELECIONADOS.", { status: 404 });
   }
 
   const associacoes = [...new Set(registros.map((item) => informado(item.associacao)))].sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -26,7 +23,8 @@ export async function GET(request: Request) {
     heading: "RESUMO DO CADASTRO",
     lines: [
       `TOTAL DE AGRICULTORES: ${registros.length.toLocaleString("pt-BR")}`,
-      `ASSOCIAÇÃO: ${filtroAssociacao || "TODAS AS ASSOCIAÇÕES"}`,
+      `ASSOCIAÇÃO: ${filtros.associacao || "TODAS AS ASSOCIAÇÕES"}`,
+      `MUNICÍPIO: ${nomeDoMunicipio || "TODOS OS MUNICÍPIOS"}`,
       `TOTAL DE ASSOCIAÇÕES: ${associacoes.length}`,
       "ORIGEM: LISTA CONSOLIDADA DE PRODUTORES DO PROJETO ARRANJOS PRODUTIVOS",
     ],
@@ -41,26 +39,26 @@ export async function GET(request: Request) {
     });
     for (const municipio of municipios) {
       const lista = daAssociacao
-        .filter((item) => informado(item.municipio) === municipio)
-        .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+        .filter((item) => informado(item.municipio) === municipio);
       sections.push({
         heading: `${associacao} - ${municipio} - ${lista.length} AGRICULTORES`,
         lines: lista.map((item, indice) =>
-          `${String(indice + 1).padStart(3, "0")}. NOME: ${informado(item.nome)} | MUNICÍPIO: ${informado(item.municipio)} | ASSOCIAÇÃO: ${informado(item.associacao)}`
+          `${String(indice + 1).padStart(3, "0")}. NOME: ${informado(item.nome)} | MUNICÍPIO: ${informado(item.municipio)} | ASSOCIAÇÃO: ${informado(item.associacao)} | CELULAR: ${informado(item.celular)}`
         ),
       });
     }
   }
 
-  const titulo = filtroAssociacao
-    ? `CADASTRO DE AGRICULTORES - ${filtroAssociacao}`
-    : "CADASTRO GERAL DE AGRICULTORES";
+  const escopo = [filtros.associacao, nomeDoMunicipio].filter(Boolean).join(" - ");
+  const titulo = escopo ? `CADASTRO DE AGRICULTORES - ${escopo}` : "CADASTRO GERAL DE AGRICULTORES";
   const bytes = await createPdf(titulo, sections);
-  const sufixo = (filtroAssociacao || "todas-as-associacoes").replace(/[^a-zA-Z0-9_-]/g, "-");
+  const sufixo = (escopo || "todas-as-associacoes").replace(/[^a-zA-Z0-9_-]/g, "-");
+  const disposicao = url.searchParams.get("visualizar") === "1" ? "inline" : "attachment";
   return new Response(new Uint8Array(bytes), {
     headers: {
       "content-type": "application/pdf",
-      "content-disposition": `attachment; filename="cadastro-agricultores-${sufixo}.pdf"`,
+      "cache-control": "private, no-store",
+      "content-disposition": `${disposicao}; filename="cadastro-agricultores-${sufixo}.pdf"`,
     },
   });
 }

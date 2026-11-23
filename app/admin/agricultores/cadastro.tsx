@@ -87,15 +87,19 @@ export function CadastroAgricultores({ grupos, registros, associacaoInicial, mun
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-lg font-bold">Agricultores cadastrados</h2>
       <button type="button" disabled={salvando} className={botao} onClick={() => abrir({
-        id: crypto.randomUUID(), revisao: 0, nome: "", associacao: associacaoInicial, municipio: municipioInicial,
+        id: crypto.randomUUID(), revisao: 0, nome: "", celular: "", associacao: associacaoInicial, municipio: municipioInicial,
       }, false)}>Incluir agricultor</button>
     </div>
     {mensagem && <p role="status" className="text-sm font-bold text-emerald-800">{mensagem}</p>}
     {formulario && <form id="editar-agricultor" onSubmit={salvar} className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
       <h3 className="font-bold">{formulario.editar ? "Editar agricultor" : "Novo agricultor"}</h3>
-      <fieldset disabled={salvando} className="grid gap-3 sm:grid-cols-3">
+      <fieldset disabled={salvando} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="grid gap-1 text-sm font-bold">Nome do agricultor
           <input autoFocus className={campo} required maxLength={200} value={formulario.nome} onChange={e => setFormulario({ ...formulario, nome: e.target.value })} />
+        </label>
+        <label className="grid gap-1 text-sm font-bold">Celular
+          <input type="tel" autoComplete="tel" className={campo} maxLength={30} placeholder="(27) 99999-9999"
+            value={formulario.celular} onChange={e => setFormulario({ ...formulario, celular: e.target.value })} />
         </label>
         <label className="grid gap-1 text-sm font-bold">Associação
           <select className={campo} required value={formulario.associacao} onChange={e => setFormulario({ ...formulario, associacao: e.target.value, municipio: "" })}>
@@ -120,13 +124,14 @@ export function CadastroAgricultores({ grupos, registros, associacaoInicial, mun
       : <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-100">
-            <tr><th className="p-3" scope="col">Nome</th><th className="p-3" scope="col">Associação</th><th className="p-3" scope="col">Município</th><th className="p-3" scope="col">Ações</th></tr>
+            <tr><th className="p-3" scope="col">Nome</th><th className="p-3" scope="col">Associação</th><th className="p-3" scope="col">Município</th><th className="p-3" scope="col">Celular</th><th className="p-3" scope="col">Ações</th></tr>
           </thead>
           <tbody>
             {registros.map(agricultor => <tr key={agricultor.id} className="border-b">
               <td className="p-3 font-bold">{agricultor.nome}</td>
               <td className="p-3">{agricultor.associacao}</td>
               <td className="p-3">{agricultor.municipio}</td>
+              <td className="whitespace-nowrap p-3">{agricultor.celular || "—"}</td>
               <td className="p-3"><button type="button" disabled={salvando} className="font-bold text-emerald-800 underline" aria-label={`Editar ${agricultor.nome}`} onClick={() => abrir(agricultor)}>Editar</button></td>
             </tr>)}
           </tbody>
