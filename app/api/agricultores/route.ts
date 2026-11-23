@@ -1,9 +1,8 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
-import agricultores from "@/data/agricultores-iniciais.json";
+import { listarAgricultores } from "@/db/agricultores";
+import { normalizarNomeAssociacao } from "@/lib/nome-associacao";
 
 export const runtime = "edge";
-
-type AgricultorBase = { n: string; m: string; a: string };
 
 export async function GET(request: Request) {
   const user = await getChatGPTUser();
@@ -14,16 +13,16 @@ export async function GET(request: Request) {
   const associacao = new URL(request.url).searchParams.get("associacao")?.trim() || "";
   if (!associacao) return Response.json({ agricultores: [] });
 
-  const lista = (agricultores as AgricultorBase[])
-    .filter((item) => item.a === associacao)
+  const lista = (await listarAgricultores())
+    .filter((item) => item.associacao === normalizarNomeAssociacao(associacao))
     .map((item) => ({
-      nome: item.n,
-      municipio: item.m === "NÃO INFORMADO" ? "" : item.m,
-      associacao: item.a,
+      nome: item.nome,
+      municipio: item.municipio === "NÃO INFORMADO" ? "" : item.municipio,
+      associacao: item.associacao,
     }));
 
   return Response.json(
     { agricultores: lista, total: lista.length },
-    { headers: { "cache-control": "private, max-age=300" } }
+    { headers: { "cache-control": "private, no-store" } }
   );
 }

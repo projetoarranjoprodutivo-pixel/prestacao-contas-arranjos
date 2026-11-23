@@ -9,7 +9,8 @@ import { getAderesOrAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { associacoes, colaboradores, documentosAssociacao, prestacoes } from "@/db/schema";
 import { excelDate, fillXlsxTemplate, addXlsxDetailSheet, type CellValue } from "@/lib/xlsx-template";
-import agricultoresIniciais from "@/data/agricultores-iniciais.json";
+import { listarAgricultores } from "@/db/agricultores";
+import { normalizarNomeAssociacao } from "@/lib/nome-associacao";
 import { ehEntregaMudas, quantidadeEntregue } from "@/lib/entregas-mudas";
 
 export const runtime = "edge";
@@ -42,7 +43,6 @@ type Arquivo = {
   fornecedor?: string;
 };
 type AgricultorCadastro = { agricultor?: string; municipio?: string; comunidade?: string; propriedade?: string; telefone?: string };
-type AgricultorInicial = { n: string; m: string; a: string };
 type Registro = typeof prestacoes.$inferSelect;
 
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -131,9 +131,9 @@ async function gerarAgricultura(
     const chave = `${chaveNome(nomeTexto)}|${chaveNome(municipioTexto)}`;
     if (!agricultores.has(chave)) agricultores.set(chave, { nome: nomeTexto, municipio: municipioTexto });
   };
-  (agricultoresIniciais as AgricultorInicial[])
-    .filter((item) => item.a === associacao.nome)
-    .forEach((item) => adicionarAgricultor(item.n, item.m));
+  (await listarAgricultores())
+    .filter((item) => item.associacao === normalizarNomeAssociacao(associacao.nome))
+    .forEach((item) => adicionarAgricultor(item.nome, item.municipio));
   for (const usuario of usuarios.values()) {
     const associacoesUsuario = new Set([texto(usuario.associacao), ...lista<string>(usuario.associacoesJson)]);
     if (!associacoesUsuario.has(associacao.nome)) continue;
