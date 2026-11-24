@@ -30,8 +30,8 @@ export default function PdfMudas({ consulta }: { consulta: string }) {
 
   const estilo = "inline-flex h-11 items-center gap-2 rounded-xl bg-blue-800 px-5 text-sm font-bold text-white shadow-sm";
   return <div aria-live="polite">
-    {url ? <a className={estilo} href={url} download={`entregas-mudas-${new URLSearchParams(consulta).getAll("competencias").join("-")}.pdf`}><Download size={16}/>Baixar PDF</a>
-      : <button type="button" className={estilo} onClick={gerar} disabled={ocupado}><Download size={16}/>{ocupado ? "Gerando PDF…" : "Gerar PDF"}</button>}
+    {url ? <a className={estilo} href={url} download="entregas-mudas-consolidado.pdf"><Download size={16}/>Baixar PDF</a>
+      : <button type="button" className={estilo} onClick={gerar} disabled={ocupado}><Download size={16}/>{ocupado ? "Gerando PDF…" : "Gerar PDF consolidado"}</button>}
     {erro && <p role="alert">{erro}</p>}
   </div>;
 }
