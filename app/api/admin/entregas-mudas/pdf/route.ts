@@ -17,12 +17,13 @@ export async function GET(request:Request){
   if(!await getAdminUser())return new Response("ACESSO RESTRITO",{status:403});
   const url=new URL(request.url);
   const competencias=[...new Set(url.searchParams.getAll("competencias"))].filter(valor=>/^\d{4}-\d{2}$/.test(valor)).sort();
-  if(!competencias.length)return new Response("INFORME AO MENOS UMA COMPETÊNCIA",{status:400});
+  const todas = url.searchParams.get("periodo") === "todas";
+  if(!todas && !competencias.length)return new Response("INFORME AO MENOS UMA COMPETÊNCIA",{status:400});
 
   const db=getDb();
   const [registros,usuarios,listaAssociacoes]=await Promise.all([
-    listarAtividadesDeMudasOficiais(competencias),
-    db.select().from(colaboradores),
+    listarAtividadesDeMudasOficiais(todas ? undefined : competencias),
+    db.select({authUserId:colaboradores.authUserId,nomeCompleto:colaboradores.nomeCompleto}).from(colaboradores),
     db.select().from(associacoes),
   ]);
   const nomes=new Map(usuarios.map(usuario=>[usuario.authUserId,usuario.nomeCompleto]));
@@ -48,10 +49,13 @@ export async function GET(request:Request){
   const total=entregas.reduce((soma,item)=>soma+item.quantidade,0);
   const nomesAssociacoes=[...new Set(entregas.map(item=>item.associacao))];
   const secoes=[
-    {heading:"RESUMO DO PERÍODO",lines:[`COMPETÊNCIAS: ${competencias.join(" · ")}`,`TOTAL COM QUANTIDADE INFORMADA: ${total.toLocaleString("pt-BR")} MUDAS`,`TOTAL DE REGISTROS DE ENTREGA: ${entregas.length}`]},
+    {heading:"RESUMO DO PERÍODO",lines:[`COMPETÊNCIAS: ${todas ? "TODAS AS COMPETÊNCIAS" : competencias.join(" · ")}`,`TOTAL COM QUANTIDADE INFORMADA: ${total.toLocaleString("pt-BR")} MUDAS`,`TOTAL DE REGISTROS DE ENTREGA: ${entregas.length}`]},
     ...nomesAssociacoes.map(associacao=>{const itens=entregas.filter(item=>item.associacao===associacao);const totalAssociacao=itens.reduce((soma,item)=>soma+item.quantidade,0);return{heading:associacao,lines:[`TOTAL DA ASSOCIAÇÃO: ${totalAssociacao.toLocaleString("pt-BR")} MUDAS`,...itens.map(item=>`MUNICÍPIO: ${item.municipio} | DATA: ${dataBr(item.data)} | COMPETÊNCIA: ${item.competencia} | TIPO: ${item.tipo} | QUANTIDADE: ${item.quantidade>0?item.quantidade.toLocaleString("pt-BR"):"NÃO INFORMADA"} | RESPONSÁVEL: ${item.responsavel}`)]}}),
   ];
   if(!entregas.length)secoes.push({heading:"RESULTADO",lines:["NENHUMA ENTREGA DE MUDAS FOI ENCONTRADA NAS COMPETÊNCIAS SELECIONADAS."]});
+  if (url.searchParams.get("formato") === "dados") {
+    return Response.json({ secoes }, { headers: { "Cache-Control": "private, no-store" } });
+  }
   const pdf=await createPdf("RELATÓRIO CONSOLIDADO DE ENTREGAS DE MUDAS",secoes);
-  return new Response(pdf.buffer.slice(pdf.byteOffset,pdf.byteOffset+pdf.byteLength),{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="entregas-mudas-${competencias.join("-")}.pdf"`}});
+  return new Response(new Uint8Array(pdf).buffer,{headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="entregas-mudas-${todas ? "consolidado" : competencias.join("-")}.pdf"`}});
 }
